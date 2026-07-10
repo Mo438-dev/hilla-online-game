@@ -10,19 +10,78 @@ const MAROON = "#6B1F2A";
 const MAROON_DK = "#4A141C";
 const GOLD = "#C9A227";
 const INK = "#2B211C";
-const COMMON_COLOR = "#7A6A2E";
 const TEAL = "#1F6F6B";
 
 /* ---------------------------------- DATA ---------------------------------- */
+/* rarity (شائع/متوسط/نادر) is just an info label printed on each item card —
+   NOT a separate no-region category. Every item still belongs to one region. */
+
+const RARITY_META = {
+  common: { label: "شائع", color: "#8A8578" },
+  medium: { label: "متوسط", color: "#B8860B" },
+  rare: { label: "نادر", color: "#8B1E3F" },
+};
+const RARITY_COPIES = { common: 7, medium: 5, rare: 3 };
 
 const REGIONS = [
-  { id: "najdi", name: "نجدي", color: "#5B2C6F", items: ["عقال", "مخطم", "ثوب نجدي", "بشت"] },
-  { id: "sharqi", name: "شرقي", color: "#2F4B33", items: ["مرودن", "غوايش", "ثوب شرقي", "مخنق"] },
-  { id: "hijazi", name: "حجازي", color: "#2B211C", items: ["برقع حجازي", "مقصب", "طرحة", "قفطان"] },
-  { id: "janoubi", name: "جنوبي", color: "#1F6F6B", items: ["زهرة", "خرز", "ملفع", "مسبت"] },
+  {
+    id: "najdi",
+    name: "نجدي",
+    color: "#5B2C6F",
+    items: [
+      { name: "عقال", rarity: "common" },
+      { name: "المخطم", rarity: "rare" },
+      { name: "بشت", rarity: "medium" },
+      { name: "ثوب", rarity: "medium" },
+      { name: "دراعة", rarity: "medium" },
+      { name: "مخنق", rarity: "medium" },
+    ],
+  },
+  {
+    id: "sharqi",
+    name: "شرقي",
+    color: "#2F4B33",
+    items: [
+      { name: "مرودن", rarity: "common" },
+      { name: "قلادة", rarity: "common" },
+      { name: "برقع أسود", rarity: "common" },
+      { name: "دقلة", rarity: "common" },
+      { name: "طفشة", rarity: "medium" },
+      { name: "نشل", rarity: "medium" },
+      { name: "نفنوف", rarity: "medium" },
+      { name: "هامة", rarity: "medium" },
+      { name: "المقصب", rarity: "medium" },
+    ],
+  },
+  {
+    id: "janoubi",
+    name: "جنوبي",
+    color: "#1F6F6B",
+    items: [
+      { name: "خواتم", rarity: "common" },
+      { name: "المريشة", rarity: "rare" },
+      { name: "منديل برتقالي", rarity: "medium" },
+      { name: "المجنب العسيري", rarity: "medium" },
+      { name: "بيدي", rarity: "medium" },
+      { name: "رشرش", rarity: "medium" },
+      { name: "متفت", rarity: "medium" },
+    ],
+  },
+  {
+    id: "gharbi",
+    name: "غربي",
+    color: "#2C3E63",
+    items: [
+      { name: "غوايش", rarity: "common" },
+      { name: "حلق", rarity: "common" },
+      { name: "البرم والمسفع", rarity: "rare" },
+      { name: "برقع حجازي", rarity: "rare" },
+      { name: "شاية", rarity: "medium" },
+      { name: "مبقر", rarity: "medium" },
+      { name: "الزبون الغربي", rarity: "medium" },
+    ],
+  },
 ];
-
-const COMMON_ITEMS = ["قلادة", "خاتم", "محفظة عطر"];
 
 const ACTION_TYPES = [
   { id: "giveTake", name: "عطني وأعطيك", count: 2, icon: Gift, desc: "أعط لاعبًا كرتين واسحب منه كرتين بدون رؤيتها." },
@@ -34,7 +93,7 @@ const ACTION_TYPES = [
 ];
 
 const REC_COUNTS = { 2: 20, 3: 19, 4: 17, 5: 15, 6: 15 };
-const JEWELRY = ["قلادة", "خاتم", "غوايش", "خرز", "مرودن", "مسبت", "مخنق", "محفظة عطر"];
+const JEWELRY = ["غوايش", "حلق", "خواتم", "قلادة", "مرودن"];
 let _uid = 0;
 const uid = () => `c${Date.now().toString(36)}${(_uid++).toString(36)}`;
 
@@ -57,16 +116,12 @@ function shuffle(arr) {
 function buildItemDeck() {
   const deck = [];
   REGIONS.forEach((r) => {
-    r.items.forEach((name) => {
-      for (let k = 0; k < 6; k++) {
-        deck.push({ id: uid(), kind: "item", name, region: r.id, regionName: r.name, color: r.color });
+    r.items.forEach((it) => {
+      const copies = RARITY_COPIES[it.rarity];
+      for (let k = 0; k < copies; k++) {
+        deck.push({ id: uid(), kind: "item", name: it.name, region: r.id, regionName: r.name, color: r.color, rarity: it.rarity });
       }
     });
-  });
-  COMMON_ITEMS.forEach((name) => {
-    for (let k = 0; k < 8; k++) {
-      deck.push({ id: uid(), kind: "item", name, region: null, regionName: "شائع", color: COMMON_COLOR });
-    }
   });
   return deck;
 }
@@ -85,17 +140,14 @@ function buildCoordDeck() {
   const deck = [];
   REGIONS.forEach((r) => {
     for (let v = 0; v < 3; v++) {
-      const n = Math.random() < 0.4 ? 4 : 3;
-      const items = shuffle(r.items).slice(0, n);
+      const n = Math.min(r.items.length, Math.random() < 0.4 ? 4 : 3);
+      const items = shuffle(r.items.map((it) => it.name)).slice(0, n);
       deck.push({ id: uid(), type: "region", region: r.id, regionName: r.name, color: r.color, items });
     }
   });
   for (let v = 0; v < 8; v++) {
-    const pool = shuffle([
-      ...REGIONS.flatMap((r) => r.items.map((name) => ({ name, region: r.id }))),
-      ...COMMON_ITEMS.map((name) => ({ name, region: null })),
-    ]);
-    const items = pool.slice(0, 2 + (v % 2)).map((p) => p.name);
+    const pool = shuffle(REGIONS.flatMap((r) => r.items.map((it) => it.name)));
+    const items = pool.slice(0, 2 + (v % 2));
     deck.push({ id: uid(), type: "random", region: null, items });
   }
   return shuffle(deck);
@@ -389,7 +441,8 @@ function CardBackHero() {
 }
 
 function ItemCard({ card, selected, onClick, small }) {
-  const color = card.region ? REGIONS.find((r) => r.id === card.region).color : COMMON_COLOR;
+  const color = REGIONS.find((r) => r.id === card.region)?.color || GOLD;
+  const rarity = RARITY_META[card.rarity] || RARITY_META.common;
   const Icon = JEWELRY.includes(card.name) ? Gem : Shirt;
   return (
     <button
@@ -401,10 +454,16 @@ function ItemCard({ card, selected, onClick, small }) {
     >
       <CornerFlourish pos="tl" color={GOLD} />
       <CornerFlourish pos="tr" color={GOLD} />
-      <div className="pt-2 px-1">
+      <div className="pt-2 px-1 flex items-center justify-center gap-1">
         <div className="text-[9px] font-bold" style={{ color, fontFamily: "Tajawal" }}>
           {card.regionName}
         </div>
+        <span
+          className="text-[7px] font-bold px-1 rounded-sm"
+          style={{ background: `${rarity.color}22`, color: rarity.color, border: `1px solid ${rarity.color}55` }}
+        >
+          {rarity.label}
+        </span>
       </div>
       <div className="flex-1 flex items-center justify-center">
         <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: `${color}22`, border: `1.5px solid ${color}` }}>
