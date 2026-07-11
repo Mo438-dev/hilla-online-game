@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Shirt, Gem, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Archive, Ban, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut } from "lucide-react";
+import { Shirt, Gem, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Archive, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut } from "lucide-react";
 
 /* ---------------------------------- PALETTE ---------------------------------- */
 const CREAM = "#F3E9D2";
@@ -83,6 +83,22 @@ const REGIONS = [
   },
 ];
 
+const JEWELRY = ["غوايش", "حلق", "خواتم", "قلادة", "مرودن"];
+const REGION_ORDER = REGIONS.map((r) => r.id);
+const RARITY_ORDER = { common: 0, medium: 1, rare: 2 };
+
+function sortItemsByRegion(items) {
+  return [...items].sort((a, b) => {
+    const ra = REGION_ORDER.indexOf(a.region);
+    const rb = REGION_ORDER.indexOf(b.region);
+    if (ra !== rb) return ra - rb;
+    const rra = RARITY_ORDER[a.rarity] ?? 0;
+    const rrb = RARITY_ORDER[b.rarity] ?? 0;
+    if (rra !== rrb) return rra - rrb;
+    return a.name.localeCompare(b.name, "ar");
+  });
+}
+
 const ACTION_TYPES = [
   { id: "giveTake", name: "عطني وأعطيك", count: 2, icon: Gift, desc: "أعط لاعبًا كرتين واسحب منه كرتين بدون رؤيتها." },
   { id: "drawTwo", name: "اقدع", count: 4, icon: Shuffle, desc: "لاعب مختار يسحب كرتين من كومة السحب." },
@@ -93,7 +109,27 @@ const ACTION_TYPES = [
 ];
 
 const REC_COUNTS = { 2: 20, 3: 19, 4: 17, 5: 15, 6: 15 };
-const JEWELRY = ["غوايش", "حلق", "خواتم", "قلادة", "مرودن"];
+
+const BOT_NAME_POOL = [
+  "أنا مجرد بوت", "بوت أبو ناصر", "أبو الذكاء الاصطناعي", "لا تضغطني", "نسخة اقتصادية",
+  "موظف السيرفر", "مصنع في السيرفر", "جاري التفكير", "أبو البرمجة", "أنا مجرد أكواد",
+  "تحديثي قديم", "ولد الخوارزمية", "روبوت متواضع", "بطاريتي ١٪", "أبو البكسلات",
+  "بوت أبو صالح", "أبو السيرفر", "مصنوع من أكواد", "قيد البرمجة", "تمت برمجتي على السريع",
+  "لا تعصب أنا بوت", "أنا نسخة تجريبية", "بوت أبو سعيد", "يشتغل إذا بغى", "تم استدعائي",
+  "مجرد خوارزمية", "أبو الأكواد", "جاري اللفلفة", "لا ترفع البلاغ", "برمجوني ومشوا",
+  "موظف آلي", "أبو ناصر", "ابن السيرفر", "أقوى بوت بالحارة", "أنا اختبار",
+  "أبو الخوارزميات", "روبوت بسيط", "تمت صناعتي محليًا", "مصنوع في القراج", "أبو اللاقات",
+  "أبو صفر وواحد", "معلق من أمس", "أبو التحديثات", "جاري التحديث", "لا تتوقع كثير",
+  "أمي برمجتني", "بوت شغال بالبركة", "ذكاء اصطناعي من الحراج", "أبوي حدثني",
+];
+
+function pickRandomBotNames(n) {
+  return shuffle(BOT_NAME_POOL).slice(0, n);
+}
+
+const BLOCK_WINDOW_SEC = 10;
+const BLOCK_WINDOW_MS = BLOCK_WINDOW_SEC * 1000;
+
 let _uid = 0;
 const uid = () => `c${Date.now().toString(36)}${(_uid++).toString(36)}`;
 
@@ -136,19 +172,52 @@ function buildActionDeck() {
   return deck;
 }
 
+// Splits a shuffled item list into 3–4 sized chunks that together cover every item at least
+// once (per call). Used with rarity-weighted "passes" below so common items end up on far more
+// تنسيق cards than rare ones, while every single card still has 3-4 distinct items.
+function chunkCoverAll(items, minSize = 3, maxSize = 4) {
+  const shuffled = shuffle(items);
+  const chunks = [];
+  let i = 0;
+  while (i < shuffled.length) {
+    const size = Math.min(shuffled.length - i, Math.random() < 0.5 ? minSize : maxSize);
+    chunks.push(shuffled.slice(i, i + size));
+    i += size;
+  }
+  return chunks;
+}
+
+// Appearance weighting: for every 2 times a rare item shows up on a تنسيق card, a medium item
+// shows up 3 times and a common item shows up 5 times — commons are easy to unload, rares are
+// genuinely hard to place.
+const RARITY_PASSES = { common: 5, medium: 3, rare: 2 };
+const MAX_PASSES = 5;
+
+function namesForPass(items, pass) {
+  return items.filter((it) => (RARITY_PASSES[it.rarity] ?? 3) >= pass).map((it) => it.name);
+}
+
 function buildCoordDeck() {
   const deck = [];
   REGIONS.forEach((r) => {
-    for (let v = 0; v < 3; v++) {
-      const n = Math.min(r.items.length, Math.random() < 0.4 ? 4 : 3);
-      const items = shuffle(r.items.map((it) => it.name)).slice(0, n);
-      deck.push({ id: uid(), type: "region", region: r.id, regionName: r.name, color: r.color, items });
+    for (let pass = 1; pass <= MAX_PASSES; pass++) {
+      const names = namesForPass(r.items, pass);
+      if (names.length === 0) continue;
+      chunkCoverAll(names).forEach((items) => {
+        deck.push({ id: uid(), type: "region", region: r.id, regionName: r.name, color: r.color, items });
+      });
     }
   });
-  for (let v = 0; v < 8; v++) {
-    const pool = shuffle(REGIONS.flatMap((r) => r.items.map((it) => it.name)));
-    const items = pool.slice(0, 2 + (v % 2));
-    deck.push({ id: uid(), type: "random", region: null, items });
+
+  // عشوائي cards match by name only (any region) — apply the same rarity weighting across the
+  // full item list so the ratio holds for the whole coordination deck, not just region cards.
+  const allItems = REGIONS.flatMap((r) => r.items);
+  for (let pass = 1; pass <= MAX_PASSES; pass++) {
+    const names = namesForPass(allItems, pass);
+    if (names.length === 0) continue;
+    chunkCoverAll(names).forEach((items) => {
+      deck.push({ id: uid(), type: "random", region: null, items });
+    });
   }
   return shuffle(deck);
 }
@@ -164,7 +233,7 @@ function createInitialGame(playersMeta, perPlayer) {
   const actions = shuffle(buildActionDeck());
   const full = shuffle([...items, ...actions]);
   const cap = Math.min(perPlayer, Math.floor(full.length / playersMeta.length));
-  const players = playersMeta.map((pm) => ({ id: pm.id, name: pm.name, hand: [] }));
+  const players = playersMeta.map((pm) => ({ id: pm.id, name: pm.name, hand: [], isBot: !!pm.isBot }));
   for (let i = 0; i < cap; i++) {
     players.forEach((p) => p.hand.push(full.pop()));
   }
@@ -179,6 +248,8 @@ function createInitialGame(playersMeta, perPlayer) {
     currentCoord: first,
     lockCoord: false,
     currentPlayerIndex: 0,
+    actionUsedThisTurn: false,
+    turnSerial: 0,
     log: [`بدأت اللعبة بـ ${players.length} لاعبين، ${cap} كرت لكل لاعب.`],
     winner: null,
     pendingAction: null,
@@ -251,14 +322,27 @@ function endRound(game) {
   return g;
 }
 
+// Turn only advances here — every other reducer just mutates state and hands control back to the
+// same player, so a player can freely combine item plays with one action card before ending.
+// turnSerial increments exactly once per turn; the online bot executor uses it to guarantee at
+// most one bot move per turn even if the same room state is polled repeatedly.
 function endTurn(game) {
-  let g = { ...game };
+  let g = { ...game, actionUsedThisTurn: false, turnSerial: (game.turnSerial ?? 0) + 1 };
   if (g.currentPlayerIndex === g.players.length - 1) {
     g = endRound(g);
     g.currentPlayerIndex = 0;
   } else {
     g.currentPlayerIndex = g.currentPlayerIndex + 1;
   }
+  return g;
+}
+
+// Explicit "end my turn" — the player calls this once they're done (after any combination of
+// item plays / one action card), or immediately to just pass.
+function rEndTurn(game, playerId) {
+  const player = game.players.find((p) => p.id === playerId);
+  let g = pushLog(game, `${player.name} أنهى دوره.`);
+  g = endTurn(g);
   return g;
 }
 
@@ -284,31 +368,28 @@ function rPlayItems(game, playerId, cardIds) {
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed] };
   g1 = pushLog(g1, `${player.name} وضع: ${cards.map((c) => c.name).join("، ")}.`);
   g1 = checkWin(g1, playerId);
-  if (!g1.winner) g1 = endTurn(g1);
+  // Turn does NOT end here — the caller is responsible for calling rEndTurn right after a
+  // successful item play (placing items always ends the turn).
   return { game: g1, error: null };
 }
 
 function rPassTurn(game, playerId) {
-  const player = game.players.find((p) => p.id === playerId);
-  let g = pushLog(game, `${player.name} تجاوز الجولة.`);
-  g = endTurn(g);
-  return g;
+  return rEndTurn(game, playerId);
 }
 
 function rPlayFreeze(game, playerId, cardId) {
   const player = game.players.find((p) => p.id === playerId);
   let { game: g1, removed } = removeFromHand(game, playerId, [cardId]);
-  g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], lockCoord: true };
+  g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], lockCoord: true, actionUsedThisTurn: true };
   g1 = pushLog(g1, `${player.name} لعب ثبّت الحَلّة.`);
   g1 = checkWin(g1, playerId);
-  if (!g1.winner) g1 = endTurn(g1);
   return g1;
 }
 
 function rPlayDig(game, playerId, cardId) {
   const player = game.players.find((p) => p.id === playerId);
   let { game: g1, removed } = removeFromHand(game, playerId, [cardId]);
-  g1 = { ...g1, discardPile: [...g1.discardPile, ...removed] };
+  g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], actionUsedThisTurn: true };
   const { game: g2, drawn } = drawFromPile(g1, 3);
   let g3 = { ...g2, digOptions: { playerId, cards: drawn } };
   g3 = pushLog(g3, `${player.name} فتّش الصندوق.`);
@@ -324,23 +405,22 @@ function rFinishDig(game, keepId) {
   const player = g.players.find((p) => p.id === playerId);
   g = pushLog(g, `${player.name} أضاف "${kept.name}" من فتّش الصندوق.`);
   g = checkWin(g, playerId);
-  if (!g.winner) g = endTurn(g);
   return g;
 }
 
 function rDeclareAction(game, playerId, cardId, actionType, targetId) {
   const player = game.players.find((p) => p.id === playerId);
   let { game: g1, removed } = removeFromHand(game, playerId, [cardId]);
-  g1 = { ...g1, discardPile: [...g1.discardPile, ...removed] };
-  g1 = { ...g1, pendingAction: { actionType, actorId: playerId, targetId, actorName: player.name } };
+  g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], actionUsedThisTurn: true };
+  g1 = { ...g1, pendingAction: { id: uid(), actionType, actorId: playerId, targetId, actorName: player.name, startedAt: Date.now() } };
   return g1;
 }
 
 function rDeclareGiveTake(game, playerId, cardId, targetId, giveIds) {
   const player = game.players.find((p) => p.id === playerId);
   let { game: g1, removed } = removeFromHand(game, playerId, [cardId]);
-  g1 = { ...g1, discardPile: [...g1.discardPile, ...removed] };
-  g1 = { ...g1, pendingAction: { actionType: "giveTake", actorId: playerId, targetId, actorName: player.name, giveIds } };
+  g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], actionUsedThisTurn: true };
+  g1 = { ...g1, pendingAction: { id: uid(), actionType: "giveTake", actorId: playerId, targetId, actorName: player.name, giveIds, startedAt: Date.now() } };
   return g1;
 }
 
@@ -353,12 +433,12 @@ function rCancelWithBlock(game, blockerId) {
   g1 = pushLog(g1, `${blocker.name} استخدم لا ما تقدر! تم إلغاء ${actionMeta(game.pendingAction.actionType).name}.`);
   g1 = { ...g1, pendingAction: null };
   g1 = checkWin(g1, blockerId);
-  if (!g1.winner) g1 = endTurn(g1);
   return g1;
 }
 
 function rResolvePendingAction(game) {
   const pa = game.pendingAction;
+  if (!pa) return game;
   let g = { ...game, pendingAction: null };
   const target = g.players.find((p) => p.id === pa.targetId);
   if (pa.actionType === "drawTwo") {
@@ -383,8 +463,134 @@ function rResolvePendingAction(game) {
     g = pushLog(g, `${pa.actorName} بادل كروت مع ${target.name} (عطني وأعطيك).`);
   }
   g = checkWin(g, pa.actorId);
-  if (!g.winner) g = endTurn(g);
   return g;
+}
+
+/* ------------------------------- BOT AI (pure) -------------------------------
+   Greedy-optimal heuristic bot. Not a full game-tree search, but it never leaves value on the
+   table: always plays the maximum number of matching items it legally can, and picks whichever
+   single action card gives the best expected swing (fish for a match, lock in a bonus round,
+   set back the leader, or dump dead weight). All functions here are pure (game in -> game out),
+   same shape as the r* reducers above, so this is safe to reuse from any host app. */
+
+function findMatchingItems(hand, coord) {
+  if (coord.type === "random") {
+    const m = hand.find((c) => c.kind === "item" && coord.items.includes(c.name));
+    return m ? [m] : [];
+  }
+  const seen = new Set();
+  return hand.filter((c) => {
+    if (c.kind !== "item" || c.region !== coord.region || !coord.items.includes(c.name)) return false;
+    if (seen.has(c.name)) return false;
+    seen.add(c.name);
+    return true;
+  });
+}
+
+function pickBestKeepFromDraw(drawnCards, coord) {
+  const matches = drawnCards.filter(
+    (c) => c.kind === "item" && (coord.type === "random" ? coord.items.includes(c.name) : c.region === coord.region && coord.items.includes(c.name))
+  );
+  if (matches.length) return matches[0].id;
+  // Nothing playable right now — rare items rarely show up on تنسيق cards, so grabbing one just
+  // means being stuck with it later. Prefer the easiest-to-unload (common) item instead.
+  const rarityRank = { common: 0, medium: 1, rare: 2 };
+  const items = drawnCards.filter((c) => c.kind === "item").sort((a, b) => (rarityRank[a.rarity] ?? 1) - (rarityRank[b.rarity] ?? 1));
+  return (items[0] || drawnCards[0]).id;
+}
+
+function pickGiveAwayIds(hand, n) {
+  // Lower score = more willing to give away. Rare items rarely show up on تنسيق cards, so they're
+  // hard to get rid of through normal matching — dump those first. Common items will clear
+  // themselves naturally (they show up on تنسيق cards constantly), so keep those.
+  const rarityScore = { rare: 0, medium: 1, common: 3 };
+  const scored = hand.map((c) => ({ c, score: c.kind === "action" ? 2 : rarityScore[c.rarity] ?? 1 }));
+  scored.sort((a, b) => a.score - b.score);
+  return scored.slice(0, n).map((x) => x.c.id);
+}
+
+function botDecideTurn(game, botId) {
+  const botStart = game.players.find((p) => p.id === botId);
+  const coord = game.currentCoord;
+  let g = game;
+
+  const initialMatches = findMatchingItems(botStart.hand, coord);
+  const actionCardsInitial = botStart.hand.filter((c) => c.kind === "action");
+  const dig = actionCardsInitial.find((c) => c.actionType === "dig");
+  const freeze = actionCardsInitial.find((c) => c.actionType === "freeze");
+
+  // Freeze is only worth it if there are unplayed matches left to cash in on the bonus round.
+  const remainingRegionMatches =
+    coord.type === "region" ? botStart.hand.filter((c) => c.kind === "item" && c.region === coord.region && coord.items.includes(c.name)).length : 0;
+
+  let usedInstantAction = false;
+
+  // 1) An instant action (dig/freeze) can only be played BEFORE items, so decide that first.
+  if (initialMatches.length === 0 && dig) {
+    const { game: g1, removed } = removeFromHand(g, botId, [dig.id]);
+    g = { ...g1, discardPile: [...g1.discardPile, ...removed] };
+    const { game: g2, drawn } = drawFromPile(g, 3);
+    const keepId = pickBestKeepFromDraw(drawn, coord);
+    const kept = drawn.find((c) => c.id === keepId);
+    const rest = drawn.filter((c) => c.id !== keepId);
+    g = addToHand(g2, botId, [kept]);
+    g = { ...g, drawPile: [...rest, ...g.drawPile] };
+    g = pushLog(g, `${botStart.name} فتّش الصندوق وأضاف "${kept.name}".`);
+    usedInstantAction = true;
+  } else if (freeze && remainingRegionMatches > 0) {
+    const { game: g1, removed } = removeFromHand(g, botId, [freeze.id]);
+    g = { ...g1, discardPile: [...g1.discardPile, ...removed], lockCoord: true };
+    g = pushLog(g, `${botStart.name} لعب ثبّت الحَلّة.`);
+    usedInstantAction = true;
+  }
+
+  g = checkWin(g, botId);
+  if (g.winner) return g;
+
+  // 2) Now play any matching items (hand may have just been improved by فتّش الصندوق) — placing
+  // items always ends the turn immediately, same as for a human player.
+  const botAfterAction = g.players.find((p) => p.id === botId);
+  const matchesNow = findMatchingItems(botAfterAction.hand, g.currentCoord);
+  if (matchesNow.length > 0) {
+    const ids = matchesNow.map((c) => c.id);
+    const { game: g1, removed } = removeFromHand(g, botId, ids);
+    g = { ...g1, discardPile: [...g1.discardPile, ...removed] };
+    g = pushLog(g, `${botStart.name} وضع: ${matchesNow.map((c) => c.name).join("، ")}.`);
+    g = checkWin(g, botId);
+    return g.winner ? g : endTurn(g);
+  }
+
+  if (usedInstantAction) return endTurn(g);
+
+  // 3) Nothing to place and no instant action taken — consider a targeted action as a last
+  // resort (these leave the turn open until resolved, via the block-window automation).
+  const bot = g.players.find((p) => p.id === botId);
+  const actionCards = bot.hand.filter((c) => c.kind === "action");
+  const give = actionCards.find((c) => c.actionType === "giveTake");
+  const draw2 = actionCards.find((c) => c.actionType === "drawTwo");
+  const steal2 = actionCards.find((c) => c.actionType === "stealTwo");
+  const others = g.players.filter((p) => p.id !== botId);
+  const leader = others.length ? others.reduce((a, b) => (b.hand.length < a.hand.length ? b : a), others[0]) : null;
+
+  if (steal2 && leader) {
+    const { game: g1, removed } = removeFromHand(g, botId, [steal2.id]);
+    g = { ...g1, discardPile: [...g1.discardPile, ...removed], pendingAction: { id: uid(), actionType: "stealTwo", actorId: botId, targetId: leader.id, actorName: botStart.name, startedAt: Date.now() } };
+    return g;
+  }
+  if (draw2 && leader) {
+    const { game: g1, removed } = removeFromHand(g, botId, [draw2.id]);
+    g = { ...g1, discardPile: [...g1.discardPile, ...removed], pendingAction: { id: uid(), actionType: "drawTwo", actorId: botId, targetId: leader.id, actorName: botStart.name, startedAt: Date.now() } };
+    return g;
+  }
+  if (give && leader && bot.hand.length > 0) {
+    const { game: g1, removed } = removeFromHand(g, botId, [give.id]);
+    const afterHand = g1.players.find((p) => p.id === botId).hand;
+    const giveIds = pickGiveAwayIds(afterHand, Math.min(2, afterHand.length));
+    g = { ...g1, discardPile: [...g1.discardPile, ...removed], pendingAction: { id: uid(), actionType: "giveTake", actorId: botId, targetId: leader.id, actorName: botStart.name, giveIds, startedAt: Date.now() } };
+    return g;
+  }
+
+  return rPassTurn(g, botId);
 }
 
 /* --------------------------------- UI BITS --------------------------------- */
@@ -432,7 +638,7 @@ function CardBackHero() {
           <CornerFlourish pos="bl" color={GOLD} />
           <CornerFlourish pos="br" color={GOLD} />
           <span className="text-3xl font-black" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
-            حِلّة
+            حُلّة
           </span>
         </div>
       </div>
@@ -549,16 +755,58 @@ const pageBg = {
 
 /* --------------------------------- GAME BOARD (shared) --------------------------------- */
 
-function GameBoard({ game, myId, isOnline, dispatch, onExit }) {
+function CountdownRing({ pendingActionId, startedAt, size = 56 }) {
+  const safeStart = typeof startedAt === "number" ? startedAt : Date.now();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    setNow(Date.now());
+    const iv = setInterval(() => setNow(Date.now()), 200);
+    return () => clearInterval(iv);
+  }, [pendingActionId]);
+  const elapsed = now - safeStart;
+  const remaining = Math.max(0, BLOCK_WINDOW_SEC - Math.floor(elapsed / 1000));
+  const circumference = 151;
+  const dashoffset = Math.max(0, Math.min(circumference, (elapsed / BLOCK_WINDOW_MS) * circumference));
+  const r = (size - 8) / 2;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="mx-auto mb-2">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={CREAM2} strokeWidth="4" />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke={remaining <= 3 ? MAROON : GOLD}
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={dashoffset}
+        style={{ transform: "rotate(-90deg)", transformOrigin: `${size / 2}px ${size / 2}px` }}
+      />
+      <text x={size / 2} y={size / 2 + 6} textAnchor="middle" fontSize="18" fontWeight="900" fill={MAROON} fontFamily="Tajawal">
+        {remaining}
+      </text>
+    </svg>
+  );
+}
+
+function GameBoard({ game, myId, isOnline, isHost, dispatch, onExit }) {
   const [selected, setSelected] = useState([]);
   const [needTarget, setNeedTarget] = useState(null);
   const [giveStep, setGiveStep] = useState(null);
   const [revealed, setRevealed] = useState(isOnline ? true : false);
   const [errMsg, setErrMsg] = useState("");
+  const [sortByRegion, setSortByRegion] = useState(false);
 
   const current = game.players[game.currentPlayerIndex];
   const viewer = isOnline ? game.players.find((p) => p.id === myId) || current : current;
   const isMyTurn = isOnline ? current.id === myId : true;
+
+  // Exactly one client is allowed to run automated (bot) moves: the single local device in
+  // local mode, or the host in online mode. Everyone else just watches through polling.
+  const botExecutor = !isOnline || !!isHost;
+  const lastBotTurnRef = useRef(null);
+  const settledRef = useRef(null);
 
   useEffect(() => {
     if (!errMsg) return;
@@ -566,14 +814,74 @@ function GameBoard({ game, myId, isOnline, dispatch, onExit }) {
     return () => clearTimeout(t);
   }, [errMsg]);
 
-  function toggleSelect(cardId) {
-    setSelected((s) => (s.includes(cardId) ? s.filter((x) => x !== cardId) : [...s, cardId]));
-  }
-
-  function afterMyMove() {
+  // Reset per-turn local UI state whenever the active player changes (covers bot-driven transitions too).
+  useEffect(() => {
+    if (isOnline) return;
+    setRevealed(false);
     setSelected([]);
     setNeedTarget(null);
-    if (!isOnline) setRevealed(false);
+    setGiveStep(null);
+  }, [game.currentPlayerIndex, isOnline]);
+
+  // Auto-play a bot's turn a beat after it becomes active. turnSerial guards against dispatching
+  // the same bot turn twice if the effect refires on an identical polled room state.
+  useEffect(() => {
+    if (!botExecutor || game.winner || game.pendingAction || game.digOptions) return;
+    const cur = game.players[game.currentPlayerIndex];
+    if (!cur || !cur.isBot) return;
+    const key = `${game.turnSerial ?? 0}:${cur.id}`;
+    if (lastBotTurnRef.current === key) return;
+    const t = setTimeout(() => {
+      if (lastBotTurnRef.current === key) return;
+      lastBotTurnRef.current = key;
+      dispatch(botDecideTurn(game, cur.id));
+    }, 900);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game, botExecutor]);
+
+  function settlePendingAction(computeGame) {
+    const pa = game.pendingAction;
+    if (!pa || settledRef.current === pa.id) return;
+    settledRef.current = pa.id;
+    let g = computeGame();
+    // If the actor was a bot, it has nothing left to decide — end its turn right away.
+    if (!g.winner) {
+      const actor = g.players.find((p) => p.id === pa.actorId);
+      if (actor && actor.isBot) g = rEndTurn(g, pa.actorId);
+    }
+    dispatch(g);
+  }
+
+  // Block-window automation. Bot self-defense runs on the bot executor client; the timed
+  // auto-resolve runs on exactly one client — the human actor's own device (whose clock stamped
+  // startedAt, so it measures a true 10s window), or the host when the actor is a bot. The
+  // remaining time is derived from the persisted startedAt, so a re-render from polling never
+  // restarts the window.
+  useEffect(() => {
+    const pa = game.pendingAction;
+    if (!pa) return;
+    const actor = game.players.find((p) => p.id === pa.actorId);
+    const harmfulToTarget = pa.actionType === "drawTwo" || pa.actionType === "stealTwo";
+    const targetBot = game.players.find((p) => p.id === pa.targetId && p.isBot);
+    const targetHasBlock = targetBot && targetBot.hand.some((c) => c.kind === "action" && c.actionType === "block");
+
+    if (harmfulToTarget && targetHasBlock && botExecutor) {
+      const t = setTimeout(() => settlePendingAction(() => rCancelWithBlock(game, targetBot.id)), 700);
+      return () => clearTimeout(t);
+    }
+
+    const isResolver = !isOnline || (actor?.isBot ? !!isHost : pa.actorId === myId);
+    if (!isResolver) return;
+    const startedAt = typeof pa.startedAt === "number" ? pa.startedAt : Date.now();
+    const remaining = Math.max(0, BLOCK_WINDOW_MS - (Date.now() - startedAt));
+    const t = setTimeout(() => settlePendingAction(() => rResolvePendingAction(game)), remaining);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game, isOnline, isHost, botExecutor]);
+
+  function toggleSelect(cardId) {
+    setSelected((s) => (s.includes(cardId) ? s.filter((x) => x !== cardId) : [...s, cardId]));
   }
 
   function playSelectedItems() {
@@ -582,21 +890,28 @@ function GameBoard({ game, myId, isOnline, dispatch, onExit }) {
       setErrMsg(res.error);
       return;
     }
-    afterMyMove();
-    dispatch(res.game);
+    setSelected([]);
+    // Placing items always ends the turn right away — an action card can only be played
+    // *before* items, never after.
+    let g = res.game;
+    if (!g.winner) g = rEndTurn(g, viewer.id);
+    dispatch(g);
   }
 
-  function passTurn() {
-    dispatch(rPassTurn(game, viewer.id));
-    afterMyMove();
+  // Ends the current player's turn explicitly — for when they only played an action card (or
+  // nothing at all) and have no items to place.
+  function endMyTurn() {
+    setSelected([]);
+    setNeedTarget(null);
+    dispatch(rEndTurn(game, viewer.id));
   }
 
   function startAction(cardId) {
+    if (game.actionUsedThisTurn) return;
     const card = viewer.hand.find((c) => c.id === cardId);
     if (!card) return;
     if (card.actionType === "freeze") {
       dispatch(rPlayFreeze(game, viewer.id, cardId));
-      afterMyMove();
       return;
     }
     if (card.actionType === "dig") {
@@ -615,28 +930,25 @@ function GameBoard({ game, myId, isOnline, dispatch, onExit }) {
     }
     dispatch(rDeclareAction(game, viewer.id, card.id, card.actionType, targetId));
     setNeedTarget(null);
-    if (!isOnline) setRevealed(false);
   }
 
   function confirmGiveTake(chosenIds) {
     dispatch(rDeclareGiveTake(game, viewer.id, giveStep.cardId, giveStep.targetId, chosenIds));
     setGiveStep(null);
-    if (!isOnline) setRevealed(false);
   }
 
   function cancelWithBlock(blockerId) {
-    dispatch(rCancelWithBlock(game, blockerId));
-    if (!isOnline) setRevealed(false);
-  }
-
-  function resolvePendingAction() {
-    dispatch(rResolvePendingAction(game));
-    if (!isOnline) setRevealed(false);
+    const blocker = game.players.find((p) => p.id === blockerId);
+    const hasBlock = blocker && blocker.hand.some((c) => c.kind === "action" && c.actionType === "block");
+    if (!hasBlock) {
+      setErrMsg(`${blocker?.name || ""} ما معه كرت لا ما تقدر.`);
+      return;
+    }
+    settlePendingAction(() => rCancelWithBlock(game, blockerId));
   }
 
   function finishDig(keepId) {
     dispatch(rFinishDig(game, keepId));
-    if (!isOnline) setRevealed(false);
   }
 
   const eligibleBlockers = useMemo(() => {
@@ -654,7 +966,7 @@ function GameBoard({ game, myId, isOnline, dispatch, onExit }) {
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-3">
           <div className="text-2xl font-black" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
-            حِلّة {isOnline && <Wifi className="inline w-4 h-4 mb-1" style={{ color: TEAL }} />}
+            حُلّة {isOnline && <Wifi className="inline w-4 h-4 mb-1" style={{ color: TEAL }} />}
           </div>
           <button onClick={onExit} className="text-xs flex items-center gap-1" style={{ color: `${MAROON}99` }}>
             <RotateCcw className="w-3 h-3" /> لعبة جديدة
@@ -684,6 +996,7 @@ function GameBoard({ game, myId, isOnline, dispatch, onExit }) {
                       : { color: `${INK}99`, borderColor: `${MAROON}33` }
                   }
                 >
+                  {p.isBot ? "🤖 " : ""}
                   {p.name} {isOnline && p.id === myId && <span style={{ color: GOLD }}>(أنت)</span>} <span className="opacity-70">({p.hand.length})</span>
                 </div>
               ))}
@@ -709,33 +1022,64 @@ function GameBoard({ game, myId, isOnline, dispatch, onExit }) {
             {game.pendingAction && (
               <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                 <div className="rounded-2xl p-6 max-w-sm w-full text-center border-2" style={{ background: CREAM, borderColor: MAROON }}>
-                  <Ban className="w-8 h-8 mx-auto mb-2" style={{ color: MAROON }} />
-                  <div className="font-bold mb-1" style={{ color: INK }}>
-                    {game.pendingAction.actorName} يستخدم {actionMeta(game.pendingAction.actionType).name}
-                  </div>
+                  <CountdownRing pendingActionId={game.pendingAction.id} startedAt={game.pendingAction.startedAt} />
+                  {(() => {
+                    const actorPlayer = game.players.find((p) => p.id === game.pendingAction.actorId);
+                    const targetPlayer = game.players.find((p) => p.id === game.pendingAction.targetId);
+                    const actorIsMe = isOnline ? actorPlayer?.id === myId : !actorPlayer?.isBot;
+                    const targetIsMe = isOnline ? targetPlayer?.id === myId : !targetPlayer?.isBot;
+                    return (
+                      <div className="mb-1" style={{ color: INK }}>
+                        <div className="font-bold">
+                          {actorIsMe ? "أنت تستخدم" : `${game.pendingAction.actorName} يستخدم`} {actionMeta(game.pendingAction.actionType).name}
+                        </div>
+                        {targetIsMe ? (
+                          <div className="text-lg font-black mt-1" style={{ color: MAROON }}>
+                            ⚠️ ضدك أنت!
+                          </div>
+                        ) : (
+                          <div className="text-sm mt-1" style={{ color: `${INK}99` }}>
+                            ضد {targetPlayer?.name}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                   <div className="text-xs mb-4" style={{ color: `${INK}88` }}>
-                    ضد {game.players.find((p) => p.id === game.pendingAction.targetId)?.name}. هل أحد يريد استخدام لا ما تقدر؟
+                    {isOnline ? (
+                      eligibleBlockers.some((p) => p.id === myId) ? (
+                        <>
+                          عندك فرصة تستخدم <b className="font-black" style={{ color: MAROON }}>لا ما تقدر</b> قبل ما تنتهي العدّة.
+                        </>
+                      ) : (
+                        "بينفّذ تلقائيًا بعد العدّة."
+                      )
+                    ) : (
+                      <>
+                        أي لاعب عنده <b className="font-black" style={{ color: MAROON }}>لا ما تقدر</b> يقدر يستخدمه الحين، وإلا بينفّذ تلقائيًا بعد العدّة.
+                      </>
+                    )}
                   </div>
                   <div className="space-y-2 mb-3">
-                    {(isOnline ? eligibleBlockers.filter((p) => p.id === myId) : eligibleBlockers).length === 0 && (
-                      <div className="text-xs" style={{ color: `${INK}55` }}>
-                        {isOnline ? "ما تقدر تعترض على هذا الأكشن." : "لا يملك أحد كرت لا ما تقدر."}
-                      </div>
-                    )}
-                    {(isOnline ? eligibleBlockers.filter((p) => p.id === myId) : eligibleBlockers).map((p) => (
-                      <button key={p.id} onClick={() => cancelWithBlock(p.id)} className="w-full py-2 rounded-lg text-sm font-bold" style={{ background: MAROON, color: CREAM }}>
-                        {p.name}: استخدم لا ما تقدر
-                      </button>
-                    ))}
+                    {isOnline
+                      ? eligibleBlockers
+                          .filter((p) => p.id === myId)
+                          .map((p) => (
+                            <button key={p.id} onClick={() => cancelWithBlock(p.id)} className="w-full py-2 rounded-lg text-sm font-bold" style={{ background: MAROON, color: CREAM }}>
+                              استخدم لا ما تقدر
+                            </button>
+                          ))
+                      : eligibleBlockers
+                          .filter((p) => !p.isBot)
+                          .map((p) => (
+                            <button key={p.id} onClick={() => cancelWithBlock(p.id)} className="w-full py-2 rounded-lg text-sm font-bold" style={{ background: MAROON, color: CREAM }}>
+                              {p.name}: استخدم لا ما تقدر
+                            </button>
+                          ))}
                   </div>
-                  {(!isOnline || game.pendingAction.actorId === myId) && (
-                    <button onClick={resolvePendingAction} className="w-full py-2 rounded-lg font-black" style={{ background: GOLD, color: MAROON_DK }}>
-                      لا أحد يعترض — تنفيذ
-                    </button>
-                  )}
-                  {isOnline && game.pendingAction.actorId !== myId && (
-                    <div className="text-xs" style={{ color: `${INK}55` }}>
-                      بانتظار {game.pendingAction.actorName}...
+                  {errMsg && (
+                    <div className="text-xs font-bold px-3 py-1.5 rounded-lg" style={{ background: `${MAROON}15`, color: MAROON }}>
+                      {errMsg}
                     </div>
                   )}
                 </div>
@@ -784,7 +1128,18 @@ function GameBoard({ game, myId, isOnline, dispatch, onExit }) {
               </div>
             )}
 
-            {!isOnline && !revealed ? (
+            {!isOnline && current.isBot ? (
+              <div className="text-center py-14">
+                <div className="text-lg font-bold mb-2" style={{ color: MAROON }}>
+                  🤖 {current.name} يفكر...
+                </div>
+                <div className="flex justify-center gap-1.5">
+                  {[0, 1, 2].map((i) => (
+                    <span key={i} className="w-2 h-2 rounded-full animate-pulse" style={{ background: GOLD, animationDelay: `${i * 150}ms` }} />
+                  ))}
+                </div>
+              </div>
+            ) : !isOnline && !revealed && game.players.filter((p) => !p.isBot).length > 1 ? (
               <div className="text-center py-14">
                 <div className="text-lg font-bold mb-2" style={{ color: INK }}>
                   مرر الجهاز إلى
@@ -798,20 +1153,43 @@ function GameBoard({ game, myId, isOnline, dispatch, onExit }) {
               </div>
             ) : (
               <>
-                <div className="text-xs mb-2 font-bold" style={{ color: `${INK}77` }}>
-                  عناصر اللبس {isOnline && <span style={{ color: GOLD }}>({viewer?.name})</span>}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-bold" style={{ color: `${INK}77` }}>
+                    عناصر اللبس {isOnline && <span style={{ color: GOLD }}>({viewer?.name})</span>}
+                  </div>
+                  <button
+                    onClick={() => setSortByRegion((s) => !s)}
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg border-2 flex items-center gap-1"
+                    style={sortByRegion ? { background: MAROON, color: CREAM, borderColor: MAROON } : { color: MAROON, borderColor: `${MAROON}55` }}
+                  >
+                    🗂️ رتّب حسب المنطقة
+                  </button>
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-3 mb-3">
-                  {viewer.hand
-                    .filter((c) => c.kind === "item")
-                    .map((c) => (
-                      <ItemCard key={c.id} card={c} selected={selected.includes(c.id)} onClick={() => (isMyTurn ? toggleSelect(c.id) : null)} />
-                    ))}
-                  {viewer.hand.filter((c) => c.kind === "item").length === 0 && (
-                    <div className="text-sm py-4" style={{ color: `${INK}44` }}>
-                      لا توجد عناصر لبس في يدك.
-                    </div>
-                  )}
+                  {(() => {
+                    const itemCards = viewer.hand.filter((c) => c.kind === "item");
+                    if (itemCards.length === 0) {
+                      return (
+                        <div className="text-sm py-4" style={{ color: `${INK}44` }}>
+                          لا توجد عناصر لبس في يدك.
+                        </div>
+                      );
+                    }
+                    if (!sortByRegion) {
+                      return itemCards.map((c) => <ItemCard key={c.id} card={c} selected={selected.includes(c.id)} onClick={() => (isMyTurn ? toggleSelect(c.id) : null)} />);
+                    }
+                    const sorted = sortItemsByRegion(itemCards);
+                    const nodes = [];
+                    let lastRegion = null;
+                    sorted.forEach((c, i) => {
+                      if (c.region !== lastRegion) {
+                        if (lastRegion !== null) nodes.push(<DiamondLattice key={`div-${c.region}`} vertical color={GOLD} thickness={6} />);
+                        lastRegion = c.region;
+                      }
+                      nodes.push(<ItemCard key={c.id} card={c} selected={selected.includes(c.id)} onClick={() => (isMyTurn ? toggleSelect(c.id) : null)} />);
+                    });
+                    return nodes;
+                  })()}
                 </div>
 
                 {errMsg && (
@@ -829,19 +1207,19 @@ function GameBoard({ game, myId, isOnline, dispatch, onExit }) {
                   >
                     ضع العنصر/العناصر المحددة
                   </button>
-                  <button onClick={passTurn} disabled={!isMyTurn} className="px-5 py-2 rounded-lg border-2 font-bold disabled:opacity-30" style={{ color: `${INK}88`, borderColor: `${MAROON}33` }}>
-                    تجاوز الجولة
+                  <button onClick={endMyTurn} disabled={!isMyTurn} className="px-5 py-2 rounded-lg font-bold disabled:opacity-30" style={{ background: MAROON, color: CREAM }}>
+                    خلصت دوري
                   </button>
                 </div>
 
                 <div className="text-xs mb-2 font-bold" style={{ color: `${INK}77` }}>
-                  كروت الأكشن (كرت واحد كحد أقصى في كل جولة)
+                  كروت الأكشن — كرت واحد بس، وقبل ما تحط عناصرك {game.actionUsedThisTurn && isMyTurn && <span style={{ color: GOLD }}>(مستخدم هذي الجولة)</span>}
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-3">
                   {viewer.hand
                     .filter((c) => c.kind === "action")
                     .map((c) => (
-                      <ActionCard key={c.id} card={c} disabled={!isMyTurn} onClick={() => startAction(c.id)} />
+                      <ActionCard key={c.id} card={c} disabled={!isMyTurn || game.actionUsedThisTurn} onClick={() => startAction(c.id)} />
                     ))}
                   {viewer.hand.filter((c) => c.kind === "action").length === 0 && (
                     <div className="text-sm py-4" style={{ color: `${INK}44` }}>
@@ -880,7 +1258,7 @@ function GivePicker({ viewer, onConfirm, onCancel }) {
           عطني وأعطيك
         </div>
         <div className="text-xs mb-4" style={{ color: `${INK}88` }}>
-          اختر {max} كرت{max > 1 ? "ين" : ""} من يدك لإعطائها للاعب الآخر.
+          اختر {max === 2 ? "كرتين" : "كرت واحد"} من يدك لإعطائها للاعب الآخر.
         </div>
         <div className="flex gap-2 overflow-x-auto justify-center pb-3">
           {items.map((c) =>
@@ -908,8 +1286,23 @@ function GivePicker({ viewer, onConfirm, onCancel }) {
 
 function LocalSetup({ onStart, onBack }) {
   const [numPlayers, setNumPlayers] = useState(3);
-  const [names, setNames] = useState(["لاعب 1", "لاعب 2", "لاعب 3", "لاعب 4", "لاعب 5", "لاعب 6"]);
+  const [defaultNames] = useState(() => ["أنت", ...pickRandomBotNames(5)]);
+  const [names, setNames] = useState(defaultNames);
+  const [isBot, setIsBot] = useState([false, true, true, true, true, true]);
   const [perPlayer, setPerPlayer] = useState(REC_COUNTS[3]);
+
+  function toggleBot(i) {
+    const copy = [...isBot];
+    copy[i] = !copy[i];
+    setIsBot(copy);
+    // give a sensible default name when flipping a slot, unless the user already typed something custom
+    const wasDefault = names[i] === defaultNames[i] || names[i] === `لاعب ${i + 1}`;
+    if (wasDefault) {
+      const copyNames = [...names];
+      copyNames[i] = copy[i] ? defaultNames[i] : i === 0 ? "أنت" : `لاعب ${i + 1}`;
+      setNames(copyNames);
+    }
+  }
 
   return (
     <div dir="rtl" className="min-h-screen w-full flex items-center justify-center p-6" style={{ ...pageBg, fontFamily: "Tajawal" }}>
@@ -918,7 +1311,7 @@ function LocalSetup({ onStart, onBack }) {
         <div className="text-center mb-5">
           <CardBackHero />
           <p className="mt-3" style={{ color: MAROON_DK }}>
-            وضع "تمرير الجهاز" — كل اللاعبين على نفس الجهاز
+            وضع "تمرير الجهاز" — كل اللاعبين على نفس الجهاز، وتقدر تضيف بوتات تلعب أوتوماتيكي
           </p>
         </div>
         <div className="rounded-2xl p-5 space-y-5 border-2" style={{ background: CREAM2, borderColor: GOLD }}>
@@ -944,19 +1337,31 @@ function LocalSetup({ onStart, onBack }) {
           </div>
           <div className="space-y-2">
             {Array.from({ length: numPlayers }).map((_, i) => (
-              <input
-                key={i}
-                value={names[i]}
-                onChange={(e) => {
-                  const copy = [...names];
-                  copy[i] = e.target.value;
-                  setNames(copy);
-                }}
-                placeholder={`اسم اللاعب ${i + 1}`}
-                className="w-full rounded-lg px-3 py-2 text-sm border-2 focus:outline-none"
-                style={{ background: CREAM, color: INK, borderColor: `${MAROON}33` }}
-              />
+              <div key={i} className="flex gap-2">
+                <input
+                  value={names[i]}
+                  onChange={(e) => {
+                    const copy = [...names];
+                    copy[i] = e.target.value;
+                    setNames(copy);
+                  }}
+                  placeholder={`اسم اللاعب ${i + 1}`}
+                  className="flex-1 rounded-lg px-3 py-2 text-sm border-2 focus:outline-none"
+                  style={{ background: CREAM, color: INK, borderColor: `${MAROON}33` }}
+                />
+                <button
+                  onClick={() => toggleBot(i)}
+                  className="px-3 rounded-lg text-xs font-bold border-2 whitespace-nowrap"
+                  style={isBot[i] ? { background: MAROON, color: CREAM, borderColor: MAROON } : { color: MAROON, borderColor: `${MAROON}55`, background: "transparent" }}
+                  title="بوت يلعب بذكاء أوتوماتيكي"
+                >
+                  {isBot[i] ? "🤖 بوت" : "🧍 إنسان"}
+                </button>
+              </div>
             ))}
+            <p className="text-[11px]" style={{ color: `${INK}66` }}>
+              🤖 البوتات تلعب بأقوى استراتيجية ممكنة: تحط أقصى عدد كروت مطابقة كل جولة، وتختار أذكى أكشن متاح.
+            </p>
           </div>
           <div>
             <label className="text-sm mb-2 block font-bold" style={{ color: MAROON }}>
@@ -966,7 +1371,11 @@ function LocalSetup({ onStart, onBack }) {
           </div>
           <button
             onClick={() => {
-              const meta = Array.from({ length: numPlayers }).map((_, i) => ({ id: `p${i}`, name: names[i]?.trim() || `لاعب ${i + 1}` }));
+              const meta = Array.from({ length: numPlayers }).map((_, i) => ({
+                id: `p${i}`,
+                name: names[i]?.trim() || (isBot[i] ? `بوت ${i + 1}` : `لاعب ${i + 1}`),
+                isBot: !!isBot[i],
+              }));
               onStart(createInitialGame(meta, perPlayer));
             }}
             className="w-full py-3 rounded-xl font-black text-lg hover:brightness-110 transition flex items-center justify-center gap-2"
@@ -1062,7 +1471,7 @@ function OnlineMenu({ myName, setMyName, onCreate, onJoin, onBack, error }) {
   );
 }
 
-function OnlineLobby({ room, myId, onStart, onBack }) {
+function OnlineLobby({ room, myId, onStart, onAddBot, onRemoveBot, onBack }) {
   const [copied, setCopied] = useState(false);
   const isHost = room.hostId === myId;
 
@@ -1080,7 +1489,7 @@ function OnlineLobby({ room, myId, onStart, onBack }) {
       <div className="w-full max-w-md">
         <div className="text-center mb-5">
           <div className="text-2xl font-black mb-2" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
-            حِلّة
+            حُلّة
           </div>
           <div className="text-xs mb-1" style={{ color: `${INK}88` }}>
             كود الغرفة — شاركه مع أصحابك
@@ -1105,10 +1514,27 @@ function OnlineLobby({ room, myId, onStart, onBack }) {
           {room.lobby.map((p) => (
             <div key={p.id} className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: CREAM }}>
               <span className="text-sm font-bold" style={{ color: INK }}>
+                {p.isBot ? "🤖 " : ""}
                 {p.name} {p.id === room.hostId && <span style={{ color: GOLD }}>(المضيف)</span>} {p.id === myId && <span style={{ color: TEAL }}>— أنت</span>}
               </span>
+              {isHost && p.isBot && (
+                <button onClick={() => onRemoveBot(p.id)} className="text-xs font-bold px-2 py-1 rounded" style={{ color: MAROON, background: `${MAROON}15` }} title="أزل البوت">
+                  ✕
+                </button>
+              )}
             </div>
           ))}
+
+          {isHost && (
+            <button
+              onClick={onAddBot}
+              disabled={room.lobby.length >= room.maxPlayers}
+              className="w-full py-2 rounded-lg text-sm font-bold border-2 disabled:opacity-40"
+              style={{ color: MAROON, borderColor: `${MAROON}55`, background: "transparent" }}
+            >
+              🤖 أضف بوت
+            </button>
+          )}
 
           {isHost ? (
             <button
@@ -1239,6 +1665,20 @@ function OnlineFlow({ onBack }) {
     }
   }
 
+  async function addBot() {
+    if (!room || room.hostId !== myId || room.started) return;
+    if (room.lobby.length >= room.maxPlayers) return;
+    const used = new Set(room.lobby.map((p) => p.name));
+    const name = shuffle(BOT_NAME_POOL).find((n) => !used.has(n)) || `بوت ${room.lobby.length + 1}`;
+    const bot = { id: `bot-${uid()}`, name, isBot: true };
+    await saveRoomTo(roomCode, { ...room, lobby: [...room.lobby, bot] });
+  }
+
+  async function removeBot(botId) {
+    if (!room || room.hostId !== myId || room.started) return;
+    await saveRoomTo(roomCode, { ...room, lobby: room.lobby.filter((p) => p.id !== botId) });
+  }
+
   async function startOnlineGame() {
     if (!room || room.hostId !== myId || room.lobby.length < 2) return;
     const g = createInitialGame(room.lobby, room.perPlayer);
@@ -1260,10 +1700,10 @@ function OnlineFlow({ onBack }) {
     return <OnlineMenu myName={myName} setMyName={setMyName} onCreate={createRoom} onJoin={joinRoom} onBack={onBack} error={error} />;
   }
   if (onlinePhase === "lobby" && room) {
-    return <OnlineLobby room={room} myId={myId} onStart={startOnlineGame} onBack={exitToMenu} />;
+    return <OnlineLobby room={room} myId={myId} onStart={startOnlineGame} onAddBot={addBot} onRemoveBot={removeBot} onBack={exitToMenu} />;
   }
   if (onlinePhase === "play" && room && room.game) {
-    return <GameBoard game={room.game} myId={myId} isOnline dispatch={dispatchGame} onExit={exitToMenu} />;
+    return <GameBoard game={room.game} myId={myId} isOnline isHost={room.hostId === myId} dispatch={dispatchGame} onExit={exitToMenu} />;
   }
   return (
     <div dir="rtl" className="min-h-screen w-full flex items-center justify-center" style={{ ...pageBg, fontFamily: "Tajawal", color: MAROON }}>
@@ -1303,6 +1743,16 @@ export default function HillaGame() {
             >
               <Wifi className="w-5 h-5" /> العب أونلاين (كود غرفة)
             </button>
+          </div>
+
+          <div className="mt-8 text-center">
+            <OrnateDivider color={GOLD} />
+            <p className="text-xs font-bold mt-1" style={{ color: MAROON }}>
+              صُممت بأيدي سعودية 🇸🇦
+            </p>
+            <p className="text-[11px] mt-0.5" style={{ color: `${INK}77` }}>
+              طالبة جامعة الأميرة نورة — لمقرر استيديو 2 🫡
+            </p>
           </div>
         </div>
       </div>

@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 export type PlayerMeta = {
   id: string;
   name: string;
+  isBot?: boolean;
 };
 
 export type RoomDoc = {
