@@ -2,6 +2,7 @@
 'use client';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Shirt, Gem, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Archive, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut } from "lucide-react";
+import { newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished } from "@/lib/analytics-client";
 
 /* ---------------------------------- PALETTE ---------------------------------- */
 const CREAM = "#F3E9D2";
@@ -240,6 +241,10 @@ function createInitialGame(playersMeta, perPlayer) {
   const cDeck = shuffle(buildCoordDeck());
   const first = cDeck.pop();
   return {
+    // Analytics-only identifier (game_sessions.id). Persisted inside the game
+    // document so every client reports events under the same game_id. Has no
+    // effect on gameplay.
+    analyticsId: newAnalyticsGameId(),
     players,
     drawPile: full,
     discardPile: [],
@@ -790,7 +795,7 @@ function CountdownRing({ pendingActionId, startedAt, size = 56 }) {
   );
 }
 
-function GameBoard({ game, myId, isOnline, isHost, dispatch, onExit }) {
+function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit }) {
   const [selected, setSelected] = useState([]);
   const [needTarget, setNeedTarget] = useState(null);
   const [giveStep, setGiveStep] = useState(null);
@@ -807,6 +812,129 @@ function GameBoard({ game, myId, isOnline, isHost, dispatch, onExit }) {
   const botExecutor = !isOnline || !!isHost;
   const lastBotTurnRef = useRef(null);
   const settledRef = useRef(null);
+
+  /* ----- analytics (fire-and-forget, never affects gameplay) -----
+     Action events are emitted by the one client that dispatches the move
+     (the acting human, or the bot executor). Shared transitions
+     (turn_started / coord_changed / game_finished) are emitted by the
+     primary logger: the single local device, or the host online.
+     Deterministic event_ids make any accidental double-send collapse into
+     one row server-side. */
+  const isPrimaryLogger = !isOnline || !!isHost;
+  const prevGameRef = useRef(null);
+
+  function mkEvent(g, type, actor, extra) {
+    const coord = g.currentCoord;
+    return {
+      game_id: g.analyticsId,
+      room_code: roomCode || null,
+      event_type: type,
+      turn_number: g.turnSerial ?? 0,
+      round_number: g.players.length ? Math.floor((g.turnSerial ?? 0) / g.players.length) + 1 : null,
+      player_id: actor ? actor.id : null,
+      player_name: actor ? actor.name : null,
+      is_bot: actor ? !!actor.isBot : null,
+      coord_type: coord ? coord.type : null,
+      coord_region: coord ? coord.region || null : null,
+      coord_item_count: coord && Array.isArray(coord.items) ? coord.items.length : null,
+      ...extra,
+    };
+  }
+
+  function track(events) {
+    if (!game.analyticsId) return;
+    sendAnalyticsEvents(events.filter(Boolean));
+  }
+
+  // Derives what a bot actually did from the before/after game states: item
+  // cards that left its hand were placed, action cards that left its hand
+  // were played, nothing removed = it passed. Only the bot executor client
+  // runs this, so bot events are recorded exactly once.
+  function botTurnEvents(prev, next, bot) {
+    const gid = prev.analyticsId;
+    if (!gid) return [];
+    const t = prev.turnSerial ?? 0;
+    const prevBot = prev.players.find((p) => p.id === bot.id);
+    const nextBot = next.players.find((p) => p.id === bot.id);
+    if (!prevBot || !nextBot) return [];
+    const nextIds = new Set(nextBot.hand.map((c) => c.id));
+    const removed = prevBot.hand.filter((c) => !nextIds.has(c.id));
+    const playedItems = removed.filter((c) => c.kind === "item");
+    const playedActions = removed.filter((c) => c.kind === "action");
+    const events = [
+      mkEvent(prev, "bot_move", bot, {
+        event_id: `${gid}-t${t}-bot-${bot.id}`,
+        cards_played_count: playedItems.length,
+      }),
+    ];
+    if (playedItems.length > 0) {
+      events.push(
+        mkEvent(prev, "items_played", bot, {
+          event_id: `${gid}-t${t}-items-${bot.id}`,
+          cards_played_count: playedItems.length,
+          items: playedItems.map((c) => ({ name: c.name, region: c.region, rarity: c.rarity })),
+        })
+      );
+    }
+    playedActions.forEach((c) => {
+      const pa = next.pendingAction;
+      const target = pa && pa.actorId === bot.id ? next.players.find((p) => p.id === pa.targetId) : null;
+      events.push(
+        mkEvent(prev, "action_played", bot, {
+          event_id: `${gid}-t${t}-action-${bot.id}-${c.actionType}`,
+          action_type: c.actionType,
+          payload: target ? { target_player_id: target.id, target_is_bot: !!target.isBot } : null,
+        })
+      );
+    });
+    if (playedItems.length === 0 && playedActions.length === 0) {
+      events.push(
+        mkEvent(prev, "turn_skipped", bot, {
+          event_id: `${gid}-t${t}-skip-${bot.id}`,
+          skip_reason: "bot_no_valid_move",
+        })
+      );
+    }
+    return events;
+  }
+
+  // Transition tracker: compares the previous game snapshot with the current
+  // one and reports turn starts, coord changes and game end. Runs on every
+  // client but only the primary logger emits.
+  useEffect(() => {
+    const prev = prevGameRef.current;
+    prevGameRef.current = game;
+    if (!game || !game.analyticsId || !isPrimaryLogger) return;
+    if (!prev || prev.analyticsId !== game.analyticsId) return;
+    const events = [];
+    const prevTurn = prev.turnSerial ?? 0;
+    const curTurn = game.turnSerial ?? 0;
+    if (curTurn > prevTurn && !game.winner) {
+      const cur = game.players[game.currentPlayerIndex];
+      events.push(mkEvent(game, "turn_started", cur, { event_id: `${game.analyticsId}-t${curTurn}-start` }));
+    }
+    if (prev.currentCoord && game.currentCoord && prev.currentCoord.id !== game.currentCoord.id) {
+      events.push(
+        mkEvent(game, "coord_changed", null, {
+          event_id: `${game.analyticsId}-t${curTurn}-coord`,
+          payload: { locked_by_freeze: false },
+        })
+      );
+    } else if (curTurn > prevTurn && game.currentPlayerIndex === 0 && prev.lockCoord && !game.lockCoord) {
+      // Round wrapped but ثبّت الحَلّة retained the same coord card.
+      events.push(
+        mkEvent(game, "coord_changed", null, {
+          event_id: `${game.analyticsId}-t${curTurn}-coord`,
+          payload: { locked_by_freeze: true },
+        })
+      );
+    }
+    if (!prev.winner && game.winner) {
+      sendGameFinished(game, roomCode || null);
+    }
+    if (events.length) track(events);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game]);
 
   useEffect(() => {
     if (!errMsg) return;
@@ -834,13 +962,15 @@ function GameBoard({ game, myId, isOnline, isHost, dispatch, onExit }) {
     const t = setTimeout(() => {
       if (lastBotTurnRef.current === key) return;
       lastBotTurnRef.current = key;
-      dispatch(botDecideTurn(game, cur.id));
+      const next = botDecideTurn(game, cur.id);
+      track(botTurnEvents(game, next, cur));
+      dispatch(next);
     }, 900);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game, botExecutor]);
 
-  function settlePendingAction(computeGame) {
+  function settlePendingAction(computeGame, analyticsEvents) {
     const pa = game.pendingAction;
     if (!pa || settledRef.current === pa.id) return;
     settledRef.current = pa.id;
@@ -850,6 +980,7 @@ function GameBoard({ game, myId, isOnline, isHost, dispatch, onExit }) {
       const actor = g.players.find((p) => p.id === pa.actorId);
       if (actor && actor.isBot) g = rEndTurn(g, pa.actorId);
     }
+    if (analyticsEvents) track(analyticsEvents);
     dispatch(g);
   }
 
@@ -867,7 +998,20 @@ function GameBoard({ game, myId, isOnline, isHost, dispatch, onExit }) {
     const targetHasBlock = targetBot && targetBot.hand.some((c) => c.kind === "action" && c.actionType === "block");
 
     if (harmfulToTarget && targetHasBlock && botExecutor) {
-      const t = setTimeout(() => settlePendingAction(() => rCancelWithBlock(game, targetBot.id)), 700);
+      const t = setTimeout(
+        () =>
+          settlePendingAction(
+            () => rCancelWithBlock(game, targetBot.id),
+            [
+              mkEvent(game, "block_used", targetBot, {
+                event_id: `${game.analyticsId}-pa-${pa.id || "x"}-block-${targetBot.id}`,
+                action_type: "block",
+                payload: { blocked_action_type: pa.actionType, blocked_actor_player_id: pa.actorId },
+              }),
+            ]
+          ),
+        700
+      );
       return () => clearTimeout(t);
     }
 
@@ -891,6 +1035,16 @@ function GameBoard({ game, myId, isOnline, isHost, dispatch, onExit }) {
       return;
     }
     setSelected([]);
+    const playedCards = viewer.hand.filter((c) => selected.includes(c.id) && c.kind === "item");
+    if (playedCards.length > 0) {
+      track([
+        mkEvent(game, "items_played", viewer, {
+          event_id: `${game.analyticsId}-t${game.turnSerial ?? 0}-items-${viewer.id}`,
+          cards_played_count: playedCards.length,
+          items: playedCards.map((c) => ({ name: c.name, region: c.region, rarity: c.rarity })),
+        }),
+      ]);
+    }
     // Placing items always ends the turn right away — an action card can only be played
     // *before* items, never after.
     let g = res.game;
@@ -903,6 +1057,13 @@ function GameBoard({ game, myId, isOnline, isHost, dispatch, onExit }) {
   function endMyTurn() {
     setSelected([]);
     setNeedTarget(null);
+    const hadValidMove = findMatchingItems(viewer.hand, game.currentCoord).length > 0;
+    track([
+      mkEvent(game, "turn_skipped", viewer, {
+        event_id: `${game.analyticsId}-t${game.turnSerial ?? 0}-skip-${viewer.id}`,
+        skip_reason: hadValidMove ? "manual_skip" : "no_valid_card",
+      }),
+    ]);
     dispatch(rEndTurn(game, viewer.id));
   }
 
@@ -911,10 +1072,22 @@ function GameBoard({ game, myId, isOnline, isHost, dispatch, onExit }) {
     const card = viewer.hand.find((c) => c.id === cardId);
     if (!card) return;
     if (card.actionType === "freeze") {
+      track([
+        mkEvent(game, "action_played", viewer, {
+          event_id: `${game.analyticsId}-t${game.turnSerial ?? 0}-action-${viewer.id}-freeze`,
+          action_type: "freeze",
+        }),
+      ]);
       dispatch(rPlayFreeze(game, viewer.id, cardId));
       return;
     }
     if (card.actionType === "dig") {
+      track([
+        mkEvent(game, "action_played", viewer, {
+          event_id: `${game.analyticsId}-t${game.turnSerial ?? 0}-action-${viewer.id}-dig`,
+          action_type: "dig",
+        }),
+      ]);
       dispatch(rPlayDig(game, viewer.id, cardId));
       return;
     }
@@ -928,11 +1101,27 @@ function GameBoard({ game, myId, isOnline, isHost, dispatch, onExit }) {
       setNeedTarget(null);
       return;
     }
+    const target = game.players.find((p) => p.id === targetId);
+    track([
+      mkEvent(game, "action_played", viewer, {
+        event_id: `${game.analyticsId}-t${game.turnSerial ?? 0}-action-${viewer.id}-${card.actionType}`,
+        action_type: card.actionType,
+        payload: { target_player_id: targetId, target_is_bot: !!target?.isBot },
+      }),
+    ]);
     dispatch(rDeclareAction(game, viewer.id, card.id, card.actionType, targetId));
     setNeedTarget(null);
   }
 
   function confirmGiveTake(chosenIds) {
+    const target = game.players.find((p) => p.id === giveStep.targetId);
+    track([
+      mkEvent(game, "action_played", viewer, {
+        event_id: `${game.analyticsId}-t${game.turnSerial ?? 0}-action-${viewer.id}-giveTake`,
+        action_type: "giveTake",
+        payload: { target_player_id: giveStep.targetId, target_is_bot: !!target?.isBot },
+      }),
+    ]);
     dispatch(rDeclareGiveTake(game, viewer.id, giveStep.cardId, giveStep.targetId, chosenIds));
     setGiveStep(null);
   }
@@ -944,7 +1133,19 @@ function GameBoard({ game, myId, isOnline, isHost, dispatch, onExit }) {
       setErrMsg(`${blocker?.name || ""} ما معه كرت لا ما تقدر.`);
       return;
     }
-    settlePendingAction(() => rCancelWithBlock(game, blockerId));
+    const pa = game.pendingAction;
+    settlePendingAction(
+      () => rCancelWithBlock(game, blockerId),
+      pa
+        ? [
+            mkEvent(game, "block_used", blocker, {
+              event_id: `${game.analyticsId}-pa-${pa.id || "x"}-block-${blockerId}`,
+              action_type: "block",
+              payload: { blocked_action_type: pa.actionType, blocked_actor_player_id: pa.actorId },
+            }),
+          ]
+        : null
+    );
   }
 
   function finishDig(keepId) {
@@ -1682,6 +1883,7 @@ function OnlineFlow({ onBack }) {
   async function startOnlineGame() {
     if (!room || room.hostId !== myId || room.lobby.length < 2) return;
     const g = createInitialGame(room.lobby, room.perPlayer);
+    sendGameStarted(g, roomCode);
     await saveRoomTo(roomCode, { ...room, started: true, game: g });
   }
 
@@ -1703,7 +1905,9 @@ function OnlineFlow({ onBack }) {
     return <OnlineLobby room={room} myId={myId} onStart={startOnlineGame} onAddBot={addBot} onRemoveBot={removeBot} onBack={exitToMenu} />;
   }
   if (onlinePhase === "play" && room && room.game) {
-    return <GameBoard game={room.game} myId={myId} isOnline isHost={room.hostId === myId} dispatch={dispatchGame} onExit={exitToMenu} />;
+    return (
+      <GameBoard game={room.game} myId={myId} isOnline isHost={room.hostId === myId} roomCode={roomCode} dispatch={dispatchGame} onExit={exitToMenu} />
+    );
   }
   return (
     <div dir="rtl" className="min-h-screen w-full flex items-center justify-center" style={{ ...pageBg, fontFamily: "Tajawal", color: MAROON }}>
@@ -1760,8 +1964,17 @@ export default function HillaGame() {
   }
 
   if (mode === "local") {
-    if (!localGame) return <LocalSetup onStart={setLocalGame} onBack={() => setMode("home")} />;
-    return <GameBoard game={localGame} myId={null} isOnline={false} dispatch={setLocalGame} onExit={() => setLocalGame(null)} />;
+    if (!localGame)
+      return (
+        <LocalSetup
+          onStart={(g) => {
+            sendGameStarted(g, null);
+            setLocalGame(g);
+          }}
+          onBack={() => setMode("home")}
+        />
+      );
+    return <GameBoard game={localGame} myId={null} isOnline={false} roomCode={null} dispatch={setLocalGame} onExit={() => setLocalGame(null)} />;
   }
 
   if (mode === "online") {
