@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Shirt, Gem, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Archive, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut } from "lucide-react";
+import { Shirt, Gem, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut } from "lucide-react";
 import { newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished } from "@/lib/analytics-client";
 
 /* ---------------------------------- PALETTE ---------------------------------- */
@@ -88,6 +88,14 @@ const JEWELRY = ["غوايش", "حلق", "خواتم", "قلادة", "مرودن
 const REGION_ORDER = REGIONS.map((r) => r.id);
 const RARITY_ORDER = { common: 0, medium: 1, rare: 2 };
 
+// quick lookup: item name -> {region, regionName, color, rarity}
+const ITEM_INFO = {};
+REGIONS.forEach((r) => {
+  r.items.forEach((it) => {
+    ITEM_INFO[it.name] = { region: r.id, regionName: r.name, color: r.color, rarity: it.rarity };
+  });
+});
+
 function sortItemsByRegion(items) {
   return [...items].sort((a, b) => {
     const ra = REGION_ORDER.indexOf(a.region);
@@ -97,6 +105,23 @@ function sortItemsByRegion(items) {
     const rrb = RARITY_ORDER[b.rarity] ?? 0;
     if (rra !== rrb) return rra - rrb;
     return a.name.localeCompare(b.name, "ar");
+  });
+}
+
+// Same ordering, but for a plain array of item-name strings (e.g. a coordination card's chip
+// list) rather than full card objects — looks up region/rarity via ITEM_INFO. Display-only:
+// never mutates card.items or any shared game state.
+function sortItemNamesByRegion(names) {
+  return [...names].sort((a, b) => {
+    const ia = ITEM_INFO[a];
+    const ib = ITEM_INFO[b];
+    const ra = REGION_ORDER.indexOf(ia?.region);
+    const rb = REGION_ORDER.indexOf(ib?.region);
+    if (ra !== rb) return ra - rb;
+    const rra = RARITY_ORDER[ia?.rarity] ?? 0;
+    const rrb = RARITY_ORDER[ib?.rarity] ?? 0;
+    if (rra !== rrb) return rra - rrb;
+    return a.localeCompare(b, "ar");
   });
 }
 
@@ -259,6 +284,7 @@ function createInitialGame(playersMeta, perPlayer) {
     winner: null,
     pendingAction: null,
     digOptions: null,
+    blockEvent: null,
   };
 }
 
@@ -433,10 +459,17 @@ function rCancelWithBlock(game, blockerId) {
   const blocker = game.players.find((p) => p.id === blockerId);
   const blockCard = blocker.hand.find((c) => c.kind === "action" && c.actionType === "block");
   if (!blockCard) return game;
+  const blockedActionType = game.pendingAction.actionType;
+  const actorName = game.pendingAction.actorName;
   let { game: g1, removed } = removeFromHand(game, blockerId, [blockCard.id]);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed] };
-  g1 = pushLog(g1, `${blocker.name} استخدم لا ما تقدر! تم إلغاء ${actionMeta(game.pendingAction.actionType).name}.`);
-  g1 = { ...g1, pendingAction: null };
+  g1 = pushLog(g1, `${blocker.name} استخدم لا ما تقدر! تم إلغاء ${actionMeta(blockedActionType).name}.`);
+  g1 = {
+    ...g1,
+    pendingAction: null,
+    // Display-only marker for BlockFlashToast; never cleared, never read by game logic.
+    blockEvent: { id: uid(), blockerName: blocker.name, actorName, actionType: blockedActionType },
+  };
   g1 = checkWin(g1, blockerId);
   return g1;
 }
@@ -721,6 +754,14 @@ function ActionCard({ card, selected, onClick, disabled }) {
 function CoordCard({ card }) {
   const isRandom = card.type === "random";
   const color = isRandom ? MAROON : card.color;
+  const [openTip, setOpenTip] = useState(null);
+
+  useEffect(() => {
+    if (openTip === null) return;
+    const t = setTimeout(() => setOpenTip(null), 2500);
+    return () => clearTimeout(t);
+  }, [openTip]);
+
   return (
     <div className="flex items-stretch rounded-xl overflow-hidden shadow-2xl border-2" style={{ borderColor: color, background: CREAM }}>
       <DiamondLattice color={color} vertical thickness={10} />
@@ -735,11 +776,30 @@ function CoordCard({ card }) {
         </div>
         <OrnateDivider color={color} />
         <div className="flex flex-wrap gap-1 justify-center">
-          {card.items.map((it, i) => (
-            <span key={i} className="text-[10px] rounded px-1.5 py-0.5 font-bold" style={{ background: `${color}18`, color, border: `1px solid ${color}55` }}>
-              {it}
-            </span>
-          ))}
+          {/* Display-only sort for عشوائي cards (F7): card.items itself is never reordered. */}
+          {(isRandom ? sortItemNamesByRegion(card.items) : card.items).map((it, i) => {
+            const info = ITEM_INFO[it];
+            return (
+              <span key={i} className="relative inline-block">
+                {openTip === i && info && (
+                  <span
+                    className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md text-[9px] font-black whitespace-nowrap shadow-lg z-10 pointer-events-none"
+                    style={{ background: info.color, color: CREAM }}
+                  >
+                    {info.regionName}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setOpenTip((cur) => (cur === i ? null : i))}
+                  className="text-[10px] rounded px-1.5 py-0.5 font-bold"
+                  style={{ background: `${color}18`, color, border: `1px solid ${color}55` }}
+                >
+                  {it}
+                </button>
+              </span>
+            );
+          })}
         </div>
       </div>
       <DiamondLattice color={color} vertical thickness={10} />
@@ -748,7 +808,22 @@ function CoordCard({ card }) {
 }
 
 const GlobalFont = () => (
-  <style>{`@import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Tajawal:wght@400;500;700;900&display=swap');`}</style>
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Tajawal:wght@400;500;700;900&display=swap');
+    @keyframes hilla-toast-fade {
+      0% { opacity: 0; transform: translate(-50%, -6px); }
+      5% { opacity: 1; transform: translate(-50%, 0); }
+      25% { opacity: 1; transform: translate(-50%, 0); }
+      100% { opacity: 0; transform: translate(-50%, -6px); }
+    }
+    @keyframes hilla-block-flash {
+      0% { opacity: 0; transform: translate(-50%, -10px) scale(0.92); }
+      10% { opacity: 1; transform: translate(-50%, 0) scale(1.04); }
+      18% { transform: translate(-50%, 0) scale(1); }
+      88% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -8px) scale(0.96); }
+    }
+  `}</style>
 );
 
 const pageBg = {
@@ -795,6 +870,36 @@ function CountdownRing({ pendingActionId, startedAt, size = 56 }) {
   );
 }
 
+// Ambient "last move" notification (F1): renders game.log[0] as a fading pill.
+// Pure CSS animation (4s: ~1s hold then fade), re-triggered by React key remount.
+function MoveToast({ text }) {
+  if (!text) return null;
+  return (
+    <div
+      className="fixed top-3 left-1/2 z-[55] max-w-[90vw] px-3 py-1.5 rounded-full text-xs font-bold pointer-events-none shadow-md whitespace-nowrap overflow-hidden text-ellipsis"
+      style={{ background: `${INK}cc`, color: CREAM, animation: "hilla-toast-fade 4s ease-out forwards" }}
+    >
+      {text}
+    </div>
+  );
+}
+
+// Prominent لا ما تقدر notification (F2). Display-only; reacts to game.blockEvent.
+function BlockFlashToast({ data }) {
+  if (!data) return null;
+  return (
+    <div
+      className="fixed top-16 left-1/2 z-[65] px-5 py-3 rounded-2xl text-sm font-black pointer-events-none shadow-2xl border-2 flex items-center gap-2"
+      style={{ background: MAROON, color: CREAM, borderColor: GOLD, animation: "hilla-block-flash 4s ease-out forwards" }}
+    >
+      <Shield className="w-5 h-5 flex-shrink-0" style={{ color: GOLD }} />
+      <span>
+        🛡️ {data.blockerName} صدّ {data.actorName} بـ لا ما تقدر!
+      </span>
+    </div>
+  );
+}
+
 function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit }) {
   const [selected, setSelected] = useState([]);
   const [needTarget, setNeedTarget] = useState(null);
@@ -812,6 +917,13 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
   const botExecutor = !isOnline || !!isHost;
   const lastBotTurnRef = useRef(null);
   const settledRef = useRef(null);
+
+  // Stale-replay guard for BlockFlashToast: capture the blockEvent id present
+  // at mount (e.g. after a refresh/reconnect, where shared state still holds
+  // the last block of the game) and only show toasts for ids that arrive
+  // later. Purely local — never clears or writes shared game state.
+  const initialBlockIdRef = useRef(game.blockEvent?.id ?? null);
+  const freshBlockEvent = game.blockEvent && game.blockEvent.id !== initialBlockIdRef.current ? game.blockEvent : null;
 
   /* ----- analytics (fire-and-forget, never affects gameplay) -----
      Action events are emitted by the one client that dispatches the move
@@ -1175,6 +1287,9 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
         </div>
         <DiamondLattice color={GOLD} thickness={10} />
 
+        <MoveToast key={`${game.log.length}-${game.log[0] || ""}`} text={game.log[0]} />
+        <BlockFlashToast key={freshBlockEvent?.id || "none"} data={freshBlockEvent} />
+
         {winnerPlayer ? (
           <div className="mt-10 text-center">
             <div className="text-4xl font-black mb-3" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
@@ -1201,9 +1316,6 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
                   {p.name} {isOnline && p.id === myId && <span style={{ color: GOLD }}>(أنت)</span>} <span className="opacity-70">({p.hand.length})</span>
                 </div>
               ))}
-              <div className="px-3 py-1.5 rounded-full text-xs border-2 flex items-center gap-1" style={{ color: `${INK}77`, borderColor: `${MAROON}33` }}>
-                <Archive className="w-3 h-3" /> سحب: {game.drawPile.length}
-              </div>
             </div>
 
             <div className="flex flex-col items-center gap-4 mb-6">
