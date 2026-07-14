@@ -2067,7 +2067,7 @@ export default function HillaGame() {
               صُممت بأيدي سعودية 🇸🇦
             </p>
             <p className="text-[11px] mt-0.5" style={{ color: `${INK}77` }}>
-              طالبة جامعة الأميرة نورة — لمقرر استيديو 2 🫡
+              طالبة جامعة الأميرة نورة — لمقرر Core Studio (1)
             </p>
           </div>
         </div>
