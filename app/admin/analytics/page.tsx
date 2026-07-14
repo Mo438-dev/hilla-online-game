@@ -364,8 +364,19 @@ export default async function AnalyticsAdminPage({ searchParams }: { searchParam
   ];
 
   // ---- player experience (lifetime timeline per pseudonymous pid) ----
+  const identityRows = (() => {
+    const seen = new Set<string>();
+    return identityAll.filter((r) => {
+      const pid = r.payload?.client_pid;
+      if (!pid) return false;
+      const key = `${r.game_id}:${r.player_id || ''}:${pid}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
   const pidTimeline = new Map<string, string[]>();
-  for (const r of identityAll) {
+  for (const r of identityRows) {
     const pid = r.payload?.client_pid;
     if (!pid) continue;
     const list = pidTimeline.get(pid) || [];
@@ -375,7 +386,7 @@ export default async function AnalyticsAdminPage({ searchParams }: { searchParam
   type Cohort = { players: number; wins: number; completedGames: number };
   const cohorts: Record<string, Cohort> = { 'First game': { players: 0, wins: 0, completedGames: 0 }, 'Games 2–3': { players: 0, wins: 0, completedGames: 0 }, 'Games 4+': { players: 0, wins: 0, completedGames: 0 } };
   const filteredPids = new Set<string>();
-  for (const r of identityAll) {
+  for (const r of identityRows) {
     const pid = r.payload?.client_pid;
     const s = byId.get(r.game_id);
     if (!pid || !s) continue;

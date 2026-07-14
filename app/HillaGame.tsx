@@ -149,6 +149,43 @@ const BOT_NAME_POOL = [
   "أمي برمجتني", "بوت شغال بالبركة", "ذكاء اصطناعي من الحراج", "أبوي حدثني",
 ];
 
+const ONLINE_SESSION_KEY = "hilla_online_session_v1";
+
+function readOnlineSession() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(ONLINE_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    const roomCode = typeof parsed.roomCode === "string" ? parsed.roomCode : "";
+    const myId = typeof parsed.myId === "string" ? parsed.myId : "";
+    const myName = typeof parsed.myName === "string" ? parsed.myName : "";
+    if (!roomCode || !myId) return null;
+    return { roomCode, myId, myName };
+  } catch {
+    return null;
+  }
+}
+
+function writeOnlineSession(session) {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(ONLINE_SESSION_KEY, JSON.stringify(session));
+  } catch {
+    /* ignore storage failures */
+  }
+}
+
+function clearOnlineSession() {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(ONLINE_SESSION_KEY);
+  } catch {
+    /* ignore storage failures */
+  }
+}
+
 function pickRandomBotNames(n) {
   return shuffle(BOT_NAME_POOL).slice(0, n);
 }
@@ -2030,12 +2067,18 @@ function OnlineLobby({ room, myId, onStart, onAddBot, onRemoveBot, onBack }) {
 }
 
 function OnlineFlow({ onBack }) {
-  const [myId] = useState(() => uid());
-  const [myName, setMyName] = useState("");
-  const [roomCode, setRoomCode] = useState("");
-  const [onlinePhase, setOnlinePhase] = useState("menu"); // menu | lobby | play
+  const [savedSession] = useState(() => readOnlineSession());
+  const [myId] = useState(() => savedSession?.myId || uid());
+  const [myName, setMyName] = useState(() => savedSession?.myName || "");
+  const [roomCode, setRoomCode] = useState(() => savedSession?.roomCode || "");
+  const [onlinePhase, setOnlinePhase] = useState(() => (savedSession?.roomCode ? "restoring" : "menu")); // menu | restoring | lobby | play
   const [room, setRoom] = useState(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!roomCode) return;
+    writeOnlineSession({ roomCode, myId, myName: myName.trim() });
+  }, [roomCode, myId, myName]);
 
   async function saveRoomTo(code, doc) {
     setRoom(doc);
@@ -2055,10 +2098,26 @@ function OnlineFlow({ onBack }) {
     if (!roomCode) return;
     try {
       const res = await fetch(`/api/rooms/${roomCode}`, { cache: "no-store" });
+      if (res.status === 404) {
+        clearOnlineSession();
+        setRoom(null);
+        setRoomCode("");
+        setOnlinePhase("menu");
+        return;
+      }
       if (!res.ok) return;
       const doc = await res.json();
+      const seat = doc.started ? doc.game?.players?.find((p) => p.id === myId) : doc.lobby?.find((p) => p.id === myId);
+      if (!seat) {
+        clearOnlineSession();
+        setRoom(null);
+        setRoomCode("");
+        setOnlinePhase("menu");
+        return;
+      }
       setRoom(doc);
-      if (doc.started) setOnlinePhase("play");
+      if (!myName && seat.name) setMyName(seat.name);
+      setOnlinePhase(doc.started ? "play" : "lobby");
     } catch (e) {
       /* room not found yet or transient error, ignore */
     }
@@ -2086,6 +2145,7 @@ function OnlineFlow({ onBack }) {
         if (res.status === 409) continue;
         if (!res.ok) throw new Error("create_failed");
         const created = await res.json();
+        writeOnlineSession({ roomCode: code, myId, myName: myName.trim() });
         setRoomCode(code);
         setRoom(created);
         setOnlinePhase("lobby");
@@ -2121,6 +2181,7 @@ function OnlineFlow({ onBack }) {
       }
       if (!res.ok) throw new Error("join_failed");
       const doc = await res.json();
+      writeOnlineSession({ roomCode: code, myId, myName: myName.trim() });
       setRoomCode(code);
       setRoom(doc);
       setOnlinePhase("lobby");
@@ -2157,9 +2218,11 @@ function OnlineFlow({ onBack }) {
   }
 
   function exitToMenu() {
+    clearOnlineSession();
     setRoomCode("");
     setRoom(null);
     setOnlinePhase("menu");
+    setError("");
   }
 
   if (onlinePhase === "menu") {
@@ -2184,8 +2247,21 @@ function OnlineFlow({ onBack }) {
 /* --------------------------------- APP ROOT --------------------------------- */
 
 export default function HillaGame() {
-  const [mode, setMode] = useState("home"); // home | local | online
+  const [mode, setMode] = useState("boot"); // boot | home | local | online
   const [localGame, setLocalGame] = useState(null);
+
+  useEffect(() => {
+    setMode(readOnlineSession() ? "online" : "home");
+  }, []);
+
+  if (mode === "boot") {
+    return (
+      <div dir="rtl" className="min-h-screen w-full flex items-center justify-center" style={{ ...pageBg, fontFamily: "Tajawal", color: MAROON }}>
+        <GlobalFont />
+        جاري التحميل...
+      </div>
+    );
+  }
 
   if (mode === "home") {
     return (
