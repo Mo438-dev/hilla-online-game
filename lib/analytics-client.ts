@@ -68,6 +68,29 @@ export function sendFeedback(body: {
   post('/api/analytics/feedback', body);
 }
 
+// One event per game listing every dealt item card (name/region/rarity/cid).
+// Entries are sorted by cid so the order carries no information about which
+// player holds which card.
+export function sendDealSnapshot(game: any, roomCode: string | null) {
+  if (!game || !game.analyticsId) return;
+  const items = (game.players || [])
+    .flatMap((p: any) => (p.hand || []).filter((c: any) => c.kind === 'item'))
+    .map((c: any) => ({ name: c.name, region: c.region, rarity: c.rarity, cid: c.id }))
+    .sort((a: any, b: any) => String(a.cid).localeCompare(String(b.cid)));
+  if (!items.length) return;
+  sendAnalyticsEvents([
+    {
+      event_id: `${game.analyticsId}-deal`,
+      game_id: game.analyticsId,
+      room_code: roomCode || null,
+      event_type: 'deal_snapshot',
+      turn_number: 0,
+      round_number: 1,
+      items,
+    },
+  ]);
+}
+
 export function sendGameStarted(game: any, roomCode: string | null) {
   if (!game || !game.analyticsId) return;
   post('/api/analytics/games', {

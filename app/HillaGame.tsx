@@ -2,7 +2,7 @@
 'use client';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Shirt, Gem, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut } from "lucide-react";
-import { newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished, getClientPid, sendFeedback } from "@/lib/analytics-client";
+import { newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished, sendDealSnapshot, getClientPid, sendFeedback } from "@/lib/analytics-client";
 
 /* ---------------------------------- PALETTE ---------------------------------- */
 const CREAM = "#F3E9D2";
@@ -900,6 +900,101 @@ function BlockFlashToast({ data }) {
   );
 }
 
+// Optional post-game survey (V2 analytics). Shown only on the winner screen,
+// fully skippable, fire-and-forget — can never interrupt or break gameplay.
+function PostGameSurvey({ game, myId, isOnline }) {
+  const [fun, setFun] = useState(0);
+  const [clarity, setClarity] = useState(0);
+  const [again, setAgain] = useState(null);
+  const [comment, setComment] = useState("");
+  const [sent, setSent] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  if (!game.analyticsId || hidden) return null;
+  const seat = isOnline ? game.players.find((p) => p.id === myId && !p.isBot) : game.players.find((p) => !p.isBot);
+  if (!seat) return null;
+  if (sent)
+    return (
+      <div className="mt-6 mx-auto max-w-sm rounded-2xl border-2 p-4 text-center font-bold" style={{ background: CREAM2, borderColor: GOLD, color: MAROON }}>
+        شكرًا على رأيك! 💛
+      </div>
+    );
+  const Stars = ({ value, onPick }) => (
+    <div className="flex gap-1 justify-center" dir="ltr">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button key={n} onClick={() => onPick(n === value ? 0 : n)} className="text-xl" style={{ opacity: n <= value ? 1 : 0.25 }}>
+          ⭐
+        </button>
+      ))}
+    </div>
+  );
+  return (
+    <div className="mt-6 mx-auto max-w-sm rounded-2xl border-2 p-4 text-center" style={{ background: CREAM2, borderColor: GOLD }}>
+      <div className="flex justify-between items-center mb-2">
+        <div className="font-black" style={{ color: MAROON }}>
+          رأيك يهمنا (اختياري)
+        </div>
+        <button onClick={() => setHidden(true)} className="text-xs" style={{ color: `${INK}66` }}>
+          تخطي
+        </button>
+      </div>
+      <div className="text-xs mb-1" style={{ color: `${INK}88` }}>
+        كم كانت اللعبة ممتعة؟
+      </div>
+      <Stars value={fun} onPick={setFun} />
+      <div className="text-xs mb-1 mt-2" style={{ color: `${INK}88` }}>
+        هل القوانين واضحة؟
+      </div>
+      <Stars value={clarity} onPick={setClarity} />
+      <div className="text-xs mb-1 mt-2" style={{ color: `${INK}88` }}>
+        تلعبها مرة ثانية؟
+      </div>
+      <div className="flex gap-2 justify-center mb-2">
+        <button
+          onClick={() => setAgain(again === true ? null : true)}
+          className="px-3 py-1 rounded-lg border-2 text-sm font-bold"
+          style={again === true ? { background: TEAL, color: CREAM, borderColor: TEAL } : { color: TEAL, borderColor: `${TEAL}66` }}
+        >
+          أكيد 😍
+        </button>
+        <button
+          onClick={() => setAgain(again === false ? null : false)}
+          className="px-3 py-1 rounded-lg border-2 text-sm font-bold"
+          style={again === false ? { background: MAROON, color: CREAM, borderColor: MAROON } : { color: MAROON, borderColor: `${MAROON}66` }}
+        >
+          لا 😅
+        </button>
+      </div>
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value.slice(0, 280))}
+        placeholder="تعليق (اختياري)"
+        rows={2}
+        className="w-full rounded-lg px-2 py-1 text-xs border-2 focus:outline-none mb-2"
+        style={{ background: CREAM, color: INK, borderColor: `${MAROON}33` }}
+      />
+      <button
+        onClick={() => {
+          sendFeedback({
+            gameId: game.analyticsId,
+            playerId: seat.id,
+            clientPid: getClientPid(),
+            fun: fun || null,
+            clarity: clarity || null,
+            playAgain: again,
+            comment,
+          });
+          setSent(true);
+        }}
+        disabled={!fun && !clarity && again === null && !comment.trim()}
+        className="px-5 py-2 rounded-lg font-bold disabled:opacity-30"
+        style={{ background: MAROON, color: CREAM }}
+      >
+        أرسل
+      </button>
+    </div>
+  );
+}
+
 function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit }) {
   const [selected, setSelected] = useState([]);
   const [needTarget, setNeedTarget] = useState(null);
@@ -985,7 +1080,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
         mkEvent(prev, "items_played", bot, {
           event_id: `${gid}-t${t}-items-${bot.id}`,
           cards_played_count: playedItems.length,
-          items: playedItems.map((c) => ({ name: c.name, region: c.region, rarity: c.rarity })),
+          items: playedItems.map((c) => ({ name: c.name, region: c.region, rarity: c.rarity, cid: c.id })),
         })
       );
     }
@@ -1011,6 +1106,30 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
     return events;
   }
 
+  // Pseudonymous experience tracking: each client reports its own seat once
+  // per game with a random localStorage-only id (no emails/IPs/fingerprints).
+  // Local shared-screen games report the first human seat for the device.
+  useEffect(() => {
+    if (!game || !game.analyticsId) return;
+    const pid = getClientPid();
+    if (!pid) return;
+    const seat = isOnline ? game.players.find((p) => p.id === myId && !p.isBot) : game.players.find((p) => !p.isBot);
+    if (!seat) return;
+    sendAnalyticsEvents([
+      {
+        event_id: `${game.analyticsId}-pid-${seat.id}`,
+        game_id: game.analyticsId,
+        room_code: roomCode || null,
+        player_id: seat.id,
+        player_name: seat.name,
+        is_bot: false,
+        event_type: "player_identity",
+        payload: { client_pid: pid },
+      },
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game.analyticsId]);
+
   // Transition tracker: compares the previous game snapshot with the current
   // one and reports turn starts, coord changes and game end. Runs on every
   // client but only the primary logger emits.
@@ -1024,7 +1143,17 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
     const curTurn = game.turnSerial ?? 0;
     if (curTurn > prevTurn && !game.winner) {
       const cur = game.players[game.currentPlayerIndex];
-      events.push(mkEvent(game, "turn_started", cur, { event_id: `${game.analyticsId}-t${curTurn}-start` }));
+      const playable = findMatchingItems(cur.hand, game.currentCoord);
+      events.push(
+        mkEvent(game, "turn_started", cur, {
+          event_id: `${game.analyticsId}-t${curTurn}-start`,
+          payload: {
+            hand_size: cur.hand.length,
+            had_valid_move: playable.length > 0,
+            ...(playable.length ? { playable_items: [...new Set(playable.map((c) => c.name))].slice(0, 12) } : {}),
+          },
+        })
+      );
     }
     if (prev.currentCoord && game.currentCoord && prev.currentCoord.id !== game.currentCoord.id) {
       events.push(
@@ -1043,6 +1172,26 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
       );
     }
     if (!prev.winner && game.winner) {
+      // Losers' leftover cards + final standings — powers unload-rate,
+      // stuck-with-losers and game-closeness metrics.
+      const leftovers = game.players
+        .filter((p) => p.id !== game.winner)
+        .flatMap((p) => p.hand.filter((c) => c.kind === "item"))
+        .map((c) => ({ name: c.name, region: c.region, rarity: c.rarity, cid: c.id }));
+      events.push(
+        mkEvent(game, "end_snapshot", null, {
+          event_id: `${game.analyticsId}-end`,
+          items: leftovers,
+          payload: {
+            standings: game.players.map((p) => ({
+              player_id: p.id,
+              is_bot: !!p.isBot,
+              is_winner: p.id === game.winner,
+              hand_size: p.hand.length,
+            })),
+          },
+        })
+      );
       sendGameFinished(game, roomCode || null);
     }
     if (events.length) track(events);
@@ -1154,7 +1303,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
         mkEvent(game, "items_played", viewer, {
           event_id: `${game.analyticsId}-t${game.turnSerial ?? 0}-items-${viewer.id}`,
           cards_played_count: playedCards.length,
-          items: playedCards.map((c) => ({ name: c.name, region: c.region, rarity: c.rarity })),
+          items: playedCards.map((c) => ({ name: c.name, region: c.region, rarity: c.rarity, cid: c.id })),
         }),
       ]);
     }
@@ -1299,6 +1448,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
             <button onClick={onExit} className="mt-4 px-6 py-3 rounded-xl font-bold" style={{ background: MAROON, color: CREAM }}>
               العب من جديد
             </button>
+            <PostGameSurvey game={game} myId={myId} isOnline={isOnline} />
           </div>
         ) : (
           <>
@@ -1997,6 +2147,7 @@ function OnlineFlow({ onBack }) {
     if (!room || room.hostId !== myId || room.lobby.length < 2) return;
     const g = createInitialGame(room.lobby, room.perPlayer);
     sendGameStarted(g, roomCode);
+    sendDealSnapshot(g, roomCode);
     await saveRoomTo(roomCode, { ...room, started: true, game: g });
   }
 
@@ -2082,6 +2233,7 @@ export default function HillaGame() {
         <LocalSetup
           onStart={(g) => {
             sendGameStarted(g, null);
+            sendDealSnapshot(g, null);
             setLocalGame(g);
           }}
           onBack={() => setMode("home")}
