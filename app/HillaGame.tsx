@@ -1599,7 +1599,7 @@ function GivePicker({ viewer, onConfirm, onCancel }) {
 
 function LocalSetup({ onStart, onBack }) {
   const [numPlayers, setNumPlayers] = useState(3);
-  const [defaultNames] = useState(() => ["أنت", ...pickRandomBotNames(5)]);
+  const [defaultNames] = useState(() => ["المضيف", ...pickRandomBotNames(5)]);
   const [names, setNames] = useState(defaultNames);
   const [isBot, setIsBot] = useState([false, true, true, true, true, true]);
   const [perPlayer, setPerPlayer] = useState(REC_COUNTS[3]);
@@ -1612,7 +1612,7 @@ function LocalSetup({ onStart, onBack }) {
     const wasDefault = names[i] === defaultNames[i] || names[i] === `لاعب ${i + 1}`;
     if (wasDefault) {
       const copyNames = [...names];
-      copyNames[i] = copy[i] ? defaultNames[i] : i === 0 ? "أنت" : `لاعب ${i + 1}`;
+      copyNames[i] = copy[i] ? defaultNames[i] : i === 0 ? "المضيف" : `لاعب ${i + 1}`;
       setNames(copyNames);
     }
   }
