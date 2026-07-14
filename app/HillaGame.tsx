@@ -2,7 +2,7 @@
 'use client';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Shirt, Gem, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut } from "lucide-react";
-import { newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished } from "@/lib/analytics-client";
+import { newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished, getClientPid, sendFeedback } from "@/lib/analytics-client";
 
 /* ---------------------------------- PALETTE ---------------------------------- */
 const CREAM = "#F3E9D2";
@@ -949,6 +949,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
       coord_type: coord ? coord.type : null,
       coord_region: coord ? coord.region || null : null,
       coord_item_count: coord && Array.isArray(coord.items) ? coord.items.length : null,
+      coord_card_id: coord ? coord.id || null : null,
       ...extra,
     };
   }

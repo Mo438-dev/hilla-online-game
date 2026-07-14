@@ -38,6 +38,36 @@ export function sendAnalyticsEvents(events: unknown[]) {
   post('/api/analytics/events', { events });
 }
 
+// Pseudonymous, browser-local player id used only to distinguish first-time
+// vs returning players. Random uuid in localStorage — no emails, IPs, or
+// fingerprinting. Returns null when storage is unavailable (private mode).
+export function getClientPid(): string | null {
+  try {
+    const KEY = 'hilla_analytics_pid';
+    let pid = localStorage.getItem(KEY);
+    if (!pid) {
+      pid = newAnalyticsGameId();
+      localStorage.setItem(KEY, pid);
+    }
+    return pid;
+  } catch {
+    return null;
+  }
+}
+
+export function sendFeedback(body: {
+  gameId: string;
+  playerId: string;
+  clientPid?: string | null;
+  fun?: number | null;
+  clarity?: number | null;
+  playAgain?: boolean | null;
+  comment?: string;
+}) {
+  if (!body || !body.gameId || !body.playerId) return;
+  post('/api/analytics/feedback', body);
+}
+
 export function sendGameStarted(game: any, roomCode: string | null) {
   if (!game || !game.analyticsId) return;
   post('/api/analytics/games', {

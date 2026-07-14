@@ -8,8 +8,11 @@ import { ANALYTICS_EVENT_TYPES, type AnalyticsEventType } from '@/lib/analytics-
 
 const MAX_EVENTS_PER_REQUEST = 40;
 const MAX_ITEMS_PER_EVENT = 12;
+// Snapshot events legitimately carry one entry per card in the game.
+const MAX_ITEMS_PER_SNAPSHOT = 160;
 const MAX_TEXT = 120;
 const RARITIES = new Set(['common', 'medium', 'rare']);
+const ITEM_EVENT_TYPES = new Set(['items_played', 'deal_snapshot', 'end_snapshot']);
 
 export type AnalyticsEventRow = {
   event_id: string;
@@ -24,8 +27,9 @@ export type AnalyticsEventRow = {
   coord_type: string | null;
   coord_region: string | null;
   coord_item_count: number | null;
+  coord_card_id: string | null;
   cards_played_count: number | null;
-  items: Array<{ name: string; region: string; rarity: string }> | null;
+  items: Array<{ name: string; region: string; rarity: string; cid?: string }> | null;
   action_type: string | null;
   skip_reason: string | null;
   payload: Record<string, unknown> | null;
@@ -47,18 +51,20 @@ function isUuid(v: unknown): v is string {
   return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 }
 
-// items payload: only what is printed on the card face of cards actually
-// placed — never anything else about a hand.
-function sanitizeItems(v: unknown): AnalyticsEventRow['items'] {
+// items payload: only what is printed on the card face — never anything else
+// about a hand. cid is the opaque card-instance id used for lifecycle tracing
+// (deal_snapshot carries no player attribution, so cid links deal → play).
+function sanitizeItems(v: unknown, max: number): AnalyticsEventRow['items'] {
   if (!Array.isArray(v)) return null;
-  const out: Array<{ name: string; region: string; rarity: string }> = [];
-  for (const raw of v.slice(0, MAX_ITEMS_PER_EVENT)) {
+  const out: Array<{ name: string; region: string; rarity: string; cid?: string }> = [];
+  for (const raw of v.slice(0, max)) {
     if (!raw || typeof raw !== 'object') continue;
     const name = asText((raw as Record<string, unknown>).name);
     const region = asText((raw as Record<string, unknown>).region);
     const rarity = asText((raw as Record<string, unknown>).rarity);
     if (!name || !region || !rarity || !RARITIES.has(rarity)) continue;
-    out.push({ name, region, rarity });
+    const cid = asText((raw as Record<string, unknown>).cid);
+    out.push(cid ? { name, region, rarity, cid } : { name, region, rarity });
   }
   return out.length > 0 ? out : null;
 }
@@ -87,6 +93,37 @@ function sanitizePayload(eventType: string, v: unknown): Record<string, unknown>
     const locked = asBool(p.locked_by_freeze);
     return locked === null ? null : { locked_by_freeze: locked };
   }
+  if (eventType === 'turn_started') {
+    const out: Record<string, unknown> = {};
+    const handSize = asInt(p.hand_size);
+    if (handSize !== null) out.hand_size = handSize;
+    const hadValid = asBool(p.had_valid_move);
+    if (hadValid !== null) out.had_valid_move = hadValid;
+    if (Array.isArray(p.playable_items)) {
+      const names = p.playable_items.map(asText).filter((s): s is string => !!s).slice(0, MAX_ITEMS_PER_EVENT);
+      if (names.length) out.playable_items = names;
+    }
+    return Object.keys(out).length ? out : null;
+  }
+  if (eventType === 'end_snapshot') {
+    if (!Array.isArray(p.standings)) return null;
+    const standings = p.standings
+      .slice(0, 6)
+      .map((s) => {
+        if (!s || typeof s !== 'object') return null;
+        const r = s as Record<string, unknown>;
+        const playerId = asText(r.player_id);
+        const handSize = asInt(r.hand_size);
+        if (!playerId || handSize === null) return null;
+        return { player_id: playerId, is_bot: !!r.is_bot, is_winner: !!r.is_winner, hand_size: handSize };
+      })
+      .filter((s) => s !== null);
+    return standings.length ? { standings } : null;
+  }
+  if (eventType === 'player_identity') {
+    const pid = asText(p.client_pid);
+    return pid ? { client_pid: pid } : null;
+  }
   return null;
 }
 
@@ -110,8 +147,11 @@ export function sanitizeEvent(raw: unknown): AnalyticsEventRow | null {
     coord_type: asText(e.coord_type),
     coord_region: asText(e.coord_region),
     coord_item_count: asInt(e.coord_item_count),
+    coord_card_id: asText(e.coord_card_id),
     cards_played_count: asInt(e.cards_played_count),
-    items: eventType === 'items_played' ? sanitizeItems(e.items) : null,
+    items: ITEM_EVENT_TYPES.has(eventType)
+      ? sanitizeItems(e.items, eventType === 'items_played' ? MAX_ITEMS_PER_EVENT : MAX_ITEMS_PER_SNAPSHOT)
+      : null,
     action_type: asText(e.action_type),
     skip_reason: asText(e.skip_reason),
     payload: sanitizePayload(eventType, e.payload),
@@ -304,5 +344,50 @@ export async function recordGameFinished(body: GameFinishedBody) {
     ]);
   } catch (error) {
     logAnalyticsError('recordGameFinished', error);
+  }
+}
+
+type FeedbackBody = {
+  gameId?: string;
+  playerId?: string;
+  clientPid?: string;
+  fun?: number;
+  clarity?: number;
+  playAgain?: boolean;
+  comment?: string;
+};
+
+// Optional post-game survey. First submission per (game, player) wins;
+// duplicates are ignored. Comment is length-capped, everything sanitized.
+export async function recordFeedback(body: FeedbackBody) {
+  if (!isUuid(body.gameId)) return;
+  const playerId = asText(body.playerId);
+  if (!playerId) return;
+  const rating = (v: unknown) => {
+    const n = asInt(v);
+    return n !== null && n >= 1 && n <= 5 ? n : null;
+  };
+  const fun = rating(body.fun);
+  const clarity = rating(body.clarity);
+  const playAgain = asBool(body.playAgain);
+  const comment = typeof body.comment === 'string' ? body.comment.slice(0, 280).trim() || null : null;
+  if (fun === null && clarity === null && playAgain === null && !comment) return;
+  try {
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase.from('game_feedback').upsert(
+      {
+        game_id: body.gameId,
+        player_id: playerId,
+        client_pid: asText(body.clientPid),
+        fun,
+        clarity,
+        play_again: playAgain,
+        comment,
+      },
+      { onConflict: 'game_id,player_id', ignoreDuplicates: true }
+    );
+    if (error) throw new Error(error.message);
+  } catch (error) {
+    logAnalyticsError('recordFeedback', error);
   }
 }

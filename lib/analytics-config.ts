@@ -19,6 +19,10 @@ export const ANALYTICS_EVENT_TYPES = [
   'coord_changed',
   'bot_move',
   'winner_declared',
+  // V2 events
+  'deal_snapshot', // all dealt cards at game start (no player attribution)
+  'end_snapshot', // losers' remaining cards + final standings at game end
+  'player_identity', // pseudonymous localStorage client_pid per human player
 ] as const;
 
 export type AnalyticsEventType = (typeof ANALYTICS_EVENT_TYPES)[number];
