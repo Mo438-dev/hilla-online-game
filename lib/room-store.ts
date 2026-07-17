@@ -14,6 +14,7 @@ export type RoomDoc = {
   started: boolean;
   lobby: PlayerMeta[];
   game: unknown;
+  updatedAt?: string | null;
 };
 
 type RoomRow = {
@@ -25,6 +26,7 @@ type RoomRow = {
   lobby: PlayerMeta[];
   game: unknown;
   expires_at: string;
+  updated_at: string;
 };
 
 const ROOMS_TABLE = 'hilla_rooms';
@@ -37,11 +39,12 @@ function toRoomDoc(row: RoomRow): RoomDoc {
     maxPlayers: row.max_players,
     started: row.started,
     lobby: row.lobby ?? [],
-    game: row.game ?? null
+    game: row.game ?? null,
+    updatedAt: row.updated_at ?? null
   };
 }
 
-function toRoomRow(room: RoomDoc): Omit<RoomRow, 'expires_at'> {
+function toRoomRow(room: RoomDoc): Omit<RoomRow, 'expires_at' | 'updated_at'> {
   return {
     code: room.code,
     host_id: room.hostId,

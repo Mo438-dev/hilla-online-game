@@ -907,8 +907,10 @@ function CountdownRing({ pendingActionId, startedAt, size = 56 }) {
   );
 }
 
-// Ambient "last move" notification (F1): renders game.log[0] as a fading pill.
+// Ambient "last move" notification (F1): renders a local, turn-aware move pill.
 // Pure CSS animation (4s: ~1s hold then fade), re-triggered by React key remount.
+const MOVE_TOAST_PRIORITY = { noPlay: 1, play: 2 };
+
 function MoveToast({ text }) {
   if (!text) return null;
   return (
@@ -919,6 +921,94 @@ function MoveToast({ text }) {
       {text}
     </div>
   );
+}
+
+function getInsertedLogEntries(prevLog, nextLog) {
+  if (!Array.isArray(prevLog) || prevLog.length === 0) return [];
+  if (!Array.isArray(nextLog) || nextLog.length === 0) return [];
+  const maxOverlap = Math.min(prevLog.length, nextLog.length);
+  for (let overlap = maxOverlap; overlap >= 0; overlap--) {
+    let matches = true;
+    for (let i = 0; i < overlap; i++) {
+      if (nextLog[nextLog.length - overlap + i] !== prevLog[i]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return nextLog.slice(0, nextLog.length - overlap);
+  }
+  return nextLog;
+}
+
+function parseTurnEndActor(msg) {
+  const match = msg.match(/^(.+?) أنهى دوره\.$/);
+  return match ? match[1] : null;
+}
+
+function parsePlayToast(msg) {
+  if (!msg) return null;
+
+  const itemMatch = msg.match(/^(.+?) وضع: /);
+  if (itemMatch) return { actorName: itemMatch[1], text: msg, priority: MOVE_TOAST_PRIORITY.play };
+
+  const actionStartPatterns = [
+    /^(.+?) استخدم اقدع على /,
+    /^(.+?) بادل كروت مع /,
+    /^(.+?) لعب ثبّت الحَلّة\.$/,
+    /^(.+?) فتّش الصندوق\.$/,
+    /^(.+?) أضاف ".+?" من فتّش الصندوق\.$/,
+  ];
+  for (const pattern of actionStartPatterns) {
+    const match = msg.match(pattern);
+    if (match) return { actorName: match[1], text: msg, priority: MOVE_TOAST_PRIORITY.play };
+  }
+
+  const stealMatch = msg.match(/^.+? فزع من (.+?) وأخذ /);
+  if (stealMatch) return { actorName: stealMatch[1], text: msg, priority: MOVE_TOAST_PRIORITY.play };
+
+  const blockMatch = msg.match(/^(.+?) استخدم لا ما تقدر! /);
+  if (blockMatch) return { actorName: blockMatch[1], text: msg, priority: MOVE_TOAST_PRIORITY.play };
+
+  return null;
+}
+
+function turnToastKey(turnSerial, actorName) {
+  return `${turnSerial}:${actorName}`;
+}
+
+function pickPriorityMoveToast(entries, currentGame, prevGame, shownTurnToastKeys) {
+  const currentTurn = currentGame.turnSerial ?? 0;
+  const previousTurn = Math.max(0, currentTurn - 1);
+  const endedActors = new Map();
+
+  for (const entry of entries) {
+    const actorName = parseTurnEndActor(entry);
+    if (actorName && !endedActors.has(actorName)) endedActors.set(actorName, entry);
+  }
+
+  for (const entry of entries) {
+    const candidate = parsePlayToast(entry);
+    if (!candidate) continue;
+    const turnKey = turnToastKey(endedActors.has(candidate.actorName) ? previousTurn : currentTurn, candidate.actorName);
+    if (shownTurnToastKeys.has(turnKey)) continue;
+    return { ...candidate, turnKey };
+  }
+
+  for (const [actorName] of endedActors) {
+    const turnKey = turnToastKey(previousTurn, actorName);
+    if (shownTurnToastKeys.has(turnKey)) continue;
+    const prevActor = prevGame?.players?.[prevGame.currentPlayerIndex];
+    const hadActionPlay = prevActor?.name === actorName && (prevGame?.turnSerial ?? null) === previousTurn && !!prevGame?.actionUsedThisTurn;
+    if (hadActionPlay) continue;
+    return {
+      actorName,
+      priority: MOVE_TOAST_PRIORITY.noPlay,
+      text: `${actorName} تخطّى دوره.`,
+      turnKey,
+    };
+  }
+
+  return null;
 }
 
 // Prominent لا ما تقدر notification (F2). Display-only; reacts to game.blockEvent.
@@ -1039,6 +1129,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
   const [revealed, setRevealed] = useState(isOnline ? true : false);
   const [errMsg, setErrMsg] = useState("");
   const [sortByRegion, setSortByRegion] = useState(false);
+  const [moveToast, setMoveToast] = useState(null);
 
   const current = game.players[game.currentPlayerIndex];
   const viewer = isOnline ? game.players.find((p) => p.id === myId) || current : current;
@@ -1049,6 +1140,10 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
   const botExecutor = !isOnline || !!isHost;
   const lastBotTurnRef = useRef(null);
   const settledRef = useRef(null);
+  const prevToastGameRef = useRef(game);
+  const prevToastLogRef = useRef(Array.isArray(game.log) ? game.log : []);
+  const shownTurnToastKeysRef = useRef(new Set());
+  const toastSeqRef = useRef(0);
 
   // Stale-replay guard for BlockFlashToast: capture the blockEvent id present
   // at mount (e.g. after a refresh/reconnect, where shared state still holds
@@ -1056,6 +1151,30 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
   // later. Purely local — never clears or writes shared game state.
   const initialBlockIdRef = useRef(game.blockEvent?.id ?? null);
   const freshBlockEvent = game.blockEvent && game.blockEvent.id !== initialBlockIdRef.current ? game.blockEvent : null;
+
+  useEffect(() => {
+    prevToastGameRef.current = game;
+    prevToastLogRef.current = Array.isArray(game.log) ? game.log : [];
+    shownTurnToastKeysRef.current = new Set();
+    setMoveToast(null);
+  }, [game.analyticsId]);
+
+  useEffect(() => {
+    const prevGame = prevToastGameRef.current;
+    const prevLog = prevToastLogRef.current;
+    const nextLog = Array.isArray(game.log) ? game.log : [];
+    prevToastGameRef.current = game;
+    prevToastLogRef.current = nextLog;
+    if (!prevGame || prevGame.analyticsId !== game.analyticsId) return;
+    if (!prevLog.length || !nextLog.length) return;
+    const inserted = getInsertedLogEntries(prevLog, nextLog);
+    if (!inserted.length) return;
+    const nextToast = pickPriorityMoveToast(inserted, game, prevGame, shownTurnToastKeysRef.current);
+    if (!nextToast) return;
+    shownTurnToastKeysRef.current.add(nextToast.turnKey);
+    toastSeqRef.current += 1;
+    setMoveToast({ id: toastSeqRef.current, text: nextToast.text });
+  }, [game]);
 
   /* ----- analytics (fire-and-forget, never affects gameplay) -----
      Action events are emitted by the one client that dispatches the move
@@ -1474,7 +1593,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
         </div>
         <DiamondLattice color={GOLD} thickness={10} />
 
-        <MoveToast key={`${game.log.length}-${game.log[0] || ""}`} text={game.log[0]} />
+        <MoveToast key={moveToast?.id || "none"} text={moveToast?.text || ""} />
         <BlockFlashToast key={freshBlockEvent?.id || "none"} data={freshBlockEvent} />
 
         {winnerPlayer ? (
@@ -2074,6 +2193,35 @@ function OnlineFlow({ onBack }) {
   const [onlinePhase, setOnlinePhase] = useState(() => (savedSession?.roomCode ? "restoring" : "menu")); // menu | restoring | lobby | play
   const [room, setRoom] = useState(null);
   const [error, setError] = useState("");
+  const pollInFlightRef = useRef(false);
+  const pollSeqRef = useRef(0);
+  const appliedPollSeqRef = useRef(0);
+  const roomMutationRef = useRef(0);
+  const latestRoomUpdatedAtRef = useRef(0);
+  const activeRoomCodeRef = useRef(roomCode);
+
+  function resetRoomSyncState() {
+    pollInFlightRef.current = false;
+    pollSeqRef.current = 0;
+    appliedPollSeqRef.current = 0;
+    roomMutationRef.current = 0;
+    latestRoomUpdatedAtRef.current = 0;
+  }
+
+  function stampRoom(doc) {
+    const nextTs = typeof doc?.updatedAt === "string" ? Date.parse(doc.updatedAt) : Number.NaN;
+    if (Number.isFinite(nextTs)) latestRoomUpdatedAtRef.current = Math.max(latestRoomUpdatedAtRef.current, nextTs);
+  }
+
+  function adoptRoom(doc) {
+    stampRoom(doc);
+    setRoom(doc);
+  }
+
+  useEffect(() => {
+    activeRoomCodeRef.current = roomCode;
+    if (!roomCode) resetRoomSyncState();
+  }, [roomCode]);
 
   useEffect(() => {
     if (!roomCode) return;
@@ -2081,6 +2229,7 @@ function OnlineFlow({ onBack }) {
   }, [roomCode, myId, myName]);
 
   async function saveRoomTo(code, doc) {
+    const mutationVersion = ++roomMutationRef.current;
     setRoom(doc);
     try {
       const res = await fetch(`/api/rooms/${code}`, {
@@ -2089,15 +2238,23 @@ function OnlineFlow({ onBack }) {
         body: JSON.stringify({ room: doc }),
       });
       if (!res.ok) throw new Error("save_failed");
+      const updated = await res.json();
+      if (activeRoomCodeRef.current !== code || mutationVersion !== roomMutationRef.current) return;
+      adoptRoom(updated);
     } catch (e) {
       setError("تعذر الحفظ، تأكد من الاتصال وحاول مجددًا.");
     }
   }
 
   async function pollRoom() {
-    if (!roomCode) return;
+    if (!roomCode || pollInFlightRef.current) return;
+    const code = roomCode;
+    const requestId = ++pollSeqRef.current;
+    const mutationVersionAtStart = roomMutationRef.current;
+    pollInFlightRef.current = true;
     try {
-      const res = await fetch(`/api/rooms/${roomCode}`, { cache: "no-store" });
+      const res = await fetch(`/api/rooms/${code}`, { cache: "no-store" });
+      if (activeRoomCodeRef.current !== code) return;
       if (res.status === 404) {
         clearOnlineSession();
         setRoom(null);
@@ -2107,6 +2264,11 @@ function OnlineFlow({ onBack }) {
       }
       if (!res.ok) return;
       const doc = await res.json();
+      if (activeRoomCodeRef.current !== code) return;
+      if (requestId < appliedPollSeqRef.current) return;
+      if (mutationVersionAtStart !== roomMutationRef.current) return;
+      const incomingUpdatedAt = typeof doc?.updatedAt === "string" ? Date.parse(doc.updatedAt) : Number.NaN;
+      if (Number.isFinite(incomingUpdatedAt) && incomingUpdatedAt < latestRoomUpdatedAtRef.current) return;
       const seat = doc.started ? doc.game?.players?.find((p) => p.id === myId) : doc.lobby?.find((p) => p.id === myId);
       if (!seat) {
         clearOnlineSession();
@@ -2115,11 +2277,14 @@ function OnlineFlow({ onBack }) {
         setOnlinePhase("menu");
         return;
       }
-      setRoom(doc);
+      appliedPollSeqRef.current = requestId;
+      adoptRoom(doc);
       if (!myName && seat.name) setMyName(seat.name);
       setOnlinePhase(doc.started ? "play" : "lobby");
     } catch (e) {
       /* room not found yet or transient error, ignore */
+    } finally {
+      pollInFlightRef.current = false;
     }
   }
 
@@ -2147,7 +2312,7 @@ function OnlineFlow({ onBack }) {
         const created = await res.json();
         writeOnlineSession({ roomCode: code, myId, myName: myName.trim() });
         setRoomCode(code);
-        setRoom(created);
+        adoptRoom(created);
         setOnlinePhase("lobby");
         return;
       } catch (e) {
@@ -2183,7 +2348,7 @@ function OnlineFlow({ onBack }) {
       const doc = await res.json();
       writeOnlineSession({ roomCode: code, myId, myName: myName.trim() });
       setRoomCode(code);
-      setRoom(doc);
+      adoptRoom(doc);
       setOnlinePhase("lobby");
     } catch (e) {
       setError("ما لقينا هذي الغرفة، تأكد من الكود.");
@@ -2219,6 +2384,7 @@ function OnlineFlow({ onBack }) {
 
   function exitToMenu() {
     clearOnlineSession();
+    resetRoomSyncState();
     setRoomCode("");
     setRoom(null);
     setOnlinePhase("menu");
