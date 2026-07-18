@@ -915,8 +915,13 @@ function MoveToast({ text }) {
   if (!text) return null;
   return (
     <div
-      className="fixed top-3 left-1/2 z-[55] max-w-[90vw] px-3 py-1.5 rounded-full text-xs font-bold pointer-events-none shadow-md whitespace-nowrap overflow-hidden text-ellipsis"
-      style={{ background: `${INK}cc`, color: CREAM, animation: "hilla-toast-fade 4s ease-out forwards" }}
+      className="fixed left-1/2 z-[55] max-w-[90vw] px-3 py-1.5 rounded-full text-xs font-bold pointer-events-none shadow-md whitespace-nowrap overflow-hidden text-ellipsis"
+      style={{
+        top: "calc(env(safe-area-inset-top, 0px) + 4rem)",
+        background: `${INK}cc`,
+        color: CREAM,
+        animation: "hilla-toast-fade 4s ease-out forwards",
+      }}
     >
       {text}
     </div>
@@ -1016,8 +1021,14 @@ function BlockFlashToast({ data }) {
   if (!data) return null;
   return (
     <div
-      className="fixed top-16 left-1/2 z-[65] px-5 py-3 rounded-2xl text-sm font-black pointer-events-none shadow-2xl border-2 flex items-center gap-2"
-      style={{ background: MAROON, color: CREAM, borderColor: GOLD, animation: "hilla-block-flash 4s ease-out forwards" }}
+      className="fixed left-1/2 z-[65] px-5 py-3 rounded-2xl text-sm font-black pointer-events-none shadow-2xl border-2 flex items-center gap-2"
+      style={{
+        top: "calc(env(safe-area-inset-top, 0px) + 6.75rem)",
+        background: MAROON,
+        color: CREAM,
+        borderColor: GOLD,
+        animation: "hilla-block-flash 4s ease-out forwards",
+      }}
     >
       <Shield className="w-5 h-5 flex-shrink-0" style={{ color: GOLD }} />
       <span>
@@ -1580,7 +1591,11 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
   const winnerPlayer = game.winner ? game.players.find((p) => p.id === game.winner) : null;
 
   return (
-    <div dir="rtl" className="min-h-screen w-full p-4" style={{ ...pageBg, fontFamily: "Tajawal" }}>
+    <div
+      dir="rtl"
+      className="min-h-screen w-full p-4"
+      style={{ ...pageBg, fontFamily: "Tajawal", paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)" }}
+    >
       <GlobalFont />
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-3">
@@ -2199,6 +2214,34 @@ function OnlineFlow({ onBack }) {
   const roomMutationRef = useRef(0);
   const latestRoomUpdatedAtRef = useRef(0);
   const activeRoomCodeRef = useRef(roomCode);
+  const pendingOptimisticRoomRef = useRef(null);
+
+  function getRoomSyncSnapshot(doc) {
+    const game = doc?.game;
+    return {
+      started: !!doc?.started,
+      turnSerial: game?.turnSerial ?? null,
+      currentPlayerIndex: game?.currentPlayerIndex ?? null,
+      winner: game?.winner ?? null,
+    };
+  }
+
+  function isBehindOptimisticRoom(doc, optimisticSnapshot) {
+    if (!optimisticSnapshot) return false;
+    if (optimisticSnapshot.started && !doc?.started) return true;
+    if (!optimisticSnapshot.started || !doc?.started) return false;
+
+    const incoming = getRoomSyncSnapshot(doc);
+    const incomingTurn = incoming.turnSerial ?? -1;
+    const optimisticTurn = optimisticSnapshot.turnSerial ?? -1;
+
+    if (incomingTurn < optimisticTurn) return true;
+    if (incomingTurn > optimisticTurn) return false;
+    if (incoming.currentPlayerIndex !== optimisticSnapshot.currentPlayerIndex) return true;
+    if (optimisticSnapshot.winner && incoming.winner !== optimisticSnapshot.winner) return true;
+
+    return false;
+  }
 
   function resetRoomSyncState() {
     pollInFlightRef.current = false;
@@ -2206,6 +2249,7 @@ function OnlineFlow({ onBack }) {
     appliedPollSeqRef.current = 0;
     roomMutationRef.current = 0;
     latestRoomUpdatedAtRef.current = 0;
+    pendingOptimisticRoomRef.current = null;
   }
 
   function stampRoom(doc) {
@@ -2230,6 +2274,7 @@ function OnlineFlow({ onBack }) {
 
   async function saveRoomTo(code, doc) {
     const mutationVersion = ++roomMutationRef.current;
+    pendingOptimisticRoomRef.current = { code, mutationVersion, snapshot: getRoomSyncSnapshot(doc) };
     setRoom(doc);
     try {
       const res = await fetch(`/api/rooms/${code}`, {
@@ -2240,8 +2285,10 @@ function OnlineFlow({ onBack }) {
       if (!res.ok) throw new Error("save_failed");
       const updated = await res.json();
       if (activeRoomCodeRef.current !== code || mutationVersion !== roomMutationRef.current) return;
+      pendingOptimisticRoomRef.current = null;
       adoptRoom(updated);
     } catch (e) {
+      pendingOptimisticRoomRef.current = null;
       setError("تعذر الحفظ، تأكد من الاتصال وحاول مجددًا.");
     }
   }
@@ -2267,6 +2314,15 @@ function OnlineFlow({ onBack }) {
       if (activeRoomCodeRef.current !== code) return;
       if (requestId < appliedPollSeqRef.current) return;
       if (mutationVersionAtStart !== roomMutationRef.current) return;
+      const optimisticRoom = pendingOptimisticRoomRef.current;
+      if (
+        optimisticRoom &&
+        optimisticRoom.code === code &&
+        optimisticRoom.mutationVersion === mutationVersionAtStart &&
+        isBehindOptimisticRoom(doc, optimisticRoom.snapshot)
+      ) {
+        return;
+      }
       const incomingUpdatedAt = typeof doc?.updatedAt === "string" ? Date.parse(doc.updatedAt) : Number.NaN;
       if (Number.isFinite(incomingUpdatedAt) && incomingUpdatedAt < latestRoomUpdatedAtRef.current) return;
       const seat = doc.started ? doc.game?.players?.find((p) => p.id === myId) : doc.lobby?.find((p) => p.id === myId);
