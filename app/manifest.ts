@@ -3,8 +3,8 @@ import type { MetadataRoute } from 'next';
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: '/',
-    name: 'حِلّة',
-    short_name: 'حِلّة',
+    name: 'حُلّة',
+    short_name: 'حُلّة',
     description: 'لعبة مطابقة الأزياء التقليدية السعودية',
     start_url: '/',
     scope: '/',

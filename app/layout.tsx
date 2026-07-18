@@ -13,14 +13,14 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'حِلّة',
+  title: 'حُلّة',
   description: 'لعبة مطابقة الأزياء التقليدية السعودية',
-  applicationName: 'حِلّة',
+  applicationName: 'حُلّة',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'حِلّة'
+    title: 'حُلّة'
   },
   formatDetection: {
     telephone: false
@@ -41,11 +41,11 @@ export const metadata: Metadata = {
     'mobile-web-app-capable': 'yes',
     'apple-mobile-web-app-capable': 'yes',
     'apple-mobile-web-app-status-bar-style': 'black-translucent',
-    'apple-mobile-web-app-title': 'حِلّة',
+    'apple-mobile-web-app-title': 'حُلّة',
     'msapplication-TileColor': MAROON,
     'msapplication-navbutton-color': MAROON,
     'theme-color': MAROON,
-    'application-name': 'حِلّة',
+    'application-name': 'حُلّة',
     'background-color': CREAM
   }
 };
