@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Shirt, Gem, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut } from "lucide-react";
+import { Shirt, Gem, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut, RefreshCw, Type, Menu, Crown, Sword, Eye, CircleDashed, Sun } from "lucide-react";
 import { newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished, sendDealSnapshot, getClientPid, sendFeedback } from "@/lib/analytics-client";
 
 /* ---------------------------------- PALETTE ---------------------------------- */
@@ -32,10 +32,12 @@ const REGIONS = [
     items: [
       { name: "عقال", rarity: "common" },
       { name: "المخطم", rarity: "rare" },
-      { name: "بشت", rarity: "medium" },
-      { name: "ثوب", rarity: "medium" },
+      { name: "المخنق", rarity: "medium" },
+      { name: "متفت", rarity: "medium" },
       { name: "دراعة", rarity: "medium" },
-      { name: "مخنق", rarity: "medium" },
+      { name: "برقع حرب", rarity: "medium" },
+      { name: "بشت", rarity: "medium" },
+      { name: "شماغ", rarity: "medium" },
     ],
   },
   {
@@ -43,15 +45,14 @@ const REGIONS = [
     name: "شرقي",
     color: "#2F4B33",
     items: [
-      { name: "مرودن", rarity: "common" },
+      { name: "ثوب مرودن", rarity: "common" },
       { name: "قلادة", rarity: "common" },
       { name: "برقع أسود", rarity: "common" },
       { name: "دقلة", rarity: "common" },
-      { name: "طفشة", rarity: "medium" },
-      { name: "نشل", rarity: "medium" },
-      { name: "نفنوف", rarity: "medium" },
+      { name: "مقصب", rarity: "medium" },
       { name: "هامة", rarity: "medium" },
-      { name: "المقصب", rarity: "medium" },
+      { name: "نفنوف", rarity: "medium" },
+      { name: "النشل", rarity: "medium" },
     ],
   },
   {
@@ -60,12 +61,13 @@ const REGIONS = [
     color: "#1F6F6B",
     items: [
       { name: "خواتم", rarity: "common" },
-      { name: "المريشة", rarity: "rare" },
+      { name: "مريشة", rarity: "rare" },
+      { name: "جنبية", rarity: "medium" },
+      { name: "خرص", rarity: "medium" },
       { name: "منديل برتقالي", rarity: "medium" },
-      { name: "المجنب العسيري", rarity: "medium" },
+      { name: "المجنب", rarity: "medium" },
+      { name: "طفشة", rarity: "medium" },
       { name: "بيدي", rarity: "medium" },
-      { name: "رشرش", rarity: "medium" },
-      { name: "متفت", rarity: "medium" },
     ],
   },
   {
@@ -75,16 +77,57 @@ const REGIONS = [
     items: [
       { name: "غوايش", rarity: "common" },
       { name: "حلق", rarity: "common" },
-      { name: "البرم والمسفع", rarity: "rare" },
+      { name: "بيرم ومسفع", rarity: "rare" },
       { name: "برقع حجازي", rarity: "rare" },
       { name: "شاية", rarity: "medium" },
-      { name: "مبقر", rarity: "medium" },
-      { name: "الزبون الغربي", rarity: "medium" },
+      { name: "ثوب مبقر", rarity: "medium" },
+      { name: "ثوب الزبون", rarity: "medium" },
+      { name: "مرتعشة", rarity: "medium" },
     ],
   },
 ];
 
-const JEWELRY = ["غوايش", "حلق", "خواتم", "قلادة", "مرودن"];
+const ITEM_DESC = {
+  "عقال": "حبل أسود دائري يُلبس فوق الشماغ أو الغترة لتثبيتهما على الرأس.",
+  "المخطم": "ثوب نسائي نجدي واسع، يتميز بالتطريز والزخارف الممتدة على الصدر وأجزاء الثوب.",
+  "المخنق": "قلادة تقليدية تُلبس ملاصقة للعنق، وقد تُصنع من الذهب أو الخرز.",
+  "متفت": "ثوب نسائي نجدي واسع، يتميز بالتطريز اليدوي والزخارف النباتية الملونة.",
+  "دراعة": "ثوب نسائي طويل وفضفاض، يُزيّن بالتطريز وتختلف خامته بحسب المناسبة.",
+  "برقع حرب": "غطاء وجه نسائي تراثي مرتبط بأزياء نساء قبيلة حرب، يغطي الوجه ويُظهر العينين.",
+  "بشت": "عباءة رجالية فاخرة تُلبس فوق الثوب في المناسبات الرسمية والأعياد.",
+  "شماغ": "غطاء رأس رجالي مربع، غالبًا ما يكون أحمر وأبيض، ويُثبت بالعقال.",
+  "ثوب مرودن": "ثوب رجالي تراثي يتميز بأكمامه الطويلة والواسعة.",
+  "قلادة": "عقد تقليدي يُلبس حول الرقبة ويمتد على الصدر، ويُصنع غالبًا من الذهب.",
+  "برقع أسود": "غطاء وجه نسائي تقليدي أسود اللون يُظهر العينين.",
+  "دقلة": "رداء رجالي طويل ومفتوح من الأمام، يُلبس فوق الثوب.",
+  "مقصب": "عقال رجالي فاخر تزيّنه خيوط ذهبية أو زخارف مقصبة.",
+  "هامة": "حلية ذهبية تُثبت أعلى الرأس، وقد تتدلى منها سلاسل أو قطع ذهبية على الجانبين.",
+  "نفنوف": "فستان نسائي خليجي تقليدي، غالبًا ما يكون واسعًا ومزخرفًا.",
+  "النشل": "ثوب نسائي واسع، يُصنع غالبًا من الحرير ويُطرز بخيوط الزري الذهبية.",
+  "خواتم": "خواتم ذهبية أو فضية تقليدية تُلبس للزينة.",
+  "مريشة": "شيلة نسائية سوداء تُزيّن أطرافها بخيوط أو شراريب ملونة، وتُلبس فوق غطاء الرأس.",
+  "جنبية": "خنجر تقليدي ذو نصل منحنٍ، يُثبت في حزام حول الخصر.",
+  "خرص": "أقراط أو حلقات أذن تراثية، تُصنع غالبًا من الفضة أو الذهب.",
+  "منديل برتقالي": "غطاء رأس تقليدي يتميز بلونه البرتقالي الزاهي، ويُلبس عادة تحت الشيلة.",
+  "المجنب": "ثوب نسائي طويل، يتميز بالتطريز الملون الممتد على جانبي الثوب والصدر.",
+  "طفشة": "قبعة تراثية عريضة تُصنع من الخوص أو سعف النخيل للحماية من الشمس.",
+  "بيدي": "رداء رجالي ثقيل يُصنع من الصوف، وتُزيّن أكمامه وجيوبه بالتطريز الملون، واشتهرت بصناعته منطقة الباحة.",
+  "غوايش": "أساور ذهبية تقليدية تُلبس حول المعصم أو أعلى الذراع، وقد تُلبس عدة قطع معًا.",
+  "حلق": "أقراط ذهبية تقليدية تُستخدم لتزيين الأذنين.",
+  "بيرم ومسفع": "غطاءان تقليديان لرأس المرأة الحجازية؛ يُلف المسفع حول الرأس، ويُرتدى البيرم فوقه لإكمال الزينة.",
+  "برقع حجازي": "غطاء وجه نسائي حجازي، قد يُزيّن بالتطريز أو بالقطع المعدنية والزخارف.",
+  "شاية": "رداء رجالي حجازي خارجي يشبه المعطف، ويُلبس فوق الثوب.",
+  "ثوب مبقر": "ثوب حجازي تراثي يتميز بتقسيمات زخرفية وأشرطة قماش ملونة.",
+  "ثوب الزبون": "رداء نسائي حجازي طويل ومفتوح من الأمام، يُلبس فوق الثياب ويُزيّن بالتطريز.",
+  "مرتعشة": "حلية ذهبية كبيرة متعددة الصفوف والسلاسل، تغطي جزءًا من الرقبة والصدر.",
+};
+const ICON_JEWELRY = ["غوايش", "حلق", "خواتم", "قلادة", "المخنق", "خرص", "مرتعشة"];
+const ICON_CROWN = ["هامة"];
+const ICON_WEAPON = ["جنبية"];
+const ICON_VEIL = ["برقع أسود", "برقع حجازي", "برقع حرب", "مريشة"];
+const ICON_CORD = ["عقال"];
+const ICON_FESTIVE = ["بشت", "دقلة", "شاية", "ثوب الزبون"];
+const ICON_HAT = ["طفشة"];
 const REGION_ORDER = REGIONS.map((r) => r.id);
 const RARITY_ORDER = { common: 0, medium: 1, rare: 2 };
 
@@ -106,6 +149,17 @@ function sortItemsByRegion(items) {
     if (rra !== rrb) return rra - rrb;
     return a.name.localeCompare(b.name, "ar");
   });
+}
+
+function itemIcon(name) {
+  if (ICON_JEWELRY.includes(name)) return Gem;
+  if (ICON_CROWN.includes(name)) return Crown;
+  if (ICON_WEAPON.includes(name)) return Sword;
+  if (ICON_VEIL.includes(name)) return Eye;
+  if (ICON_CORD.includes(name)) return CircleDashed;
+  if (ICON_FESTIVE.includes(name)) return Sparkles;
+  if (ICON_HAT.includes(name)) return Sun;
+  return Shirt;
 }
 
 // Same ordering, but for a plain array of item-name strings (e.g. a coordination card's chip
@@ -134,7 +188,7 @@ const ACTION_TYPES = [
   { id: "dig", name: "فتّش الصندوق", count: 2, icon: Search, desc: "اسحب 3 كروت واختر واحدًا، وأعد الباقي." },
 ];
 
-const REC_COUNTS = { 2: 20, 3: 19, 4: 17, 5: 15, 6: 15 };
+const REC_COUNTS = { 2: 20, 3: 17, 4: 15, 5: 12, 6: 10 };
 
 const BOT_NAME_POOL = [
   "أنا مجرد بوت", "بوت أبو ناصر", "أبو الذكاء الاصطناعي", "لا تضغطني", "نسخة اقتصادية",
@@ -322,11 +376,25 @@ function createInitialGame(playersMeta, perPlayer) {
     pendingAction: null,
     digOptions: null,
     blockEvent: null,
+    stats: { blocksByPlayerId: {}, rareItemsPlayed: 0, targetedByPlayerId: {}, itemsPlayed: 0 },
   };
 }
 
 function pushLog(game, msg) {
   return { ...game, log: [msg, ...game.log].slice(0, 30) };
+}
+
+function bumpItemStats(game, cards) {
+  if (!game.stats) return game;
+  const rare = cards.filter((c) => c.rarity === "rare").length;
+  return {
+    ...game,
+    stats: {
+      ...game.stats,
+      itemsPlayed: (game.stats.itemsPlayed || 0) + cards.length,
+      rareItemsPlayed: (game.stats.rareItemsPlayed || 0) + rare,
+    },
+  };
 }
 
 function drawFromPile(game, n) {
@@ -434,6 +502,7 @@ function rPlayItems(game, playerId, cardIds) {
   const ids = cards.map((c) => c.id);
   let { game: g1, removed } = removeFromHand(game, playerId, ids);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed] };
+  g1 = bumpItemStats(g1, cards);
   g1 = pushLog(g1, `${player.name} وضع: ${cards.map((c) => c.name).join("، ")}.`);
   g1 = checkWin(g1, playerId);
   // Turn does NOT end here — the caller is responsible for calling rEndTurn right after a
@@ -506,6 +575,12 @@ function rCancelWithBlock(game, blockerId) {
     pendingAction: null,
     // Display-only marker for BlockFlashToast; never cleared, never read by game logic.
     blockEvent: { id: uid(), blockerName: blocker.name, actorName, actionType: blockedActionType },
+    stats: g1.stats
+      ? {
+          ...g1.stats,
+          blocksByPlayerId: { ...g1.stats.blocksByPlayerId, [blockerId]: (g1.stats.blocksByPlayerId?.[blockerId] || 0) + 1 },
+        }
+      : g1.stats,
   };
   g1 = checkWin(g1, blockerId);
   return g1;
@@ -536,6 +611,15 @@ function rResolvePendingAction(game) {
     const { game: g4, removed: taken } = removeFromHand(g3, pa.targetId, takeIds);
     g = addToHand(g4, pa.actorId, taken);
     g = pushLog(g, `${pa.actorName} بادل كروت مع ${target.name} (عطني وأعطيك).`);
+  }
+  if (g.stats && target) {
+    g = {
+      ...g,
+      stats: {
+        ...g.stats,
+        targetedByPlayerId: { ...g.stats.targetedByPlayerId, [target.id]: (g.stats.targetedByPlayerId?.[target.id] || 0) + 1 },
+      },
+    };
   }
   g = checkWin(g, pa.actorId);
   return g;
@@ -724,7 +808,7 @@ function CardBackHero() {
 function ItemCard({ card, selected, onClick, small }) {
   const color = REGIONS.find((r) => r.id === card.region)?.color || GOLD;
   const rarity = RARITY_META[card.rarity] || RARITY_META.common;
-  const Icon = JEWELRY.includes(card.name) ? Gem : Shirt;
+  const Icon = itemIcon(card.name);
   return (
     <button
       onClick={onClick}
@@ -736,11 +820,11 @@ function ItemCard({ card, selected, onClick, small }) {
       <CornerFlourish pos="tl" color={GOLD} />
       <CornerFlourish pos="tr" color={GOLD} />
       <div className="pt-2 px-1 flex items-center justify-center gap-1">
-        <div className="text-[9px] font-bold" style={{ color, fontFamily: "Tajawal" }}>
+        <div className="tsz-9 font-bold" style={{ color, fontFamily: "Tajawal" }}>
           {card.regionName}
         </div>
         <span
-          className="text-[7px] font-bold px-1 rounded-sm"
+          className="tsz-7 font-bold px-1 rounded-sm"
           style={{ background: `${rarity.color}22`, color: rarity.color, border: `1px solid ${rarity.color}55` }}
         >
           {rarity.label}
@@ -752,7 +836,7 @@ function ItemCard({ card, selected, onClick, small }) {
         </div>
       </div>
       <div className="pb-2 px-1">
-        <div className="text-[10px] font-black leading-tight" style={{ color: INK, fontFamily: "Tajawal" }}>
+        <div className="tsz-10 font-black leading-tight" style={{ color: INK, fontFamily: "Tajawal" }}>
           {card.name}
         </div>
       </div>
@@ -781,7 +865,7 @@ function ActionCard({ card, selected, onClick, disabled }) {
       <div className="w-8 h-8 rounded-full flex items-center justify-center mt-2 mb-1" style={{ background: MAROON }}>
         <Icon className="w-4 h-4" style={{ color: GOLD }} />
       </div>
-      <div className="text-[11px] font-black leading-tight" style={{ color: MAROON, fontFamily: "Tajawal" }}>
+      <div className="tsz-11 font-black leading-tight" style={{ color: MAROON, fontFamily: "Tajawal" }}>
         {meta.name}
       </div>
     </button>
@@ -805,7 +889,7 @@ function CoordCard({ card }) {
       <div className="w-56 p-4 relative">
         <CornerFlourish pos="tl" color={GOLD} />
         <CornerFlourish pos="tr" color={GOLD} />
-        <div className="text-[10px] font-bold text-center" style={{ color }}>
+        <div className="tsz-10 font-bold text-center" style={{ color }}>
           {isRandom ? "كرت تنسيق عشوائي" : "كرت تنسيق منطقة"}
         </div>
         <div className="text-2xl font-black text-center" style={{ color: INK, fontFamily: "Aref Ruqaa" }}>
@@ -820,7 +904,7 @@ function CoordCard({ card }) {
               <span key={i} className="relative inline-block">
                 {openTip === i && info && (
                   <span
-                    className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md text-[9px] font-black whitespace-nowrap shadow-lg z-10 pointer-events-none"
+                    className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md tsz-9 font-black whitespace-nowrap shadow-lg z-10 pointer-events-none"
                     style={{ background: info.color, color: CREAM }}
                   >
                     {info.regionName}
@@ -829,7 +913,7 @@ function CoordCard({ card }) {
                 <button
                   type="button"
                   onClick={() => setOpenTip((cur) => (cur === i ? null : i))}
-                  className="text-[10px] rounded px-1.5 py-0.5 font-bold"
+                  className="tsz-10 rounded px-1.5 py-0.5 font-bold"
                   style={{ background: `${color}18`, color, border: `1px solid ${color}55` }}
                 >
                   {it}
@@ -860,6 +944,28 @@ const GlobalFont = () => (
       88% { opacity: 1; transform: translate(-50%, 0) scale(1); }
       100% { opacity: 0; transform: translate(-50%, -8px) scale(0.96); }
     }
+    @keyframes hilla-nearwin {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(201,162,39,0); }
+      50% { box-shadow: 0 0 12px 3px rgba(201,162,39,0.75); }
+    }
+    @keyframes hilla-strip {
+      from { width: 100%; }
+      to { width: 0%; }
+    }
+    @keyframes hilla-edu {
+      0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+      7% { opacity: 1; transform: translateX(-50%) translateY(0); }
+      80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(8px); }
+    }
+    @keyframes hilla-confetti {
+      0% { transform: translateY(-4vh) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(108vh) rotate(var(--cr, 720deg)); opacity: 0.85; }
+    }
+    .tsz-7 { font-size: calc(7px * var(--tsz, 1)); }
+    .tsz-9 { font-size: calc(9px * var(--tsz, 1)); }
+    .tsz-10 { font-size: calc(10px * var(--tsz, 1)); }
+    .tsz-11 { font-size: calc(11px * var(--tsz, 1)); }
   `}</style>
 );
 
@@ -872,7 +978,158 @@ const pageBg = {
 
 /* --------------------------------- GAME BOARD (shared) --------------------------------- */
 
-function CountdownRing({ pendingActionId, startedAt, size = 56 }) {
+function pendingWindowMs(game) {
+  const pa = game.pendingAction;
+  if (!pa) return BLOCK_WINDOW_MS;
+  const target = game.players.find((p) => p.id === pa.targetId);
+  const humanTarget = target && !target.isBot;
+  const humanBlocker = game.players.some(
+    (p) => p.id !== pa.actorId && !p.isBot && p.hand.some((c) => c.kind === "action" && c.actionType === "block")
+  );
+  return humanTarget || humanBlocker ? BLOCK_WINDOW_MS : 2500;
+}
+
+function Confetti() {
+  const pieces = useMemo(
+    () =>
+      Array.from({ length: 36 }).map((_, i) => ({
+        left: Math.random() * 100,
+        delay: Math.random() * 0.9,
+        dur: 2.2 + Math.random() * 1.8,
+        color: [MAROON, GOLD, TEAL, "#5B2C6F"][i % 4],
+        size: 6 + Math.random() * 7,
+        rot: 360 + Math.random() * 540,
+        shape: i % 3,
+      })),
+    []
+  );
+  return (
+    <div className="pointer-events-none fixed inset-0 overflow-hidden z-[57]" aria-hidden="true">
+      {pieces.map((p, i) => (
+        <span
+          key={i}
+          className="absolute top-0"
+          style={{
+            left: `${p.left}%`,
+            width: p.size,
+            height: p.shape === 0 ? p.size : p.size * 0.66,
+            borderRadius: p.shape === 2 ? 999 : 1,
+            background: p.color,
+            opacity: 0.95,
+            transform: `rotate(${p.rot}deg)`,
+            ["--cr"]: `${p.rot}deg`,
+            animation: `hilla-confetti ${p.dur}s ${p.delay}s ease-in forwards`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function WinStats({ game }) {
+  const blocks = game.stats?.blocksByPlayerId || {};
+  const targeted = game.stats?.targetedByPlayerId || {};
+  const topBlock = Object.entries(blocks).sort((a, b) => b[1] - a[1])[0];
+  const topTargeted = Object.entries(targeted).sort((a, b) => b[1] - a[1])[0];
+  const lookupName = (playerId) => game.players.find((p) => p.id === playerId)?.name || playerId;
+  const runnerUp = game.players
+    .filter((p) => p.id !== game.winner)
+    .sort((a, b) => a.hand.length - b.hand.length)[0];
+  const rows = [
+    runnerUp ? { l: "الأقرب للفوز 🥈", v: `${runnerUp.name} (باقي ${runnerUp.hand.length})` } : null,
+    { l: "عدد الأدوار", v: `${game.turnSerial ?? 0}` },
+    { l: "كروت انلعبت", v: `${game.stats?.itemsPlayed || 0}` },
+    { l: "منها نادرة", v: `${game.stats?.rareItemsPlayed || 0}` },
+    topBlock ? { l: "أكثر واحد صدّ 🛡️", v: `${lookupName(topBlock[0])} (${topBlock[1]})` } : null,
+    topTargeted ? { l: "أكثر واحد أكل أكشن 😵", v: `${lookupName(topTargeted[0])} (${topTargeted[1]})` } : null,
+  ].filter(Boolean);
+  return (
+    <div className="mt-6 mx-auto max-w-xs rounded-2xl border-2 p-4 relative" style={{ background: CREAM2, borderColor: GOLD }}>
+      <CornerFlourish pos="tl" color={GOLD} />
+      <CornerFlourish pos="tr" color={GOLD} />
+      <div className="font-black mb-2 text-center" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
+        حصيلة اللعبة
+      </div>
+      {rows.map((r, i) => (
+        <div key={i} className="flex justify-between text-sm py-1" style={{ color: INK, borderBottom: i < rows.length - 1 ? `1px solid ${MAROON}22` : "none" }}>
+          <span style={{ color: `${INK}99` }}>{r.l}</span>
+          <span className="font-black">{r.v}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ReactionStrip({ pa, players, windowMs }) {
+  if (!pa) return null;
+  const target = players.find((p) => p.id === pa.targetId);
+  const startedAt = typeof pa.startedAt === "number" ? pa.startedAt : Date.now();
+  const elapsed = Math.max(0, Math.min(windowMs, Date.now() - startedAt));
+  return (
+    <div className="fixed left-0 right-0 z-[60] pointer-events-none" dir="rtl" style={{ top: "calc(env(safe-area-inset-top, 0px) + 0.5rem)" }}>
+      <div className="mx-auto max-w-md rounded-xl overflow-hidden shadow-lg border" style={{ background: `${MAROON}e6`, borderColor: GOLD }}>
+        <div className="px-3 py-1.5 text-xs font-bold text-center" style={{ color: CREAM }}>
+          ⚔️ {pa.actorName} يستخدم {actionMeta(pa.actionType).name} ضد {target?.name}
+        </div>
+        <div style={{ height: 3, background: `${CREAM}22` }}>
+          <div
+            style={{
+              height: 3,
+              background: GOLD,
+              animation: `hilla-strip ${windowMs / 1000}s linear forwards`,
+              animationDelay: `-${elapsed}ms`,
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EduToast({ data }) {
+  if (!data) return null;
+  return (
+    <div
+      dir="rtl"
+      className="fixed left-1/2 z-[58] w-80 max-w-[92vw] rounded-xl border-2 shadow-xl pointer-events-none px-3 py-2"
+      style={{
+        bottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)",
+        background: CREAM,
+        borderColor: GOLD,
+        animation: "hilla-edu 5s ease-out forwards",
+        fontFamily: "Tajawal",
+      }}
+    >
+      <div className="tsz-11 font-black mb-0.5" style={{ color: MAROON }}>
+        📜 {data.name}
+      </div>
+      <div className="tsz-11 leading-snug" style={{ color: INK }}>
+        {data.text}
+      </div>
+    </div>
+  );
+}
+
+function useIosHaptic() {
+  const ref = useRef(null);
+  const fire = useCallback(() => {
+    try {
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(35);
+        return;
+      }
+      ref.current?.click();
+    } catch {}
+  }, []);
+  const node = (
+    <label aria-hidden="true" style={{ position: "fixed", top: -100, left: -100, opacity: 0, pointerEvents: "none" }}>
+      <input type="checkbox" ref={ref} readOnly {...{ switch: "" }} />
+    </label>
+  );
+  return [fire, node];
+}
+
+function CountdownRing({ pendingActionId, startedAt, windowMs = BLOCK_WINDOW_MS, size = 56 }) {
   const safeStart = typeof startedAt === "number" ? startedAt : Date.now();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -881,9 +1138,10 @@ function CountdownRing({ pendingActionId, startedAt, size = 56 }) {
     return () => clearInterval(iv);
   }, [pendingActionId]);
   const elapsed = now - safeStart;
-  const remaining = Math.max(0, BLOCK_WINDOW_SEC - Math.floor(elapsed / 1000));
+  const remainingMs = Math.max(0, windowMs - elapsed);
+  const remaining = Math.ceil(remainingMs / 1000);
   const circumference = 151;
-  const dashoffset = Math.max(0, Math.min(circumference, (elapsed / BLOCK_WINDOW_MS) * circumference));
+  const dashoffset = Math.max(0, Math.min(circumference, (elapsed / windowMs) * circumference));
   const r = (size - 8) / 2;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="mx-auto mb-2">
@@ -893,7 +1151,7 @@ function CountdownRing({ pendingActionId, startedAt, size = 56 }) {
         cy={size / 2}
         r={r}
         fill="none"
-        stroke={remaining <= 3 ? MAROON : GOLD}
+        stroke={remainingMs <= 3000 ? MAROON : GOLD}
         strokeWidth="4"
         strokeLinecap="round"
         strokeDasharray={circumference}
@@ -1133,7 +1391,7 @@ function PostGameSurvey({ game, myId, isOnline }) {
   );
 }
 
-function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit }) {
+function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit, onGoHome }) {
   const [selected, setSelected] = useState([]);
   const [needTarget, setNeedTarget] = useState(null);
   const [giveStep, setGiveStep] = useState(null);
@@ -1141,6 +1399,12 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
   const [errMsg, setErrMsg] = useState("");
   const [sortByRegion, setSortByRegion] = useState(false);
   const [moveToast, setMoveToast] = useState(null);
+  const [eduToast, setEduToast] = useState(null);
+  const eduCountRef = useRef(0);
+  const [haptic, hapticNode] = useIosHaptic();
+  const lastHapticTurnRef = useRef(-1);
+  const [bigText, setBigText] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const current = game.players[game.currentPlayerIndex];
   const viewer = isOnline ? game.players.find((p) => p.id === myId) || current : current;
@@ -1371,6 +1635,41 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
     return () => clearTimeout(t);
   }, [errMsg]);
 
+  useEffect(() => {
+    try {
+      document.documentElement.style.fontSize = bigText ? "118%" : "";
+    } catch {}
+    return () => {
+      try {
+        document.documentElement.style.fontSize = "";
+      } catch {}
+    };
+  }, [bigText]);
+
+  useEffect(() => {
+    const t = game.turnSerial ?? 0;
+    const humanTurn = isOnline ? isMyTurn : current && !current.isBot;
+    if (humanTurn && lastHapticTurnRef.current !== t && !game.winner) {
+      lastHapticTurnRef.current = t;
+      haptic();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game.turnSerial, isMyTurn]);
+
+  useEffect(() => {
+    const pa = game.pendingAction;
+    if (!pa) return;
+    const target = game.players.find((p) => p.id === pa.targetId);
+    const meTargeted = isOnline ? target?.id === myId : target && !target.isBot;
+    if (!meTargeted) return;
+    haptic();
+    const startedAt = typeof pa.startedAt === "number" ? pa.startedAt : Date.now();
+    const warnIn = Math.max(0, pendingWindowMs(game) - 3000 - (Date.now() - startedAt));
+    const t = setTimeout(haptic, warnIn);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game.pendingAction?.id]);
+
   // Reset per-turn local UI state whenever the active player changes (covers bot-driven transitions too).
   useEffect(() => {
     if (isOnline) return;
@@ -1447,7 +1746,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
     const isResolver = !isOnline || (actor?.isBot ? !!isHost : pa.actorId === myId);
     if (!isResolver) return;
     const startedAt = typeof pa.startedAt === "number" ? pa.startedAt : Date.now();
-    const remaining = Math.max(0, BLOCK_WINDOW_MS - (Date.now() - startedAt));
+    const remaining = Math.max(0, pendingWindowMs(game) - (Date.now() - startedAt));
     const t = setTimeout(() => settlePendingAction(() => rResolvePendingAction(game)), remaining);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1465,6 +1764,13 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
     }
     setSelected([]);
     const playedCards = viewer.hand.filter((c) => selected.includes(c.id) && c.kind === "item");
+    if (playedCards.length > 0 && eduCountRef.current < 4) {
+      const info = ITEM_DESC[playedCards[0].name];
+      if (info) {
+        eduCountRef.current += 1;
+        setEduToast({ id: `${playedCards[0].id}-${eduCountRef.current}`, name: playedCards[0].name, text: info });
+      }
+    }
     if (playedCards.length > 0) {
       track([
         mkEvent(game, "items_played", viewer, {
@@ -1594,7 +1900,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
     <div
       dir="rtl"
       className="min-h-screen w-full p-4"
-      style={{ ...pageBg, fontFamily: "Tajawal", paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)" }}
+      style={{ ...pageBg, fontFamily: "Tajawal", paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)", "--tsz": bigText ? 1.18 : 1 }}
     >
       <GlobalFont />
       <div className="max-w-5xl mx-auto">
@@ -1602,20 +1908,31 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
           <div className="text-2xl font-black" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
             حُلّة {isOnline && <Wifi className="inline w-4 h-4 mb-1" style={{ color: TEAL }} />}
           </div>
-          <button onClick={onExit} className="text-xs flex items-center gap-1" style={{ color: `${MAROON}99` }}>
-            <RotateCcw className="w-3 h-3" /> لعبة جديدة
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="p-2 rounded-lg border-2"
+              style={menuOpen ? { background: MAROON, color: CREAM, borderColor: MAROON } : { color: `${MAROON}99`, borderColor: `${MAROON}33` }}
+              title="القائمة"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
+          </div>
         </div>
         <DiamondLattice color={GOLD} thickness={10} />
 
         <MoveToast key={moveToast?.id || "none"} text={moveToast?.text || ""} />
+        <EduToast key={eduToast?.id || "edu-none"} data={eduToast} />
+        {hapticNode}
         <BlockFlashToast key={freshBlockEvent?.id || "none"} data={freshBlockEvent} />
 
         {winnerPlayer ? (
           <div className="mt-10 text-center">
+            <Confetti />
             <div className="text-4xl font-black mb-3" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
               🎉 فاز {winnerPlayer.name}!
             </div>
+            <WinStats game={game} />
             <button onClick={onExit} className="mt-4 px-6 py-3 rounded-xl font-bold" style={{ background: MAROON, color: CREAM }}>
               العب من جديد
             </button>
@@ -1624,20 +1941,24 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
         ) : (
           <>
             <div className="flex flex-wrap gap-2 mt-4 mb-4">
-              {game.players.map((p, i) => (
-                <div
-                  key={p.id}
-                  className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 border-2"
-                  style={
-                    i === game.currentPlayerIndex
-                      ? { background: MAROON, color: CREAM, borderColor: MAROON }
-                      : { color: `${INK}99`, borderColor: `${MAROON}33` }
-                  }
-                >
-                  {p.isBot ? "🤖 " : ""}
-                  {p.name} {isOnline && p.id === myId && <span style={{ color: GOLD }}>(أنت)</span>} <span className="opacity-70">({p.hand.length})</span>
-                </div>
-              ))}
+              {game.players.map((p, i) => {
+                const nearWin = p.hand.length <= 3;
+                const active = i === game.currentPlayerIndex;
+                return (
+                  <div
+                    key={p.id}
+                    className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 border-2"
+                    style={{
+                      ...(active ? { background: MAROON, color: CREAM, borderColor: MAROON } : { color: `${INK}99`, borderColor: `${MAROON}33` }),
+                      ...(nearWin ? { borderColor: GOLD, animation: "hilla-nearwin 1.2s ease-in-out infinite" } : {}),
+                    }}
+                  >
+                    {nearWin ? "🔥 " : ""}
+                    {p.isBot ? "🤖 " : ""}
+                    {p.name} {isOnline && p.id === myId && <span style={{ color: GOLD }}>(أنت)</span>} <span className="opacity-70">({p.hand.length})</span>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="flex flex-col items-center gap-4 mb-6">
@@ -1654,10 +1975,28 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
               )}
             </div>
 
-            {game.pendingAction && (
+            {(() => {
+              const pa = game.pendingAction;
+              if (!pa) return null;
+              const paTarget = game.players.find((p) => p.id === pa.targetId);
+              const iAmTarget = isOnline ? paTarget?.id === myId : paTarget && !paTarget.isBot;
+              const iCanBlock = isOnline ? eligibleBlockers.some((p) => p.id === myId) : eligibleBlockers.some((p) => !p.isBot);
+              if (!iAmTarget && !iCanBlock) {
+                return <ReactionStrip key={pa.id} pa={pa} players={game.players} windowMs={pendingWindowMs(game)} />;
+              }
+              return null;
+            })()}
+            {game.pendingAction &&
+              (() => {
+                const pa = game.pendingAction;
+                const paTarget = game.players.find((p) => p.id === pa.targetId);
+                const iAmTarget = isOnline ? paTarget?.id === myId : paTarget && !paTarget.isBot;
+                const iCanBlock = isOnline ? eligibleBlockers.some((p) => p.id === myId) : eligibleBlockers.some((p) => !p.isBot);
+                return iAmTarget || iCanBlock;
+              })() && (
               <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                 <div className="rounded-2xl p-6 max-w-sm w-full text-center border-2" style={{ background: CREAM, borderColor: MAROON }}>
-                  <CountdownRing pendingActionId={game.pendingAction.id} startedAt={game.pendingAction.startedAt} />
+                  <CountdownRing pendingActionId={game.pendingAction.id} startedAt={game.pendingAction.startedAt} windowMs={pendingWindowMs(game)} />
                   {(() => {
                     const actorPlayer = game.players.find((p) => p.id === game.pendingAction.actorId);
                     const targetPlayer = game.players.find((p) => p.id === game.pendingAction.targetId);
@@ -1794,7 +2133,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
                   </div>
                   <button
                     onClick={() => setSortByRegion((s) => !s)}
-                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg border-2 flex items-center gap-1"
+                    className="tsz-11 font-bold px-2.5 py-1 rounded-lg border-2 flex items-center gap-1"
                     style={sortByRegion ? { background: MAROON, color: CREAM, borderColor: MAROON } : { color: MAROON, borderColor: `${MAROON}55` }}
                   >
                     🗂️ رتّب حسب المنطقة
@@ -1867,7 +2206,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
 
             <div className="mt-8 rounded-xl p-3 max-h-32 overflow-y-auto border-2" style={{ background: CREAM2, borderColor: `${MAROON}22` }}>
               {game.log.map((l, i) => (
-                <div key={i} className="text-[11px] mb-1" style={{ color: `${INK}77` }}>
+                <div key={i} className="tsz-11 mb-1" style={{ color: `${INK}77` }}>
                   {l}
                 </div>
               ))}
@@ -1875,6 +2214,55 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit })
           </>
         )}
       </div>
+
+      {menuOpen && (
+        <>
+          <div className="fixed inset-0 z-[69] backdrop-blur-sm bg-black/10" onClick={() => setMenuOpen(false)} />
+          <div className="fixed z-[70] w-48 rounded-xl border-2 shadow-xl overflow-hidden" style={{ top: "calc(env(safe-area-inset-top, 0px) + 3.5rem)", left: "1rem", background: CREAM, borderColor: MAROON }}>
+            <button
+              onClick={() => setMenuOpen(false)}
+              className="w-full text-right px-3 py-2.5 text-sm font-black flex items-center gap-2"
+              style={{ color: CREAM, background: TEAL }}
+            >
+              <Check className="w-4 h-4" /> استمرار اللعب
+            </button>
+            <button
+              onClick={() => setBigText((v) => !v)}
+              className="w-full text-right px-3 py-2.5 text-sm font-bold flex items-center gap-2 border-t"
+              style={{ color: INK, background: bigText ? `${MAROON}15` : "transparent", borderColor: `${MAROON}22` }}
+            >
+              <Type className="w-4 h-4" style={{ color: MAROON }} /> تكبير النص {bigText ? "✓" : ""}
+            </button>
+            <button
+              onClick={() => {
+                try {
+                  window.location.reload();
+                } catch {}
+              }}
+              className="w-full text-right px-3 py-2.5 text-sm font-bold flex items-center gap-2 border-t"
+              style={{ color: INK, borderColor: `${MAROON}22` }}
+            >
+              <RefreshCw className="w-4 h-4" style={{ color: MAROON }} /> تحديث الصفحة
+            </button>
+            <button
+              onClick={onExit}
+              className="w-full text-right px-3 py-2.5 text-sm font-bold flex items-center gap-2 border-t"
+              style={{ color: INK, borderColor: `${MAROON}22` }}
+            >
+              <RotateCcw className="w-4 h-4" style={{ color: MAROON }} /> لعبة جديدة
+            </button>
+            {onGoHome && (
+              <button
+                onClick={onGoHome}
+                className="w-full text-right px-3 py-2.5 text-sm font-bold flex items-center gap-2 border-t"
+                style={{ color: MAROON, borderColor: `${MAROON}22` }}
+              >
+                <LogOut className="w-4 h-4" /> خروج
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -2447,6 +2835,16 @@ function OnlineFlow({ onBack }) {
     setError("");
   }
 
+  function exitToHome() {
+    clearOnlineSession();
+    resetRoomSyncState();
+    setRoomCode("");
+    setRoom(null);
+    setOnlinePhase("menu");
+    setError("");
+    onBack();
+  }
+
   if (onlinePhase === "menu") {
     return <OnlineMenu myName={myName} setMyName={setMyName} onCreate={createRoom} onJoin={joinRoom} onBack={onBack} error={error} />;
   }
@@ -2455,7 +2853,7 @@ function OnlineFlow({ onBack }) {
   }
   if (onlinePhase === "play" && room && room.game) {
     return (
-      <GameBoard game={room.game} myId={myId} isOnline isHost={room.hostId === myId} roomCode={roomCode} dispatch={dispatchGame} onExit={exitToMenu} />
+      <GameBoard game={room.game} myId={myId} isOnline isHost={room.hostId === myId} roomCode={roomCode} dispatch={dispatchGame} onExit={exitToMenu} onGoHome={exitToHome} />
     );
   }
   return (
@@ -2537,7 +2935,7 @@ export default function HillaGame() {
           onBack={() => setMode("home")}
         />
       );
-    return <GameBoard game={localGame} myId={null} isOnline={false} roomCode={null} dispatch={setLocalGame} onExit={() => setLocalGame(null)} />;
+    return <GameBoard game={localGame} myId={null} isOnline={false} roomCode={null} dispatch={setLocalGame} onExit={() => setLocalGame(null)} onGoHome={() => { setLocalGame(null); setMode("home"); }} />;
   }
 
   if (mode === "online") {
