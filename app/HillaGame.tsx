@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Shirt, Gem, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut, RefreshCw, Type, Menu, Crown, Sword, Eye, CircleDashed, Sun, HelpCircle, X } from "lucide-react";
+import { Shirt, Gem, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut, RefreshCw, Type, Menu, Crown, Sword, Eye, CircleDashed, Sun, HelpCircle, X, Smile } from "lucide-react";
 import { newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished, sendDealSnapshot, getClientPid, sendFeedback } from "@/lib/analytics-client";
 
 /* ---------------------------------- PALETTE ---------------------------------- */
@@ -130,6 +130,7 @@ const ICON_FESTIVE = ["بشت", "دقلة", "شاية", "ثوب الزبون"];
 const ICON_HAT = ["طفشة"];
 const REGION_ORDER = REGIONS.map((r) => r.id);
 const RARITY_ORDER = { common: 0, medium: 1, rare: 2 };
+const REACTIONS = ["🌶️", "👏", "🥳", "😭", "😱"];
 
 // quick lookup: item name -> {region, regionName, color, rarity}
 const ITEM_INFO = {};
@@ -352,10 +353,6 @@ const TURN_TIMEOUT_MS = TURN_TIMEOUT_SEC * 1000;
 const MISSED_TURNS_BEFORE_INACTIVE = 2;
 const INACTIVE_SKIP_MS = 3000;
 
-// #28 — the rules modal auto-shows once per session (first game start). Module-scoped so it
-// survives component remounts within a session but resets on a full reload.
-let rulesAutoShown = false;
-
 /* ------------------------------- GAME ENGINE (pure) ------------------------------- */
 
 function createInitialGame(playersMeta, perPlayer) {
@@ -393,6 +390,7 @@ function createInitialGame(playersMeta, perPlayer) {
     pendingAction: null,
     digOptions: null,
     blockEvent: null,
+    reactionEvent: null,
     stats: { blocksByPlayerId: {}, rareItemsPlayed: 0, targetedByPlayerId: {}, itemsPlayed: 0 },
   };
 }
@@ -513,6 +511,11 @@ function rWakePlayer(game, playerId) {
   }
   if (p.inactive) g = pushLog(g, `${p.name} رجع نشط.`);
   return g;
+}
+
+function rSendReaction(game, playerId, emoji, single) {
+  const p = game.players.find((x) => x.id === playerId);
+  return { ...game, reactionEvent: { id: uid(), emoji, single: !!single, byId: playerId, byName: p ? p.name : "" } };
 }
 
 // A human didn't act within the current window (30s normally, 3s once inactive). Auto-skip their
@@ -1033,6 +1036,16 @@ const GlobalFont = () => (
       80% { opacity: 1; transform: translateX(-50%) translateY(0); }
       100% { opacity: 0; transform: translateX(-50%) translateY(8px); }
     }
+    @keyframes hilla-fan-in {
+      from { opacity: 0; transform: translateY(8px) scale(.9); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes hilla-reactor-tag {
+      0% { opacity: 0; transform: translate(-50%, 8px) scale(.96); }
+      10% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      82% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -6px) scale(.98); }
+    }
     @keyframes hilla-confetti {
       0% { transform: translateY(-4vh) rotate(0deg); opacity: 1; }
       100% { transform: translateY(108vh) rotate(var(--cr, 720deg)); opacity: 0.85; }
@@ -1070,7 +1083,7 @@ function pendingWindowMs(game) {
 function Confetti() {
   const pieces = useMemo(
     () =>
-      Array.from({ length: 36 }).map((_, i) => ({
+      Array.from({ length: 108 }).map((_, i) => ({
         left: Math.random() * 100,
         delay: Math.random() * 0.9,
         dur: 2.2 + Math.random() * 1.8,
@@ -1202,6 +1215,149 @@ function ReactionStrip({ pa, players, windowMs }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function ReactionFX({ trigger, myId, isOnline }) {
+  const layerRef = useRef(null);
+  const [tag, setTag] = useState(null);
+  const seenRef = useRef(new Set(trigger?.id ? [trigger.id] : []));
+
+  useEffect(() => {
+    if (!trigger || seenRef.current.has(trigger.id)) return;
+    seenRef.current.add(trigger.id);
+
+    const layer = layerRef.current;
+    if (!layer) return;
+    const emoji = trigger.emoji;
+    const amount = trigger.single ? 1 : 12 + Math.floor(Math.random() * 5);
+
+    for (let i = 0; i < amount; i++) {
+      const particle = document.createElement("span");
+      particle.textContent = emoji;
+
+      const x = 5 + Math.random() * 90;
+      const size = 30 + Math.random() * 24;
+      const drift = -35 + Math.random() * 70;
+      const rotation = -25 + Math.random() * 50;
+      const duration = 1100 + Math.random() * 600;
+      const delay = i * 45 + Math.random() * 80;
+
+      Object.assign(particle.style, {
+        position: "absolute",
+        left: `${x}%`,
+        top: "-80px",
+        fontSize: `${size}px`,
+        display: "block",
+        lineHeight: "1.35",
+        pointerEvents: "none",
+        willChange: "transform, opacity",
+        filter: "drop-shadow(0 3px 5px rgba(0,0,0,.15))",
+      });
+
+      layer.appendChild(particle);
+
+      particle.animate(
+        [
+          { transform: "translate3d(0, -20px, 0) scale(.5)", opacity: 0 },
+          {
+            transform: `translate3d(${drift * 0.25}px, 50px, 0) scale(1.2) rotate(${rotation * 0.25}deg)`,
+            opacity: 1,
+            offset: 0.15,
+          },
+          {
+            transform: `translate3d(${drift}px, 75vh, 0) scale(1) rotate(${rotation}deg)`,
+            opacity: 1,
+            offset: 0.82,
+          },
+          {
+            transform: `translate3d(${drift * 1.15}px, 90vh, 0) scale(.8) rotate(${rotation * 1.2}deg)`,
+            opacity: 0,
+          },
+        ],
+        { duration, delay, easing: "cubic-bezier(.2,.75,.25,1)", fill: "forwards" }
+      );
+
+      setTimeout(() => particle.remove(), duration + delay + 100);
+    }
+
+    const mine = isOnline ? trigger.byId === myId : true;
+    setTag({ id: trigger.id, text: `${emoji} ${mine ? "أنت" : trigger.byName}` });
+    const t = setTimeout(() => setTag(null), 2600);
+    return () => clearTimeout(t);
+  }, [trigger, myId, isOnline]);
+
+  return (
+    <>
+      <div ref={layerRef} className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 9990 }} />
+      {tag && (
+        <div
+          key={tag.id}
+          className="fixed left-1/2 px-2.5 py-1 rounded-full font-bold whitespace-nowrap tsz-11 pointer-events-none"
+          style={{
+            top: "80%",
+            zIndex: 9992,
+            background: `${INK}dd`,
+            color: CREAM,
+            animation: "hilla-reactor-tag 2.6s ease-out forwards",
+          }}
+        >
+          {tag.text}
+        </div>
+      )}
+    </>
+  );
+}
+
+function ReactionButton({ onReact }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      {open && <div className="fixed inset-0" style={{ zIndex: 9990 }} onClick={() => setOpen(false)} />}
+      <div className="fixed left-4 bottom-4 flex flex-col-reverse items-center gap-3" style={{ zIndex: 9991 }}>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="rounded-full flex items-center justify-center transition-transform active:scale-90 p-0"
+          style={{
+            width: 52,
+            height: 52,
+            minWidth: 52,
+            minHeight: 52,
+            flex: "0 0 auto",
+            background: MAROON,
+            color: CREAM,
+            boxShadow: "0 2px 6px rgba(0,0,0,.16)",
+            opacity: open ? 1 : 0.82,
+          }}
+          title="التفاعلات"
+        >
+          {open ? <X className="w-5 h-5" /> : <Smile className="w-5 h-5" />}
+        </button>
+        {open &&
+          REACTIONS.map((emoji, i) => (
+            <button
+              key={emoji}
+              onClick={() => {
+                onReact(emoji);
+                setOpen(false);
+              }}
+              className="rounded-full flex items-center justify-center active:scale-90"
+              style={{
+                width: 44,
+                height: 44,
+                background: CREAM,
+                boxShadow: "0 4px 10px rgba(0,0,0,.12)",
+                animation: "hilla-fan-in .18s ease-out both",
+                animationDelay: `${i * 20}ms`,
+              }}
+              title={emoji}
+            >
+              <span style={{ fontSize: 24, lineHeight: 1 }}>{emoji}</span>
+            </button>
+          ))}
+      </div>
+    </>
   );
 }
 
@@ -1526,14 +1682,6 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   const [menuOpen, setMenuOpen] = useState(false);
   const [showRules, setShowRules] = useState(false);
 
-  // #28 auto-show: open the rules once per session, the first time any game screen mounts.
-  useEffect(() => {
-    if (!rulesAutoShown) {
-      rulesAutoShown = true;
-      setShowRules(true);
-    }
-  }, []);
-
   const current = game.players[game.currentPlayerIndex];
   const viewer = isOnline ? game.players.find((p) => p.id === myId) || current : current;
   const isMyTurn = isOnline ? current.id === myId : true;
@@ -1547,6 +1695,9 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   const prevToastLogRef = useRef(Array.isArray(game.log) ? game.log : []);
   const shownTurnToastKeysRef = useRef(new Set());
   const toastSeqRef = useRef(0);
+  const burstsLeftRef = useRef(2);
+  const reducedUntilRef = useRef(0);
+  const lastSingleAtRef = useRef(0);
 
   // Stale-replay guard for BlockFlashToast: capture the blockEvent id present
   // at mount (e.g. after a refresh/reconnect, where shared state still holds
@@ -2010,6 +2161,30 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     dispatch(rEndTurn(game, viewer.id));
   }
 
+  function sendReaction(emoji) {
+    const me = isOnline ? viewer : game.players.find((p) => !p.isBot) || viewer;
+    if (!me) return;
+    const now = Date.now();
+
+    if (reducedUntilRef.current && now >= reducedUntilRef.current) {
+      reducedUntilRef.current = 0;
+      burstsLeftRef.current = 2;
+    }
+
+    let single;
+    if (!reducedUntilRef.current && burstsLeftRef.current > 0) {
+      burstsLeftRef.current -= 1;
+      single = false;
+      if (burstsLeftRef.current === 0) reducedUntilRef.current = now + 10000;
+    } else {
+      if (now - lastSingleAtRef.current < 1000) return;
+      lastSingleAtRef.current = now;
+      single = true;
+    }
+
+    dispatch(rSendReaction(rWakePlayer(game, me.id), me.id, emoji, single));
+  }
+
   function startAction(cardId) {
     if (game.actionUsedThisTurn) return;
     const card = viewer.hand.find((c) => c.id === cardId);
@@ -2133,6 +2308,8 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
         <EduToast key={eduToast?.id || "edu-none"} data={eduToast} />
         {hapticNode}
         <BlockFlashToast key={freshBlockEvent?.id || "none"} data={freshBlockEvent} />
+        <ReactionFX trigger={game.reactionEvent} myId={myId} isOnline={isOnline} />
+        <ReactionButton onReact={sendReaction} />
 
         {winnerPlayer ? (
           <div className="mt-10 text-center">
@@ -2175,6 +2352,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                   <Repeat2 className="w-3 h-3" /> ثبّت الحَلّة مفعّل — هذا الكرت سيبقى جولة إضافية
                 </div>
               )}
+              <CoordCard card={game.currentCoord} />
               {/* Turn timer (#26). Rendering-only: online, the ring shows to the active player
                   only (isMyTurn); everyone else keeps just the "دور فلان الآن..." status. Local is
                   unchanged (isMyTurn is always true there). Every client still runs the timeout CAS
@@ -2187,7 +2365,6 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                   size={44}
                 />
               )}
-              <CoordCard card={game.currentCoord} />
               {isOnline && !isMyTurn && (
                 <div className="text-sm font-bold" style={{ color: `${INK}88` }}>
                   ⏳ دور {current.name} الآن...
@@ -3290,7 +3467,7 @@ export default function HillaGame() {
               صُممت بأيدي سعودية 🇸🇦
             </p>
             <p className="text-[11px] mt-0.5" style={{ color: `${INK}77` }}>
-              طالبة جامعة الأميرة نورة — لمقرر Core Studio (1)
+              طالبة جامعة الأميرة نورة — لمقرر Core Studio
             </p>
           </div>
         </div>
