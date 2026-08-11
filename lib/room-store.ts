@@ -118,6 +118,38 @@ export async function updateRoom(code: string, room: RoomDoc) {
   return toRoomDoc(data as RoomRow);
 }
 
+export type TimeoutGuard = {
+  updatedAt: string;
+  turnSerial: number;
+  currentPlayerIndex: number;
+  turnStartedAt: number;
+};
+
+// Atomic compare-and-swap for the online turn-timeout skip. Any connected client may attempt it;
+// the conditional UPDATE only applies when the row is byte-for-byte the turn the client based its
+// timeout on. `updated_at` is the version guard (bumped by the DB trigger on every write) — it is
+// what rejects a stale timeout after a same-turn action card that changed state WITHOUT advancing
+// turnSerial. The three turn fields are semantic assertions that we're skipping the exact intended
+// turn. A mismatch on any of them → 0 rows updated → the claim lost (someone else moved/skipped
+// first). Normal moves stay on the blind updateRoom path, so this changes nothing for them.
+export async function claimTurnTimeout(code: string, nextRoom: RoomDoc, expected: TimeoutGuard) {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from(ROOMS_TABLE)
+    .update(toRoomRow(nextRoom))
+    .eq('code', code)
+    .eq('updated_at', expected.updatedAt)
+    .eq('game->>turnSerial', String(expected.turnSerial))
+    .eq('game->>currentPlayerIndex', String(expected.currentPlayerIndex))
+    .eq('game->>turnStartedAt', String(expected.turnStartedAt))
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return { ok: false as const };
+  return { ok: true as const, room: toRoomDoc(data as RoomRow) };
+}
+
 export async function joinRoom(code: string, player: PlayerMeta) {
   const room = await getRoom(code);
   if (!room) return { error: 'not_found' as const };

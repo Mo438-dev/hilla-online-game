@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Shirt, Gem, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut, RefreshCw, Type, Menu, Crown, Sword, Eye, CircleDashed, Sun } from "lucide-react";
+import { Shirt, Gem, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut, RefreshCw, Type, Menu, Crown, Sword, Eye, CircleDashed, Sun, HelpCircle, X } from "lucide-react";
 import { newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished, sendDealSnapshot, getClientPid, sendFeedback } from "@/lib/analytics-client";
 
 /* ---------------------------------- PALETTE ---------------------------------- */
@@ -343,6 +343,19 @@ function actionMeta(id) {
   return ACTION_TYPES.find((a) => a.id === id);
 }
 
+/* --------- turn timer / inactive-mode constants (feature #26) --------- */
+// A human has TURN_TIMEOUT_MS to act; miss it → auto-skip. After
+// MISSED_TURNS_BEFORE_INACTIVE consecutive misses they're flagged "inactive"
+// and skipped every INACTIVE_SKIP_MS until they act again. Never converted to a bot.
+const TURN_TIMEOUT_SEC = 30;
+const TURN_TIMEOUT_MS = TURN_TIMEOUT_SEC * 1000;
+const MISSED_TURNS_BEFORE_INACTIVE = 2;
+const INACTIVE_SKIP_MS = 3000;
+
+// #28 — the rules modal auto-shows once per session (first game start). Module-scoped so it
+// survives component remounts within a session but resets on a full reload.
+let rulesAutoShown = false;
+
 /* ------------------------------- GAME ENGINE (pure) ------------------------------- */
 
 function createInitialGame(playersMeta, perPlayer) {
@@ -350,7 +363,7 @@ function createInitialGame(playersMeta, perPlayer) {
   const actions = shuffle(buildActionDeck());
   const full = shuffle([...items, ...actions]);
   const cap = Math.min(perPlayer, Math.floor(full.length / playersMeta.length));
-  const players = playersMeta.map((pm) => ({ id: pm.id, name: pm.name, hand: [], isBot: !!pm.isBot }));
+  const players = playersMeta.map((pm) => ({ id: pm.id, name: pm.name, hand: [], isBot: !!pm.isBot, missedTurns: 0, inactive: false }));
   for (let i = 0; i < cap; i++) {
     players.forEach((p) => p.hand.push(full.pop()));
   }
@@ -371,6 +384,10 @@ function createInitialGame(playersMeta, perPlayer) {
     currentPlayerIndex: 0,
     actionUsedThisTurn: false,
     turnSerial: 0,
+    turnStartedAt: Date.now(),
+    startedAtMs: Date.now(),
+    endedAtMs: null,
+    coordRounds: 1, // the first تنسيق card is already on the table
     log: [`بدأت اللعبة بـ ${players.length} لاعبين، ${cap} كرت لكل لاعب.`],
     winner: null,
     pendingAction: null,
@@ -433,7 +450,7 @@ function addToHand(game, playerId, cards) {
 
 function checkWin(game, playerId) {
   const p = game.players.find((x) => x.id === playerId);
-  if (p && p.hand.length === 0) return { ...game, winner: p.id };
+  if (p && p.hand.length === 0) return { ...game, winner: p.id, endedAtMs: Date.now() };
   return game;
 }
 
@@ -454,6 +471,8 @@ function endRound(game) {
   g.coordDeck = deck;
   g.coordDiscard = disc;
   g.currentCoord = next;
+  // Only counts a genuinely new coord card — the lockCoord (ثبّت الحَلّة) path returns above.
+  g.coordRounds = (g.coordRounds || 0) + 1;
   g = pushLog(g, `كرت تنسيق جديد: ${next.type === "region" ? next.regionName : "عشوائي"}.`);
   return g;
 }
@@ -463,7 +482,7 @@ function endRound(game) {
 // turnSerial increments exactly once per turn; the online bot executor uses it to guarantee at
 // most one bot move per turn even if the same room state is polled repeatedly.
 function endTurn(game) {
-  let g = { ...game, actionUsedThisTurn: false, turnSerial: (game.turnSerial ?? 0) + 1 };
+  let g = { ...game, actionUsedThisTurn: false, turnSerial: (game.turnSerial ?? 0) + 1, turnStartedAt: Date.now() };
   if (g.currentPlayerIndex === g.players.length - 1) {
     g = endRound(g);
     g.currentPlayerIndex = 0;
@@ -473,11 +492,65 @@ function endTurn(game) {
   return g;
 }
 
+// Any genuine player-initiated action clears their consecutive-miss count AND inactive flag
+// — this is the "played, tapped, or pressed skip themselves" recovery path (feature #26/#27).
+function resetMissed(game, playerId) {
+  const players = game.players.map((p) => (p.id === playerId && (p.missedTurns || p.inactive) ? { ...p, missedTurns: 0, inactive: false } : p));
+  return { ...game, players };
+}
+
+// Presence-only wake-up (feature #27): any sign the player is actually there (e.g. tapping a card
+// to select it, without committing to a move) clears the inactive flag. Returns the game unchanged
+// (by reference) when there's nothing to clear, so callers can skip dispatching entirely.
+function rWakePlayer(game, playerId) {
+  const p = game.players.find((x) => x.id === playerId);
+  if (!p || (!p.inactive && !p.missedTurns)) return game;
+  let g = resetMissed(game, playerId);
+  // If it's their turn right now, restart the clock — otherwise the time already elapsed while
+  // they were away would immediately expire the (full-length) window and skip them again (#27 bug 1).
+  if (game.players[game.currentPlayerIndex]?.id === playerId) {
+    g = { ...g, turnStartedAt: Date.now() };
+  }
+  if (p.inactive) g = pushLog(g, `${p.name} رجع نشط.`);
+  return g;
+}
+
+// A human didn't act within the current window (30s normally, 3s once inactive). Auto-skip their
+// turn. After MISSED_TURNS_BEFORE_INACTIVE consecutive misses they become inactive — still fully
+// human/in control of their own hand, just skipped fast until they act. Never converted to a bot.
+function rTurnTimeout(game, playerId) {
+  const player = game.players.find((p) => p.id === playerId);
+  if (!player) return game;
+  // Stale-timer guard (#27 bug 2): only skip if the applicable window has genuinely elapsed
+  // against the current turn clock — a just-woken player must not be cut by an old queued timer.
+  const startedAt = typeof game.turnStartedAt === "number" ? game.turnStartedAt : 0;
+  const windowMs = player.inactive ? INACTIVE_SKIP_MS : TURN_TIMEOUT_MS;
+  if (startedAt && Date.now() - startedAt < windowMs - 250) return game;
+  const missed = (player.missedTurns || 0) + 1;
+  const becomesInactive = !player.inactive && missed >= MISSED_TURNS_BEFORE_INACTIVE;
+  let g = {
+    ...game,
+    players: game.players.map((p) => (p.id === playerId ? { ...p, missedTurns: missed, inactive: p.inactive || becomesInactive } : p)),
+  };
+  g = pushLog(
+    g,
+    becomesInactive
+      ? `${player.name} صار غير نشط (ما تفاعل مرتين متتاليتين).`
+      : player.inactive
+      ? `${player.name} غير نشط، تجاوز دوره تلقائيًا.`
+      : `${player.name} ما رد بالوقت، تم تخطي دوره.`
+  );
+  g = endTurn(g);
+  // First-miss vs repeated inactive-mode skip — the caller uses this to pick the analytics
+  // skip_reason (timeout vs timeout_inactive) so repeated 3s skips don't distort skip-rate.
+  return g;
+}
+
 // Explicit "end my turn" — the player calls this once they're done (after any combination of
 // item plays / one action card), or immediately to just pass.
 function rEndTurn(game, playerId) {
   const player = game.players.find((p) => p.id === playerId);
-  let g = pushLog(game, `${player.name} أنهى دوره.`);
+  let g = pushLog(resetMissed(game, playerId), `${player.name} أنهى دوره.`);
   g = endTurn(g);
   return g;
 }
@@ -500,7 +573,7 @@ function rPlayItems(game, playerId, cardIds) {
     }
   }
   const ids = cards.map((c) => c.id);
-  let { game: g1, removed } = removeFromHand(game, playerId, ids);
+  let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, ids);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed] };
   g1 = bumpItemStats(g1, cards);
   g1 = pushLog(g1, `${player.name} وضع: ${cards.map((c) => c.name).join("، ")}.`);
@@ -516,7 +589,7 @@ function rPassTurn(game, playerId) {
 
 function rPlayFreeze(game, playerId, cardId) {
   const player = game.players.find((p) => p.id === playerId);
-  let { game: g1, removed } = removeFromHand(game, playerId, [cardId]);
+  let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, [cardId]);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], lockCoord: true, actionUsedThisTurn: true };
   g1 = pushLog(g1, `${player.name} لعب ثبّت الحَلّة.`);
   g1 = checkWin(g1, playerId);
@@ -525,7 +598,7 @@ function rPlayFreeze(game, playerId, cardId) {
 
 function rPlayDig(game, playerId, cardId) {
   const player = game.players.find((p) => p.id === playerId);
-  let { game: g1, removed } = removeFromHand(game, playerId, [cardId]);
+  let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, [cardId]);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], actionUsedThisTurn: true };
   const { game: g2, drawn } = drawFromPile(g1, 3);
   let g3 = { ...g2, digOptions: { playerId, cards: drawn } };
@@ -547,7 +620,7 @@ function rFinishDig(game, keepId) {
 
 function rDeclareAction(game, playerId, cardId, actionType, targetId) {
   const player = game.players.find((p) => p.id === playerId);
-  let { game: g1, removed } = removeFromHand(game, playerId, [cardId]);
+  let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, [cardId]);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], actionUsedThisTurn: true };
   g1 = { ...g1, pendingAction: { id: uid(), actionType, actorId: playerId, targetId, actorName: player.name, startedAt: Date.now() } };
   return g1;
@@ -555,7 +628,7 @@ function rDeclareAction(game, playerId, cardId, actionType, targetId) {
 
 function rDeclareGiveTake(game, playerId, cardId, targetId, giveIds) {
   const player = game.players.find((p) => p.id === playerId);
-  let { game: g1, removed } = removeFromHand(game, playerId, [cardId]);
+  let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, [cardId]);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], actionUsedThisTurn: true };
   g1 = { ...g1, pendingAction: { id: uid(), actionType: "giveTake", actorId: playerId, targetId, actorName: player.name, giveIds, startedAt: Date.now() } };
   return g1;
@@ -604,12 +677,14 @@ function rResolvePendingAction(game) {
     g = pushLog(g, `${target.name} فزع من ${pa.actorName} وأخذ ${removed.length} كرت.`);
   } else if (pa.actionType === "giveTake") {
     const { game: g2, removed: given } = removeFromHand(g, pa.actorId, pa.giveIds);
-    let g3 = addToHand(g2, pa.targetId, given);
-    const t = g3.players.find((p) => p.id === pa.targetId);
-    const n = Math.min(2, t.hand.length);
-    const takeIds = shuffle(t.hand).slice(0, n).map((c) => c.id);
-    const { game: g4, removed: taken } = removeFromHand(g3, pa.targetId, takeIds);
-    g = addToHand(g4, pa.actorId, taken);
+    // #29 fix: pick the random 2 cards from the target's hand BEFORE the gift is added, so the
+    // actor can never randomly draw back the very cards they just handed over.
+    const targetBefore = g2.players.find((p) => p.id === pa.targetId);
+    const n = Math.min(2, targetBefore.hand.length);
+    const takeIds = shuffle(targetBefore.hand).slice(0, n).map((c) => c.id);
+    const { game: g3, removed: taken } = removeFromHand(g2, pa.targetId, takeIds);
+    let g4 = addToHand(g3, pa.actorId, taken);
+    g = addToHand(g4, pa.targetId, given);
     g = pushLog(g, `${pa.actorName} بادل كروت مع ${target.name} (عطني وأعطيك).`);
   }
   if (g.stats && target) {
@@ -966,6 +1041,9 @@ const GlobalFont = () => (
     .tsz-9 { font-size: calc(9px * var(--tsz, 1)); }
     .tsz-10 { font-size: calc(10px * var(--tsz, 1)); }
     .tsz-11 { font-size: calc(11px * var(--tsz, 1)); }
+    .tsz-12 { font-size: calc(12px * var(--tsz, 1)); }
+    .tsz-13 { font-size: calc(13px * var(--tsz, 1)); }
+    .tsz-17 { font-size: calc(17px * var(--tsz, 1)); }
   `}</style>
 );
 
@@ -1026,23 +1104,52 @@ function Confetti() {
   );
 }
 
-function WinStats({ game }) {
-  const blocks = game.stats?.blocksByPlayerId || {};
+// #31 — end-of-game stats, computed from game.stats/coordRounds/duration. Display-only.
+// Keeps production's id-keyed stats; renders the delta's row order, hero styling, grammar
+// helpers, perspective-aware naming and a share button.
+function WinStats({ game, myId, isOnline }) {
+  const [copied, setCopied] = useState(false);
   const targeted = game.stats?.targetedByPlayerId || {};
-  const topBlock = Object.entries(blocks).sort((a, b) => b[1] - a[1])[0];
   const topTargeted = Object.entries(targeted).sort((a, b) => b[1] - a[1])[0];
   const lookupName = (playerId) => game.players.find((p) => p.id === playerId)?.name || playerId;
-  const runnerUp = game.players
-    .filter((p) => p.id !== game.winner)
-    .sort((a, b) => a.hand.length - b.hand.length)[0];
+  const winner = game.players.find((p) => p.id === game.winner);
+  const runnerUp = game.players.filter((p) => p.id !== game.winner).sort((a, b) => a.hand.length - b.hand.length)[0];
+
+  // Name each seat from the reader's point of view, so "أنت" reads naturally (local + online).
+  const who = (p) => (p ? (isOnline ? (p.id === myId ? "أنت" : p.name) : p.isBot ? p.name : "أنت") : "");
+  const cardsLeft = (n) => (n === 1 ? "بقي له كرت واحد" : n === 2 ? "بقي له كرتين" : `بقي له ${n} كروت`);
+  const times = (n) => (n === 1 ? "مرة واحدة" : n === 2 ? "مرتين" : `${n} مرات`);
+
+  const durationMs = game.endedAtMs && game.startedAtMs ? game.endedAtMs - game.startedAtMs : null;
+  const durationText = (() => {
+    if (!durationMs || durationMs < 0) return null;
+    const total = Math.round(durationMs / 1000);
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+  })();
+
   const rows = [
-    runnerUp ? { l: "الأقرب للفوز 🥈", v: `${runnerUp.name} (باقي ${runnerUp.hand.length})` } : null,
-    { l: "عدد الأدوار", v: `${game.turnSerial ?? 0}` },
+    { l: "الفائز", v: `${who(winner)} 🎉`, hero: true },
+    durationText ? { l: "مدة اللعبة", v: durationText, hero: true } : null,
+    runnerUp ? { l: "أقرب منافس", v: `${who(runnerUp)}، ${cardsLeft(runnerUp.hand.length)}` } : null,
+    { l: "جولات التنسيق", v: `${game.coordRounds ?? 0}` },
     { l: "كروت انلعبت", v: `${game.stats?.itemsPlayed || 0}` },
-    { l: "منها نادرة", v: `${game.stats?.rareItemsPlayed || 0}` },
-    topBlock ? { l: "أكثر واحد صدّ 🛡️", v: `${lookupName(topBlock[0])} (${topBlock[1]})` } : null,
-    topTargeted ? { l: "أكثر واحد أكل أكشن 😵", v: `${lookupName(topTargeted[0])} (${topTargeted[1]})` } : null,
+    { l: "الكروت النادرة المستخدمة", v: `${game.stats?.rareItemsPlayed || 0}` },
+    topTargeted ? { l: "أكثر لاعب استُهدف بالأكشن", v: `${lookupName(topTargeted[0])}، ${times(topTargeted[1])}` } : null,
   ].filter(Boolean);
+
+  function share() {
+    const lines = ["حصيلة لعبة حُلّة 🃏", ...rows.map((r) => `${r.l}: ${r.v}`)].join("\n");
+    try {
+      if (navigator.share) {
+        navigator.share({ text: lines });
+      } else {
+        navigator.clipboard.writeText(lines);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      }
+    } catch {}
+  }
+
   return (
     <div className="mt-6 mx-auto max-w-xs rounded-2xl border-2 p-4 relative" style={{ background: CREAM2, borderColor: GOLD }}>
       <CornerFlourish pos="tl" color={GOLD} />
@@ -1051,11 +1158,23 @@ function WinStats({ game }) {
         حصيلة اللعبة
       </div>
       {rows.map((r, i) => (
-        <div key={i} className="flex justify-between text-sm py-1" style={{ color: INK, borderBottom: i < rows.length - 1 ? `1px solid ${MAROON}22` : "none" }}>
-          <span style={{ color: `${INK}99` }}>{r.l}</span>
-          <span className="font-black">{r.v}</span>
+        <div
+          key={i}
+          className={`flex justify-between items-baseline gap-2 ${r.hero ? "py-1.5" : "py-1"}`}
+          style={{ color: INK, borderBottom: i < rows.length - 1 ? `1px solid ${MAROON}22` : "none" }}
+        >
+          <span className={r.hero ? "text-sm font-bold" : "tsz-12"} style={{ color: r.hero ? MAROON : `${INK}99` }}>
+            {r.l}
+          </span>
+          <span className={`font-black text-left ${r.hero ? "text-base" : "text-sm"}`} style={{ color: r.hero ? MAROON : INK }}>
+            {r.v}
+          </span>
         </div>
       ))}
+      <button onClick={share} className="w-full mt-3 py-2 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5" style={{ background: MAROON, color: CREAM }}>
+        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+        {copied ? "تم نسخ النتيجة" : "شارك النتيجة"}
+      </button>
     </div>
   );
 }
@@ -1391,7 +1510,7 @@ function PostGameSurvey({ game, myId, isOnline }) {
   );
 }
 
-function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit, onGoHome }) {
+function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onClaimTimeout, dispatch, onExit, onGoHome }) {
   const [selected, setSelected] = useState([]);
   const [needTarget, setNeedTarget] = useState(null);
   const [giveStep, setGiveStep] = useState(null);
@@ -1405,6 +1524,15 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit, o
   const lastHapticTurnRef = useRef(-1);
   const [bigText, setBigText] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+
+  // #28 auto-show: open the rules once per session, the first time any game screen mounts.
+  useEffect(() => {
+    if (!rulesAutoShown) {
+      rulesAutoShown = true;
+      setShowRules(true);
+    }
+  }, []);
 
   const current = game.players[game.currentPlayerIndex];
   const viewer = isOnline ? game.players.find((p) => p.id === myId) || current : current;
@@ -1698,6 +1826,81 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game, botExecutor]);
 
+  // LOCAL turn timer / inactive auto-skip (#26). If the active human doesn't act within the window
+  // (30s normally, 3s once inactive), auto-skip their turn. Remaining time is derived from the
+  // persisted turnStartedAt so re-renders never restart it. The active player's `inactive` flag is
+  // a dependency so waking mid-turn cancels the short 3s timer and reschedules (#27 bug 2). Local
+  // mode has a single authoritative client, so it just dispatches the skip directly.
+  useEffect(() => {
+    if (isOnline) return;
+    if (game.winner || game.pendingAction || game.digOptions) return;
+    const cur = game.players[game.currentPlayerIndex];
+    if (!cur || cur.isBot) return;
+    const startedAt = typeof game.turnStartedAt === "number" ? game.turnStartedAt : Date.now();
+    const windowMs = cur.inactive ? INACTIVE_SKIP_MS : TURN_TIMEOUT_MS;
+    const remaining = Math.max(0, windowMs - (Date.now() - startedAt));
+    const wasInactive = cur.inactive;
+    const t = setTimeout(() => {
+      const next = rTurnTimeout(game, cur.id);
+      if (next === game) return; // stale-timer guard rejected it — nothing happened
+      track([
+        mkEvent(game, "turn_skipped", cur, {
+          event_id: `${game.analyticsId}-t${game.turnSerial ?? 0}-timeout-${cur.id}`,
+          // First miss vs inactive-mode repeat-skip: distinct reasons so one away player firing
+          // a skip every 3s doesn't inflate the normal skip-rate metric.
+          skip_reason: wasInactive ? "timeout_inactive" : "timeout",
+        }),
+      ]);
+      dispatch(next);
+    }, remaining);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline, game.turnSerial, game.turnStartedAt, game.pendingAction, game.digOptions, game.players[game.currentPlayerIndex]?.inactive]);
+
+  // ONLINE turn timer (#26), host-independent. Every connected client runs this and races to
+  // "claim" the skip through a guarded server write (onClaimTimeout → /timeout CAS). The server
+  // guards on the room version (updated_at) plus expected turnSerial/currentPlayerIndex/
+  // turnStartedAt, so exactly one claim wins and any stale one — including one racing a legitimate
+  // move that changed same-turn state without bumping turnSerial — is rejected. claimedTimeoutRef
+  // stops this client from re-spamming the same turn fingerprint before its poll catches up.
+  const claimedTimeoutRef = useRef(null);
+  useEffect(() => {
+    if (!isOnline) return;
+    if (game.winner || game.pendingAction || game.digOptions) return;
+    if (typeof roomUpdatedAt !== "string" || typeof game.turnStartedAt !== "number") return;
+    const cur = game.players[game.currentPlayerIndex];
+    if (!cur || cur.isBot) return;
+    const windowMs = cur.inactive ? INACTIVE_SKIP_MS : TURN_TIMEOUT_MS;
+    const remaining = Math.max(0, windowMs - (Date.now() - game.turnStartedAt));
+    const wasInactive = cur.inactive;
+    const fingerprint = `${game.turnSerial}:${game.currentPlayerIndex}:${game.turnStartedAt}:${roomUpdatedAt}`;
+    const t = setTimeout(async () => {
+      if (claimedTimeoutRef.current === fingerprint) return;
+      claimedTimeoutRef.current = fingerprint;
+      const next = rTurnTimeout(game, cur.id);
+      if (next === game) return; // not actually elapsed against the turn clock
+      const expected = {
+        updatedAt: roomUpdatedAt,
+        turnSerial: game.turnSerial ?? 0,
+        currentPlayerIndex: game.currentPlayerIndex,
+        turnStartedAt: game.turnStartedAt,
+      };
+      const won = await onClaimTimeout?.(next, expected);
+      // Only the client whose guarded write won logs the skip — no double-count across clients,
+      // and normal vs inactive-mode skips stay distinct in analytics.
+      if (won) {
+        track([
+          mkEvent(game, "turn_skipped", cur, {
+            event_id: `${game.analyticsId}-t${game.turnSerial ?? 0}-timeout-${cur.id}`,
+            skip_reason: wasInactive ? "timeout_inactive" : "timeout",
+          }),
+        ]);
+      }
+    }, remaining);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline, roomUpdatedAt, game.turnSerial, game.turnStartedAt, game.pendingAction, game.digOptions, game.players[game.currentPlayerIndex]?.inactive]);
+
   function settlePendingAction(computeGame, analyticsEvents) {
     const pa = game.pendingAction;
     if (!pa || settledRef.current === pa.id) return;
@@ -1753,6 +1956,11 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit, o
   }, [game, isOnline, isHost, botExecutor]);
 
   function toggleSelect(cardId) {
+    // Wake-on-touch (#27): merely tapping a card is proof of presence — clears inactive/missed
+    // and restarts this turn's clock. rWakePlayer returns the game by reference when there's
+    // nothing to clear, so we only dispatch on a real change.
+    const woken = rWakePlayer(game, viewer.id);
+    if (woken !== game) dispatch(woken);
     setSelected((s) => (s.includes(cardId) ? s.filter((x) => x !== cardId) : [...s, cardId]));
   }
 
@@ -1932,7 +2140,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit, o
             <div className="text-4xl font-black mb-3" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
               🎉 فاز {winnerPlayer.name}!
             </div>
-            <WinStats game={game} />
+            <WinStats game={game} myId={myId} isOnline={isOnline} />
             <button onClick={onExit} className="mt-4 px-6 py-3 rounded-xl font-bold" style={{ background: MAROON, color: CREAM }}>
               العب من جديد
             </button>
@@ -1954,7 +2162,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit, o
                     }}
                   >
                     {nearWin ? "🔥 " : ""}
-                    {p.isBot ? "🤖 " : ""}
+                    {p.isBot ? "🤖 " : p.inactive ? "😴 " : ""}
                     {p.name} {isOnline && p.id === myId && <span style={{ color: GOLD }}>(أنت)</span>} <span className="opacity-70">({p.hand.length})</span>
                   </div>
                 );
@@ -1966,6 +2174,16 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit, o
                 <div className="text-xs font-bold flex items-center gap-1" style={{ color: GOLD }}>
                   <Repeat2 className="w-3 h-3" /> ثبّت الحَلّة مفعّل — هذا الكرت سيبقى جولة إضافية
                 </div>
+              )}
+              {/* Turn timer (#26) — shown in both modes now that online auto-skip is race-safe.
+                  Derived from the shared turnStartedAt, so every client shows the same countdown. */}
+              {!current.isBot && !game.pendingAction && !game.digOptions && (
+                <CountdownRing
+                  pendingActionId={`turn-${game.turnSerial}`}
+                  startedAt={game.turnStartedAt}
+                  windowMs={current.inactive ? INACTIVE_SKIP_MS : TURN_TIMEOUT_MS}
+                  size={44}
+                />
               )}
               <CoordCard card={game.currentCoord} />
               {isOnline && !isMyTurn && (
@@ -2235,6 +2453,16 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit, o
             </button>
             <button
               onClick={() => {
+                setMenuOpen(false);
+                setShowRules(true);
+              }}
+              className="w-full text-right px-3 py-2.5 text-sm font-bold flex items-center gap-2 border-t"
+              style={{ color: INK, borderColor: `${MAROON}22` }}
+            >
+              <HelpCircle className="w-4 h-4" style={{ color: MAROON }} /> كيف ألعب؟
+            </button>
+            <button
+              onClick={() => {
                 try {
                   window.location.reload();
                 } catch {}
@@ -2263,6 +2491,100 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, dispatch, onExit, o
           </div>
         </>
       )}
+
+      {/* Rendered last + z-[10000] so it sits above the game screen and the ☰ menu. Uses the
+          in-game bigText so A+ scales the rules text too. */}
+      {showRules && <HowToPlay onClose={() => setShowRules(false)} bigText={bigText} />}
+    </div>
+  );
+}
+
+// #28 — self-contained "?" affordance for pre-game screens: renders the button and owns the
+// modal open state (bigText=false — the A+ toggle only exists in-game).
+function RulesFab() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div className="fixed z-[100]" style={{ top: "calc(env(safe-area-inset-top, 0px) + 0.75rem)", insetInlineStart: "0.75rem" }}>
+        <HelpButton onClick={() => setOpen(true)} />
+      </div>
+      {open && <HowToPlay onClose={() => setOpen(false)} bigText={false} />}
+    </>
+  );
+}
+
+// #28 — help affordance + rules modal.
+function HelpButton({ onClick, className = "" }) {
+  return (
+    <button
+      onClick={onClick}
+      title="كيف ألعب؟"
+      className={`w-9 h-9 rounded-full border-2 flex items-center justify-center font-black ${className}`}
+      style={{ color: MAROON, borderColor: MAROON, background: CREAM }}
+    >
+      <HelpCircle className="w-5 h-5" />
+    </button>
+  );
+}
+
+// "وش قوانين حُلّة؟" — sectioned rules modal. The action-card list is generated from ACTION_TYPES
+// so descriptions can never drift from the actual card definitions. Rendered at z-[10000] (above
+// the in-game menu). bigText scales the text via the shared --tsz mechanism (#21).
+function HowToPlay({ onClose, bigText }) {
+  const Section = ({ title, children }) => (
+    <div className="mb-3">
+      <div className="tsz-13 font-black mb-1" style={{ color: MAROON }}>
+        {title}
+      </div>
+      <div className="tsz-12 leading-relaxed" style={{ color: INK }}>
+        {children}
+      </div>
+    </div>
+  );
+  return (
+    <div dir="rtl" className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.55)", "--tsz": bigText ? 1.18 : 1 }}>
+      <div className="w-full max-w-md rounded-2xl border-2 shadow-2xl flex flex-col overflow-hidden" style={{ background: CREAM, borderColor: MAROON, fontFamily: "Tajawal", maxHeight: "calc(100% - 2rem)" }}>
+        <div className="flex items-center justify-between px-4 py-3 border-b-2 flex-shrink-0" style={{ background: CREAM2, borderColor: `${MAROON}22` }}>
+          <div className="tsz-17 font-black" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
+            وش قوانين حُلّة؟
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg" style={{ color: MAROON }} title="إغلاق">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-4 overflow-y-auto" style={{ background: CREAM }}>
+          <Section title="الهدف">أول لاعب يتخلص من كل كروته يفوز.</Section>
+          <Section title="كرت تنسيق منطقة">
+            تقدر تحط أي عدد من كروت العناصر بشرط تكون من نفس منطقة الكرت ومن العناصر المعروضة عليه (بدون تكرار نفس العنصر).
+          </Section>
+          <Section title="كرت تنسيق عشوائي">عنصر واحد بس بكل مرة — من أي منطقة، طالما اسمه من ضمن العناصر المعروضة على الكرت.</Section>
+          <Section title="كروت الأكشن">
+            كرت أكشن واحد بس بكل جولة، ويُلعب قبل ما تحط عناصرك (مو بعدها). لا ما تقدر استثناء — تقدر تستخدمها أي وقت كردّ فعل.
+          </Section>
+          <div className="space-y-1.5 mb-3">
+            {ACTION_TYPES.map((a) => {
+              const Icon = a.icon;
+              return (
+                <div key={a.id} className="rounded-xl px-3 py-1.5" style={{ background: `${MAROON}0d` }}>
+                  <div className="flex items-center gap-2 font-black tsz-12" style={{ color: MAROON }}>
+                    <Icon className="w-3 h-3 flex-shrink-0" />
+                    {a.name}
+                  </div>
+                  <div className="tsz-11 mt-0.5" style={{ color: `${INK}aa` }}>
+                    {a.desc}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <Section title="الندرة">
+            كل عنصر عليه بادج شائع/متوسط/نادر — الشائع يطلع كثير بكروت التنسيق وسهل تتخلص منه، والنادر يطلع نادر فيصعب تصريفه.
+          </Section>
+          <button onClick={onClose} className="w-full py-2.5 rounded-xl font-black tsz-13" style={{ background: MAROON, color: CREAM }}>
+            يلا نلعب
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2330,6 +2652,7 @@ function LocalSetup({ onStart, onBack }) {
   return (
     <div dir="rtl" className="min-h-screen w-full flex items-center justify-center p-6" style={{ ...pageBg, fontFamily: "Tajawal" }}>
       <GlobalFont />
+      <RulesFab />
       <div className="w-full max-w-md">
         <div className="text-center mb-5">
           <CardBackHero />
@@ -2423,6 +2746,7 @@ function OnlineMenu({ myName, setMyName, onCreate, onJoin, onBack, error }) {
   return (
     <div dir="rtl" className="min-h-screen w-full flex items-center justify-center p-6" style={{ ...pageBg, fontFamily: "Tajawal" }}>
       <GlobalFont />
+      <RulesFab />
       <div className="w-full max-w-md">
         <div className="text-center mb-5">
           <CardBackHero />
@@ -2509,6 +2833,7 @@ function OnlineLobby({ room, myId, onStart, onAddBot, onRemoveBot, onBack }) {
   return (
     <div dir="rtl" className="min-h-screen w-full flex items-center justify-center p-6" style={{ ...pageBg, fontFamily: "Tajawal" }}>
       <GlobalFont />
+      <RulesFab />
       <div className="w-full max-w-md">
         <div className="text-center mb-5">
           <div className="text-2xl font-black mb-2" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
@@ -2578,6 +2903,20 @@ function OnlineLobby({ room, myId, onStart, onAddBot, onRemoveBot, onBack }) {
               لازم لاعبين اثنين على الأقل.
             </div>
           )}
+
+          {/* #30 — manual refresh for when the polling/waiting screen hangs. Production's
+              session-reconnect returns the player to their room after reload. */}
+          <button
+            onClick={() => {
+              try {
+                window.location.reload();
+              } catch {}
+            }}
+            className="w-full text-xs flex items-center justify-center gap-1 py-1.5 rounded-lg border-2"
+            style={{ color: MAROON, borderColor: `${MAROON}44` }}
+          >
+            <RefreshCw className="w-3 h-3" /> تحديث الصفحة
+          </button>
 
           <button onClick={onBack} className="w-full text-xs flex items-center justify-center gap-1" style={{ color: `${INK}77` }}>
             <LogOut className="w-3 h-3" /> اخرج من الغرفة
@@ -2678,6 +3017,28 @@ function OnlineFlow({ onBack }) {
     } catch (e) {
       pendingOptimisticRoomRef.current = null;
       setError("تعذر الحفظ، تأكد من الاتصال وحاول مجددًا.");
+    }
+  }
+
+  // Online turn-timeout claim. Not optimistic (unlike saveRoomTo): the guarded write may lose, so
+  // we never pre-apply. On a win we adopt the returned room (its newer updatedAt makes the poll
+  // guard drop any in-flight stale poll — no flicker). On a loss (409) we do nothing; polling
+  // brings whatever actually happened. Returns true only if this client's claim won.
+  async function claimTimeout(code, nextGame, expected) {
+    try {
+      const res = await fetch(`/api/rooms/${code}/timeout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ room: { ...room, game: nextGame }, expected }),
+      });
+      if (res.status === 409) return false; // stale / lost the race — clean rejection
+      if (!res.ok) return false;
+      const updated = await res.json();
+      if (activeRoomCodeRef.current !== code) return false;
+      adoptRoom(updated);
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 
@@ -2853,7 +3214,18 @@ function OnlineFlow({ onBack }) {
   }
   if (onlinePhase === "play" && room && room.game) {
     return (
-      <GameBoard game={room.game} myId={myId} isOnline isHost={room.hostId === myId} roomCode={roomCode} dispatch={dispatchGame} onExit={exitToMenu} onGoHome={exitToHome} />
+      <GameBoard
+        game={room.game}
+        myId={myId}
+        isOnline
+        isHost={room.hostId === myId}
+        roomCode={roomCode}
+        roomUpdatedAt={room.updatedAt}
+        onClaimTimeout={(nextGame, expected) => claimTimeout(roomCode, nextGame, expected)}
+        dispatch={dispatchGame}
+        onExit={exitToMenu}
+        onGoHome={exitToHome}
+      />
     );
   }
   return (
@@ -2887,6 +3259,7 @@ export default function HillaGame() {
     return (
       <div dir="rtl" className="min-h-screen w-full flex items-center justify-center p-6" style={{ ...pageBg, fontFamily: "Tajawal" }}>
         <GlobalFont />
+        <RulesFab />
         <div className="w-full max-w-md text-center">
           <CardBackHero />
           <p className="mt-3 mb-6" style={{ color: MAROON_DK }}>
