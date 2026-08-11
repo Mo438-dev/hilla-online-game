@@ -37,6 +37,10 @@ drop policy if exists "service role manages game_feedback" on public.game_feedba
 create policy "service role manages game_feedback" on public.game_feedback
   for all using (auth.role() = 'service_role') with check (auth.role() = 'service_role');
 revoke all on public.game_feedback from anon, authenticated;
+-- The server-side API routes connect as service_role. Unlike the v1 tables, this one was not
+-- covered by Supabase's default grants, so feedback writes AND the admin read failed silently
+-- with "permission denied for table game_feedback". Grant the table privileges explicitly.
+grant all privileges on public.game_feedback to service_role;
 
 -- ---------------------------------------------------------------------------
 -- V2 views (exploration/BI convenience; the dashboard itself aggregates the

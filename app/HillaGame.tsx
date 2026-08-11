@@ -2175,9 +2175,11 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                   <Repeat2 className="w-3 h-3" /> ثبّت الحَلّة مفعّل — هذا الكرت سيبقى جولة إضافية
                 </div>
               )}
-              {/* Turn timer (#26) — shown in both modes now that online auto-skip is race-safe.
-                  Derived from the shared turnStartedAt, so every client shows the same countdown. */}
-              {!current.isBot && !game.pendingAction && !game.digOptions && (
+              {/* Turn timer (#26). Rendering-only: online, the ring shows to the active player
+                  only (isMyTurn); everyone else keeps just the "دور فلان الآن..." status. Local is
+                  unchanged (isMyTurn is always true there). Every client still runs the timeout CAS
+                  internally regardless of this visibility. */}
+              {isMyTurn && !current.isBot && !game.pendingAction && !game.digOptions && (
                 <CountdownRing
                   pendingActionId={`turn-${game.turnSerial}`}
                   startedAt={game.turnStartedAt}
