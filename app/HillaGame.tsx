@@ -2721,8 +2721,27 @@ function HowToPlay({ onClose, bigText }) {
     </div>
   );
   return (
-    <div dir="rtl" className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.55)", "--tsz": bigText ? 1.18 : 1 }}>
-      <div className="w-full max-w-md rounded-2xl border-2 shadow-2xl flex flex-col overflow-hidden" style={{ background: CREAM, borderColor: MAROON, fontFamily: "Tajawal", maxHeight: "calc(100% - 2rem)" }}>
+    <div
+      dir="rtl"
+      className="fixed inset-0 z-[10000] flex items-center justify-center"
+      style={{
+        background: "rgba(0,0,0,0.55)",
+        "--tsz": bigText ? 1.18 : 1,
+        paddingTop: "calc(env(safe-area-inset-top, 0px) + 1.5rem)",
+        paddingRight: "max(1.25rem, calc(env(safe-area-inset-right, 0px) + 1rem))",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)",
+        paddingLeft: "max(1.25rem, calc(env(safe-area-inset-left, 0px) + 1rem))",
+      }}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl border-2 shadow-2xl flex flex-col overflow-hidden"
+        style={{
+          background: CREAM,
+          borderColor: MAROON,
+          fontFamily: "Tajawal",
+          maxHeight: "100%",
+        }}
+      >
         <div className="flex items-center justify-between px-4 py-3 border-b-2 flex-shrink-0" style={{ background: CREAM2, borderColor: `${MAROON}22` }}>
           <div className="tsz-17 font-black" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
             وش قوانين حُلّة؟
