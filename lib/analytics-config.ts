@@ -3,7 +3,7 @@
 // (item count per coord card, random/region ratio, rarity copy counts,
 // action card strength, turn rules, ...) so games can be compared with
 // `group by ruleset_version` instead of guessing from dates.
-export const RULESET_VERSION = 'v1';
+export const RULESET_VERSION = 'v2.1';
 
 // Allowlisted analytics event types. Shared by the client emitter and the
 // server-side validator.

@@ -5,22 +5,29 @@ import { Shirt, Gem, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2,
 import { newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished, sendDealSnapshot, getClientPid, sendFeedback } from "@/lib/analytics-client";
 
 /* ---------------------------------- PALETTE ---------------------------------- */
-const CREAM = "#F3E9D2";
-const CREAM2 = "#EADFC0";
-const MAROON = "#6B1F2A";
-const MAROON_DK = "#4A141C";
-const GOLD = "#C9A227";
-const INK = "#2B211C";
-const TEAL = "#1F6F6B";
+// Sampled from the designer's identity file (هوية حلة).
+const BRAND = "#85152D"; // card-back red
+const CREAM = "#FCF3E2"; // card cream
+const PAGE = "#F1E5CB"; // table paper
+const BEIGE = "#D7CAA9"; // random coordination frame / logo plaque
+const GOLD = "#DDAD55";
+const GOLD_DK = "#B98A2E";
+const INK = "#231F20";
+// legacy aliases kept so untouched code paths still resolve
+const CREAM2 = "#F3E8D0";
+const MAROON = BRAND;
+const MAROON_DK = "#5E0F20";
+const TEAL = "#366135";
+const OLD_TEAL = "#1F6F6B"; // the original turquoise, kept for «استمرار اللعب»
 
 /* ---------------------------------- DATA ---------------------------------- */
 /* rarity (شائع/متوسط/نادر) is just an info label printed on each item card —
    NOT a separate no-region category. Every item still belongs to one region. */
 
 const RARITY_META = {
-  common: { label: "شائع", color: "#8A8578" },
-  medium: { label: "متوسط", color: "#B8860B" },
-  rare: { label: "نادر", color: "#8B1E3F" },
+  common: { label: "شائع", color: "#196935", text: "#FCF3E2" },
+  medium: { label: "متوسط", color: "#E4A324", text: "#3A2608" },
+  rare: { label: "نادر", color: "#A81E23", text: "#FCF3E2" },
 };
 const RARITY_COPIES = { common: 7, medium: 5, rare: 3 };
 
@@ -28,7 +35,7 @@ const REGIONS = [
   {
     id: "najdi",
     name: "نجدي",
-    color: "#5B2C6F",
+    color: "#711112",
     items: [
       { name: "عقال", rarity: "common" },
       { name: "المخطم", rarity: "rare" },
@@ -43,7 +50,7 @@ const REGIONS = [
   {
     id: "sharqi",
     name: "شرقي",
-    color: "#2F4B33",
+    color: "#366135",
     items: [
       { name: "ثوب مرودن", rarity: "common" },
       { name: "قلادة", rarity: "common" },
@@ -58,7 +65,7 @@ const REGIONS = [
   {
     id: "janoubi",
     name: "جنوبي",
-    color: "#1F6F6B",
+    color: "#121A42",
     items: [
       { name: "خواتم", rarity: "common" },
       { name: "مريشة", rarity: "rare" },
@@ -73,7 +80,7 @@ const REGIONS = [
   {
     id: "gharbi",
     name: "غربي",
-    color: "#2C3E63",
+    color: "#5C3A1C",
     items: [
       { name: "غوايش", rarity: "common" },
       { name: "حلق", rarity: "common" },
@@ -290,53 +297,75 @@ function buildActionDeck() {
   return deck;
 }
 
-// Splits a shuffled item list into 3–4 sized chunks that together cover every item at least
-// once (per call). Used with rarity-weighted "passes" below so common items end up on far more
-// تنسيق cards than rare ones, while every single card still has 3-4 distinct items.
-function chunkCoverAll(items, minSize = 3, maxSize = 4) {
-  const shuffled = shuffle(items);
-  const chunks = [];
-  let i = 0;
-  while (i < shuffled.length) {
-    const size = Math.min(shuffled.length - i, Math.random() < 0.5 ? minSize : maxSize);
-    chunks.push(shuffled.slice(i, i + size));
-    i += size;
-  }
-  return chunks;
-}
+/* ------------------------- COORDINATION DECK — RULESET v2.1 -------------------------
+   Experimental balancing ruleset. Every knob below is intentionally a named constant so the
+   deck composition can be re-tuned without touching the generation logic.
 
-// Appearance weighting: for every 2 times a rare item shows up on a تنسيق card, a medium item
-// shows up 3 times and a common item shows up 5 times — commons are easy to unload, rares are
-// genuinely hard to place.
-const RARITY_PASSES = { common: 5, medium: 3, rare: 2 };
-const MAX_PASSES = 5;
+   Deck: 50 cards = 30 random + 20 region (3:2), region split evenly 5 per region.
+   Card sizes: random 4–7 items, region 4–5 items (region kept lower on purpose so a single
+   region card can't let a player dump too much at once).
+   Appearance targets per individual item across the whole deck: common 10, medium 7, rare 4.
+   With the current 8 common / 20 medium / 4 rare roster that's ~236 total item appearances. */
+const RULESET_VERSION = "v2.1"; // keep in sync with lib/analytics-config.ts (analytics ruleset_version)
 
-function namesForPass(items, pass) {
-  return items.filter((it) => (RARITY_PASSES[it.rarity] ?? 3) >= pass).map((it) => it.name);
-}
+const COORD_RANDOM_CARDS = 30;
+const COORD_REGION_CARDS_PER_REGION = 5;
 
+// Per-card item counts. v2.1 fixes these exactly: random = 11×4 + 12×5 + 5×6 + 2×7 = 148
+// appearances, region = 4×(4+5+4+5+4) = 88, for a deck total of exactly 236 — which is precisely
+// 8 common×10 + 20 medium×7 + 4 rare×4, so every item can hit its target exactly.
+const RANDOM_CARD_SIZES = [
+  4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+  5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+  6, 6, 6, 6, 6,
+  7, 7,
+];
+// Region cards alternate 4/5 (test question #2) — 22 slots per region, 88 total.
+const REGION_CARD_SIZES = [4, 5, 4, 5, 4];
+
+// Target number of coordination cards each individual item should appear on.
+const RARITY_APPEARANCE_TARGET = { common: 10, medium: 7, rare: 4 };
+
+/* Deficit-driven fill: for every card slot, prefer whichever eligible item is currently furthest
+   below its target (ties broken randomly). Region cards are generated first because they're
+   constrained to a single region's items; random cards run afterwards and absorb whatever
+   deficits remain, which is what keeps the final per-item counts close to target. */
 function buildCoordDeck() {
+  const appearances = {};
+  REGIONS.forEach((r) => r.items.forEach((it) => (appearances[it.name] = 0)));
+
+  const deficitOf = (it) => (RARITY_APPEARANCE_TARGET[it.rarity] ?? 0) - appearances[it.name];
+
+  function pickItems(pool, size) {
+    const chosen = shuffle(pool)
+      .sort((a, b) => deficitOf(b) - deficitOf(a))
+      .slice(0, Math.min(size, pool.length));
+    chosen.forEach((it) => (appearances[it.name] += 1));
+    return chosen.map((it) => it.name);
+  }
+
   const deck = [];
+
   REGIONS.forEach((r) => {
-    for (let pass = 1; pass <= MAX_PASSES; pass++) {
-      const names = namesForPass(r.items, pass);
-      if (names.length === 0) continue;
-      chunkCoverAll(names).forEach((items) => {
-        deck.push({ id: uid(), type: "region", region: r.id, regionName: r.name, color: r.color, items });
+    for (let i = 0; i < COORD_REGION_CARDS_PER_REGION; i++) {
+      const size = REGION_CARD_SIZES[i % REGION_CARD_SIZES.length];
+      deck.push({
+        id: uid(),
+        type: "region",
+        region: r.id,
+        regionName: r.name,
+        color: r.color,
+        items: pickItems(r.items, size),
       });
     }
   });
 
-  // عشوائي cards match by name only (any region) — apply the same rarity weighting across the
-  // full item list so the ratio holds for the whole coordination deck, not just region cards.
   const allItems = REGIONS.flatMap((r) => r.items);
-  for (let pass = 1; pass <= MAX_PASSES; pass++) {
-    const names = namesForPass(allItems, pass);
-    if (names.length === 0) continue;
-    chunkCoverAll(names).forEach((items) => {
-      deck.push({ id: uid(), type: "random", region: null, items });
-    });
+  for (let i = 0; i < COORD_RANDOM_CARDS; i++) {
+    const size = RANDOM_CARD_SIZES[i % RANDOM_CARD_SIZES.length];
+    deck.push({ id: uid(), type: "random", region: null, items: pickItems(allItems, size) });
   }
+
   return shuffle(deck);
 }
 
