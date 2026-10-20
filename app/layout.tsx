@@ -1,6 +1,11 @@
 import type { Metadata, Viewport } from 'next';
+import { IBM_Plex_Sans_Arabic, Markazi_Text } from 'next/font/google';
 import PWARegister from './pwa-register';
 import './globals.css';
+
+// Licensed web stand-ins for Thmanyah (which may not be embedded): Plex for UI, Markazi for titles.
+const plex = IBM_Plex_Sans_Arabic({ subsets: ['arabic'], weight: ['400', '500', '600', '700'], variable: '--font-plex', display: 'swap' });
+const markazi = Markazi_Text({ subsets: ['arabic'], weight: ['400', '500', '600', '700'], variable: '--font-markazi', display: 'swap' });
 
 const MAROON = '#6B1F2A';
 const CREAM = '#F3E9D2';
@@ -52,7 +57,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl">
+    <html lang="ar" dir="rtl" className={`${plex.variable} ${markazi.variable}`}>
       <body>
         {children}
         <PWARegister />

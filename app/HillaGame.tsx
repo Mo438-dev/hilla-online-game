@@ -1,7 +1,8 @@
 // @ts-nocheck
 'use client';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Shirt, Gem, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut, RefreshCw, Type, Menu, Crown, Sword, Eye, CircleDashed, Sun, HelpCircle, X, Smile } from "lucide-react";
+import { Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut, RefreshCw, Type, Menu, HelpCircle, X, Smile } from "lucide-react";
+import { HILLA_ART as ART } from "@/lib/art-manifest";
 import { newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished, sendDealSnapshot, getClientPid, sendFeedback } from "@/lib/analytics-client";
 
 /* ---------------------------------- PALETTE ---------------------------------- */
@@ -128,13 +129,6 @@ const ITEM_DESC = {
   "ثوب الزبون": "رداء نسائي حجازي طويل ومفتوح من الأمام، يُلبس فوق الثياب ويُزيّن بالتطريز.",
   "مرتعشة": "حلية ذهبية كبيرة متعددة الصفوف والسلاسل، تغطي جزءًا من الرقبة والصدر.",
 };
-const ICON_JEWELRY = ["غوايش", "حلق", "خواتم", "قلادة", "المخنق", "خرص", "مرتعشة"];
-const ICON_CROWN = ["هامة"];
-const ICON_WEAPON = ["جنبية"];
-const ICON_VEIL = ["برقع أسود", "برقع حجازي", "برقع حرب", "مريشة"];
-const ICON_CORD = ["عقال"];
-const ICON_FESTIVE = ["بشت", "دقلة", "شاية", "ثوب الزبون"];
-const ICON_HAT = ["طفشة"];
 const REGION_ORDER = REGIONS.map((r) => r.id);
 const RARITY_ORDER = { common: 0, medium: 1, rare: 2 };
 const REACTIONS = ["🌶️", "👏", "🥳", "😭", "😱"];
@@ -159,16 +153,6 @@ function sortItemsByRegion(items) {
   });
 }
 
-function itemIcon(name) {
-  if (ICON_JEWELRY.includes(name)) return Gem;
-  if (ICON_CROWN.includes(name)) return Crown;
-  if (ICON_WEAPON.includes(name)) return Sword;
-  if (ICON_VEIL.includes(name)) return Eye;
-  if (ICON_CORD.includes(name)) return CircleDashed;
-  if (ICON_FESTIVE.includes(name)) return Sparkles;
-  if (ICON_HAT.includes(name)) return Sun;
-  return Shirt;
-}
 
 // Same ordering, but for a plain array of item-name strings (e.g. a coordination card's chip
 // list) rather than full card objects — looks up region/rarity via ITEM_INFO. Display-only:
@@ -861,127 +845,335 @@ function botDecideTurn(game, botId) {
 
 /* --------------------------------- UI BITS --------------------------------- */
 
-function DiamondLattice({ color = GOLD, vertical = false, thickness = 14 }) {
+const REGION_BY_ID = Object.fromEntries(REGIONS.map((r) => [r.id, r]));
+const regionOf = (id) => REGION_BY_ID[id];
+const costumeArt = (name) => ART["cos:" + name] || null;
+
+// Every in-card font size scales with the "تكبير النص" toggle through --tsz.
+const fs = (px) => `calc(${Number(px).toFixed(2)}px * var(--tsz, 1))`;
+
+// Hand-card size follows the viewport so a full hand stays comfortable on a phone.
+function useCardSize() {
+  const get = () => {
+    const w = typeof window !== "undefined" ? window.innerWidth : 400;
+    return w < 370 ? 80 : w < 430 ? 88 : w < 720 ? 96 : 106;
+  };
+  const [s, setS] = useState(get);
+  useEffect(() => {
+    const on = () => setS(get());
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+  return s;
+}
+
+function useViewportWidth() {
+  const [w, setW] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 400));
+  useEffect(() => {
+    const on = () => setW(window.innerWidth);
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+  return w;
+}
+
+// The designer's wordmark, used as a CSS mask so it can take any brand colour.
+// The original zigzag diamond band from the first version (same gold on the same deep maroon).
+function DiamondLattice({ color = "#C9A227", vertical = false, thickness = 14 }) {
   const style = vertical ? { width: thickness, minWidth: thickness } : { height: thickness, minHeight: thickness };
   return (
     <div
+      aria-hidden="true"
       style={{
         ...style,
         backgroundImage: `linear-gradient(135deg, ${color} 25%, transparent 25%), linear-gradient(225deg, ${color} 25%, transparent 25%), linear-gradient(45deg, ${color} 25%, transparent 25%), linear-gradient(315deg, ${color} 25%, transparent 25%)`,
         backgroundPosition: `${thickness / 2}px 0, ${thickness / 2}px 0, 0 0, 0 0`,
         backgroundSize: `${thickness}px ${thickness}px`,
-        backgroundColor: MAROON_DK,
+        backgroundColor: "#4A141C",
       }}
     />
   );
 }
 
-function CornerFlourish({ pos, color = GOLD }) {
-  const posMap = { tl: "top-1.5 right-1.5", tr: "top-1.5 left-1.5", bl: "bottom-1.5 right-1.5", br: "bottom-1.5 left-1.5" };
-  return <span className={`absolute ${posMap[pos]} w-2 h-2 rotate-45`} style={{ background: color, opacity: 0.8 }} />;
-}
-
-function OrnateDivider({ color = GOLD }) {
+function Wordmark({ height = 40, color = BRAND, className = "", style }) {
+  const mask = {
+    WebkitMaskImage: `url(${ART.wordmark})`,
+    maskImage: `url(${ART.wordmark})`,
+    WebkitMaskSize: "contain",
+    maskSize: "contain",
+    WebkitMaskRepeat: "no-repeat",
+    maskRepeat: "no-repeat",
+    WebkitMaskPosition: "center",
+    maskPosition: "center",
+  };
   return (
-    <div className="flex items-center gap-1.5 justify-center my-1.5">
-      <span className="h-px flex-1" style={{ background: color, opacity: 0.6 }} />
-      <span className="w-1.5 h-1.5 rotate-45" style={{ background: color }} />
-      <span className="h-px flex-1" style={{ background: color, opacity: 0.6 }} />
-    </div>
+    <span
+      role="img"
+      aria-label="حُلّة"
+      className={`inline-block ${className}`}
+      style={{ height, width: height * (360 / 313), backgroundColor: color, ...mask, ...style }}
+    />
   );
 }
 
-function CardBackHero() {
+function RegionBadge({ region, size = 18, radius }) {
+  const r = regionOf(region);
+  if (!r) return null;
   return (
-    <div
-      className="w-40 h-56 rounded-2xl border-4 relative overflow-hidden mx-auto shadow-xl"
-      style={{ borderColor: CREAM, backgroundImage: `repeating-conic-gradient(${MAROON} 0deg 9deg, ${CREAM} 9deg 18deg)` }}
-    >
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="w-24 h-28 rounded-xl border-2 flex items-center justify-center relative" style={{ background: CREAM, borderColor: MAROON }}>
-          <CornerFlourish pos="tl" color={GOLD} />
-          <CornerFlourish pos="tr" color={GOLD} />
-          <CornerFlourish pos="bl" color={GOLD} />
-          <CornerFlourish pos="br" color={GOLD} />
-          <span className="text-3xl font-black" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
-            حُلّة
-          </span>
-        </div>
+    <img
+      src={ART[`badge_${region}`]}
+      alt={r.name}
+      draggable={false}
+      style={{ width: size, height: size, minWidth: size, borderRadius: radius ?? size * 0.24, display: "block" }}
+    />
+  );
+}
+
+
+// Each side ornament is built from two pieces cut from the designer's strip: a clean motif tile
+// (one diamond / leaf / pair of triangles / square) and the small gold connector that sits between
+// two motifs. Sizes are relative to the column width. The column shows a whole number of motifs,
+// connectors only between them — and for غربي, a gold star at both ends as well.
+const ORN_COL = {
+  najdi: { tile: 0.8374, conn: 0.2699, caps: false },
+  sharqi: { tile: 0.9837, conn: 0, caps: false },
+  janoubi: { tile: 1.206, conn: 0.168, caps: false },
+  gharbi: { tile: 1.6667, conn: 0.2824, caps: true },
+};
+
+function OrnamentColumn({ region, width = 14, flip = false }) {
+  const ref = useRef(null);
+  const [h, setH] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // offsetHeight is the layout height — unaffected by the card's flip-in transform, which would
+    // otherwise make the two sides measure differently mid-animation.
+    const measure = () => setH(el.offsetHeight);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const spec = ORN_COL[region] || ORN_COL.sharqi;
+  const tileH = width * spec.tile;
+  const connH = width * spec.conn;
+  const capH = spec.caps ? connH : 0;
+  const count = Math.max(0, Math.floor((h - capH + 0.5) / tileH));
+  const total = count * tileH + capH;
+  const off = capH / 2;
+  const joints = [];
+  if (spec.conn && count > 0) {
+    for (let i = spec.caps ? 0 : 1; i <= (spec.caps ? count : count - 1); i++) joints.push(i);
+  }
+  return (
+    <div ref={ref} aria-hidden="true" className="relative" style={{ width, minWidth: width, alignSelf: "stretch" }}>
+      {/* absolutely positioned so the motif stack never feeds back into the card's height */}
+      <div className="absolute left-0" style={{ top: "50%", marginTop: -total / 2, width, height: total, transform: flip ? "scaleX(-1)" : undefined }}>
+        {/* one image per motif (not a repeating background) so fractional sizes never drift and
+            the last motif is never shaved off */}
+        {Array.from({ length: count }).map((_, i) => (
+          <img
+            key={`m${i}`}
+            src={ART[`ornvM_${region}`]}
+            alt=""
+            draggable={false}
+            style={{ position: "absolute", left: 0, top: off + i * tileH, width, height: tileH, maxWidth: "none" }}
+          />
+        ))}
+        {joints.map((i) => (
+          <img
+            key={i}
+            src={ART[`ornvC_${region}`]}
+            alt=""
+            draggable={false}
+            style={{ position: "absolute", left: 0, top: off + i * tileH - connH / 2, width, height: connH, maxWidth: "none" }}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
-function ItemCard({ card, selected, onClick, small }) {
-  const color = REGIONS.find((r) => r.id === card.region)?.color || GOLD;
+
+function GoldRule({ children, color = GOLD, className = "" }) {
+  return (
+    <div className={`flex items-center gap-1.5 ${className}`}>
+      <span className="h-px flex-1" style={{ background: color }} />
+      <span className="w-1 h-1 rotate-45 flex-shrink-0" style={{ background: color }} />
+      {children}
+      {children && <span className="w-1 h-1 rotate-45 flex-shrink-0" style={{ background: color }} />}
+      <span className="h-px flex-1" style={{ background: color }} />
+    </div>
+  );
+}
+
+// Shared card body: rounded corners everywhere, soft resting shadow, lifts + gold ring when picked.
+function CardShell({ size, height, selected, onClick, disabled, children, bg, title, className = "", style }) {
+  const h = height ?? size;
+  const Tag = onClick ? "button" : "div";
+  return (
+    <Tag
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      disabled={onClick ? disabled : undefined}
+      title={onClick ? title : undefined}
+      className={`hilla-card relative flex-shrink-0 overflow-hidden p-0 text-center ${onClick && !disabled ? "cursor-pointer" : ""} ${
+        selected ? "is-selected" : ""
+      } ${className}`}
+      style={{
+        width: size,
+        height: h,
+        borderRadius: size * 0.11,
+        background: bg,
+        opacity: disabled ? 0.45 : 1,
+        filter: disabled ? "saturate(.55)" : undefined,
+        ...style,
+      }}
+    >
+      {children}
+    </Tag>
+  );
+}
+
+// Square hand card, after the designer's frame: regional colour, scalloped cream panel with the
+// region badge in two corners, rarity pill on top, the illustration, then the name.
+const HAND_FRAME_PATH =
+  "M9.8 4.6 H71 a3 3 0 0 1 3 3 V11.5 A14 14 0 0 0 88 25.5 H92.1 a3 3 0 0 1 3 3 V90 a5 5 0 0 1 -5 5 H29 a3 3 0 0 1 -3 -3 V88.5 A14 14 0 0 0 12 74.5 H7.8 a3 3 0 0 1 -3 -3 V9.6 a5 5 0 0 1 5 -5 Z";
+
+function ItemCard({ card, selected, onClick, size = 92, disabled, showDesc, className = "", style }) {
+  const region = regionOf(card.region);
+  const color = region?.color || BRAND;
   const rarity = RARITY_META[card.rarity] || RARITY_META.common;
-  const Icon = itemIcon(card.name);
+  const art = costumeArt(card.name);
+  const big = showDesc ?? size >= 160;
+  const pillText = size >= 104;
   return (
-    <button
-      onClick={onClick}
-      className={`relative flex-shrink-0 ${small ? "w-20 h-28" : "w-24 h-32"} rounded-lg border-2 flex flex-col text-center transition-transform overflow-hidden ${
-        selected ? "-translate-y-3 ring-2 ring-offset-1" : "hover:-translate-y-1"
-      }`}
-      style={{ background: CREAM, borderColor: color, boxShadow: selected ? `0 0 0 2px ${GOLD}` : "none" }}
-    >
-      <CornerFlourish pos="tl" color={GOLD} />
-      <CornerFlourish pos="tr" color={GOLD} />
-      <div className="pt-2 px-1 flex items-center justify-center gap-1">
-        <div className="tsz-9 font-bold" style={{ color, fontFamily: "Tajawal" }}>
-          {card.regionName}
-        </div>
-        <span
-          className="tsz-7 font-bold px-1 rounded-sm"
-          style={{ background: `${rarity.color}22`, color: rarity.color, border: `1px solid ${rarity.color}55` }}
+    <CardShell size={size} selected={selected} onClick={onClick} disabled={disabled} bg={color} title={card.name} className={className} style={style}>
+      <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full" aria-hidden="true">
+        <path d={HAND_FRAME_PATH} fill={CREAM} />
+      </svg>
+      <img src={ART[`badge_${card.region}`]} alt="" draggable={false} className="absolute" style={{ left: "79.5%", top: "7.5%", width: "13%" }} />
+      <img src={ART[`badge_${card.region}`]} alt="" draggable={false} className="absolute" style={{ left: "7.4%", top: "79.2%", width: "13%" }} />
+      <span
+        className="absolute left-1/2 -translate-x-1/2 rounded-full flex items-center justify-center font-semibold leading-none whitespace-nowrap"
+        style={{
+          top: "8.6%",
+          width: pillText ? "32%" : "26%",
+          height: pillText ? "7.4%" : "5%",
+          background: rarity.color,
+          color: rarity.text,
+          fontSize: fs(size * 0.056),
+        }}
+      >
+        {pillText ? rarity.label : ""}
+      </span>
+      <div className="absolute flex items-center justify-center" style={{ left: "16%", right: "16%", top: big ? "18%" : "17%", height: big ? "40%" : "47%" }}>
+        {art ? (
+          <img src={art} alt={card.name} draggable={false} className="max-w-full max-h-full object-contain" style={{ filter: "drop-shadow(0 2px 2px rgba(60,30,10,.18))" }} />
+        ) : (
+          <div className="opacity-80 flex flex-col items-center gap-1">
+            <RegionBadge region={card.region} size={size * 0.3} radius={size * 0.06} />
+          </div>
+        )}
+      </div>
+      <div
+        className="absolute font-bold leading-tight"
+        style={{ left: "14%", right: "10%", top: big ? "60%" : "66.5%", color: INK, fontSize: fs(size * (big ? 0.082 : 0.118)) }}
+      >
+        {card.name}
+      </div>
+      {big && ITEM_DESC[card.name] && (
+        <div
+          className="absolute serif-text leading-snug"
+          style={{ left: "21%", right: "8%", top: "70%", color: `${INK}cc`, fontSize: fs(size * 0.056), textAlign: "center" }}
         >
-          {rarity.label}
-        </span>
-      </div>
-      <div className="flex-1 flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: `${color}22`, border: `1.5px solid ${color}` }}>
-          <Icon className="w-4 h-4" style={{ color }} />
+          {ITEM_DESC[card.name]}
         </div>
-      </div>
-      <div className="pb-2 px-1">
-        <div className="tsz-10 font-black leading-tight" style={{ color: INK, fontFamily: "Tajawal" }}>
-          {card.name}
-        </div>
-      </div>
-      <div style={{ height: 6 }}>
-        <DiamondLattice color={color} thickness={8} />
-      </div>
-    </button>
+      )}
+    </CardShell>
   );
 }
 
-function ActionCard({ card, selected, onClick, disabled }) {
-  const meta = actionMeta(card.actionType);
-  const Icon = meta.icon;
+// Where the title (and description on big cards) sits on each action illustration, so text never
+// lands on the drawing — positions follow the designer's layouts.
+// Base colour of each action illustration — fills the card behind the art so the corners stay clean.
+const ACTION_BG = { block: "#961E21", stealTwo: "#FACE94", drawTwo: "#A2A7BC", dig: "#FCF3E2", giveTake: "#FCF3E2", freeze: "#FCF3E2" };
+
+const ACTION_LAYOUT = {
+  block: { color: CREAM, box: { top: "8%", left: "7%", right: "7%" }, align: "left" },
+  stealTwo: { color: "#6E2B12", box: { top: "66%", left: "7%", width: "48%" }, align: "left" },
+  drawTwo: { color: CREAM, box: { top: "70%", left: "7%", right: "7%" }, align: "center" },
+  dig: { color: INK, box: { top: "8%", left: "7%", right: "7%" }, align: "right" },
+  giveTake: { color: INK, box: { top: "70%", left: "7%", right: "7%" }, align: "right" },
+  freeze: { color: INK, box: { top: "72%", left: "7%", right: "7%" }, align: "center" },
+};
+
+function ActionCard({ card, actionType, size = 92, selected, onClick, disabled, showDesc, className = "", style }) {
+  const type = actionType || card?.actionType;
+  const meta = actionMeta(type);
+  const lay = ACTION_LAYOUT[type] || ACTION_LAYOUT.freeze;
+  // Only the title sits on the art; the description is shown as text beside the card where needed,
+  // so it never runs over the illustration.
+  const big = showDesc ?? false;
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={meta.desc}
-      className={`relative flex-shrink-0 w-24 h-32 rounded-lg border-2 flex flex-col items-center text-center p-1.5 transition-transform disabled:opacity-40 ${
-        selected ? "-translate-y-3 ring-2 ring-offset-1" : "hover:-translate-y-1"
-      }`}
-      style={{ background: CREAM, borderColor: MAROON }}
-    >
-      <CornerFlourish pos="tl" color={GOLD} />
-      <CornerFlourish pos="tr" color={GOLD} />
-      <div className="w-8 h-8 rounded-full flex items-center justify-center mt-2 mb-1" style={{ background: MAROON }}>
-        <Icon className="w-4 h-4" style={{ color: GOLD }} />
+    <CardShell size={size} selected={selected} onClick={onClick} disabled={disabled} bg={ACTION_BG[type] || CREAM} title={meta.desc} className={className} style={style}>
+      {/* the art carries its own rounded corners; oversize it a touch so the card's corners clip it cleanly */}
+      <img src={ART[`act_${type}`]} alt="" draggable={false} className="absolute" style={{ left: "-4%", top: "-4%", width: "108%", height: "108%", maxWidth: "none" }} />
+      <div className="absolute" style={{ ...lay.box, textAlign: lay.align, color: lay.color }}>
+        <div className="font-bold hlead-105 whitespace-nowrap" style={{ fontSize: fs(size * (big ? 0.1 : 0.118)) }}>
+          {meta.name}
+        </div>
+        {big && (
+          <div className="mt-1 leading-snug font-medium" style={{ fontSize: fs(size * 0.058), opacity: 0.92 }}>
+            {meta.desc}
+          </div>
+        )}
       </div>
-      <div className="tsz-11 font-black leading-tight" style={{ color: MAROON, fontFamily: "Tajawal" }}>
-        {meta.name}
-      </div>
-    </button>
+    </CardShell>
   );
 }
 
-function CoordCard({ card }) {
+// Small square crop of an action's art (lists, toasts, buttons) with clean rounded corners.
+function ActionThumb({ type, size = 40, radius }) {
+  return (
+    <span className="relative inline-block overflow-hidden flex-shrink-0" style={{ width: size, height: size, borderRadius: radius ?? size * 0.24, background: ACTION_BG[type] || CREAM }}>
+      {/* text-free thumbnail: the drawing re-centred on its own background */}
+      <img src={ART[`actT_${type}`]} alt="" draggable={false} className="absolute inset-0 w-full h-full" />
+    </span>
+  );
+}
+
+function AnyCard(props) {
+  return props.card?.kind === "action" ? <ActionCard {...props} /> : <ItemCard {...props} />;
+}
+
+function CardBack({ size = 60, tall = false, style, className = "" }) {
+  return (
+    <img
+      src={tall ? ART.back_tall : ART.back_sq}
+      alt=""
+      draggable={false}
+      className={className}
+      style={{ width: size, height: tall ? size * (1186 / 828) : size, borderRadius: size * 0.09, display: "block", ...style }}
+    />
+  );
+}
+
+// Coordination card, drawn live from the real illustrations. Landscape, like the original board
+// layout: the region's ornament runs down both short sides, the title sits on top and the item
+// illustrations line up underneath (no names — tap a piece to see what it is). Random cards use
+// the beige frame with a few gold sparkles.
+function CoordCard({ card, width = 340, animate = true }) {
   const isRandom = card.type === "random";
-  const color = isRandom ? MAROON : card.color;
+  const region = isRandom ? null : card.region;
+  const frame = isRandom ? BEIGE : regionOf(region)?.color || BRAND;
+  const titleColor = isRandom ? BRAND : frame;
+  const items = isRandom ? sortItemNamesByRegion(card.items) : card.items;
+  const n = items.length;
+  const cols = n <= 5 ? n : Math.ceil(n / 2);
+  const k = width / 340;
   const [openTip, setOpenTip] = useState(null);
 
   useEffect(() => {
@@ -990,54 +1182,336 @@ function CoordCard({ card }) {
     return () => clearTimeout(t);
   }, [openTip]);
 
+  const strip = Math.round(15 * k);
+  const artH = (n <= 5 ? 66 : 54) * k;
+
   return (
-    <div className="flex items-stretch rounded-xl overflow-hidden shadow-2xl border-2" style={{ borderColor: color, background: CREAM }}>
-      <DiamondLattice color={color} vertical thickness={10} />
-      <div className="w-56 p-4 relative">
-        <CornerFlourish pos="tl" color={GOLD} />
-        <CornerFlourish pos="tr" color={GOLD} />
-        <div className="tsz-10 font-bold text-center" style={{ color }}>
-          {isRandom ? "كرت تنسيق عشوائي" : "كرت تنسيق منطقة"}
-        </div>
-        <div className="text-2xl font-black text-center" style={{ color: INK, fontFamily: "Aref Ruqaa" }}>
-          {isRandom ? "عشوائي" : card.regionName}
-        </div>
-        <OrnateDivider color={color} />
-        <div className="flex flex-wrap gap-1 justify-center">
-          {/* Display-only sort for عشوائي cards (F7): card.items itself is never reordered. */}
-          {(isRandom ? sortItemNamesByRegion(card.items) : card.items).map((it, i) => {
-            const info = ITEM_INFO[it];
-            return (
-              <span key={i} className="relative inline-block">
-                {openTip === i && info && (
-                  <span
-                    className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md tsz-9 font-black whitespace-nowrap shadow-lg z-10 pointer-events-none"
-                    style={{ background: info.color, color: CREAM }}
-                  >
-                    {info.regionName}
-                  </span>
-                )}
+    <div
+      className={`relative select-none ${animate ? "hilla-coord-in" : ""}`}
+      style={{
+        width,
+        background: frame,
+        padding: 7 * k,
+        borderRadius: 18 * k,
+        boxShadow: "0 2px 0 rgba(0,0,0,.08), 0 18px 34px -14px rgba(60,30,10,.45)",
+      }}
+    >
+      <div dir="ltr" className="relative flex" style={{ background: CREAM, borderRadius: 13 * k, padding: `${9 * k}px ${8 * k}px`, gap: 8 * k }}>
+        {!isRandom && <OrnamentColumn region={region} width={strip} />}
+        <div dir="rtl" className="flex-1 min-w-0 flex flex-col">
+          <GoldRule>
+            <span className="display-font font-bold leading-none px-1" style={{ color: titleColor, fontSize: fs(23 * k) }}>
+              {isRandom ? "عشوائي" : card.regionName}
+            </span>
+          </GoldRule>
+          <div className="text-center font-medium" style={{ color: `${INK}88`, fontSize: fs(9.5 * k), marginTop: 2 * k }}>
+            {isRandom ? "كرت واحد بس" : "أكثر من كرت · بدون تكرار"}
+          </div>
+          <div className="flex flex-wrap justify-center items-end" style={{ marginTop: 8 * k, rowGap: 8 * k }}>
+            {items.map((it, i) => {
+              const info = ITEM_INFO[it];
+              const art = costumeArt(it);
+              return (
                 <button
+                  key={i}
                   type="button"
+                  aria-label={it}
                   onClick={() => setOpenTip((cur) => (cur === i ? null : i))}
-                  className="tsz-10 rounded px-1.5 py-0.5 font-bold"
-                  style={{ background: `${color}18`, color, border: `1px solid ${color}55` }}
+                  className="relative flex items-center justify-center p-0 bg-transparent transition active:scale-95"
+                  style={{ width: `${100 / cols}%`, height: artH }}
                 >
-                  {it}
+                  {openTip === i && (
+                    <span
+                      className="absolute left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full font-bold whitespace-nowrap shadow-lg z-10 pointer-events-none hilla-tip"
+                      style={{ top: -10 * k, background: INK, color: CREAM, fontSize: fs(11 * k) }}
+                    >
+                      {it}
+                    </span>
+                  )}
+                  {art ? (
+                    <img src={art} alt={it} draggable={false} className="max-h-full object-contain" style={{ maxWidth: "88%", filter: "drop-shadow(0 2px 2px rgba(60,30,10,.16))" }} />
+                  ) : (
+                    <RegionBadge region={info?.region} size={artH * 0.55} />
+                  )}
                 </button>
-              </span>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
+        {!isRandom && <OrnamentColumn region={region} width={strip} flip />}
+        {isRandom &&
+          [
+            [5, 18],
+            [93, 22],
+            [4, 78],
+            [94, 80],
+          ].map(([x, y], i) => (
+            <span key={i} className="absolute pointer-events-none" style={{ left: `${x}%`, top: `${y}%`, color: GOLD, fontSize: 10 * k, opacity: 0.85 }}>
+              ✦
+            </span>
+          ))}
       </div>
-      <DiamondLattice color={color} vertical thickness={10} />
     </div>
   );
 }
 
+// Compact copy of the coordination card that slides in at the top once the real card has scrolled
+// out of view — so you can still see what to match while picking from your hand. Tap it to jump
+// back up to the full card.
+function StickyCoordBar({ card, onJump, timer }) {
+  const isRandom = card.type === "random";
+  const color = isRandom ? BEIGE : regionOf(card.region)?.color || BRAND;
+  const items = isRandom ? sortItemNamesByRegion(card.items) : card.items;
+  return (
+    <div className="fixed left-0 right-0 px-3 hilla-sticky" style={{ top: 8, zIndex: 40 }}>
+      <button
+        type="button"
+        onClick={onJump}
+        dir="rtl"
+        className="mx-auto max-w-2xl w-full flex items-center gap-2.5 hr-20 pr-1.5 pl-2.5 py-1.5 text-right"
+        style={{ background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}, 0 12px 26px -12px rgba(60,30,10,.55)` }}
+      >
+        <span
+          className="flex-shrink-0 flex items-center justify-center hr-20 display-font font-bold leading-none px-3"
+          style={{ background: color, color: isRandom ? BRAND : CREAM, height: 44, fontSize: fs(19) }}
+        >
+          {isRandom ? "عشوائي" : card.regionName}
+        </span>
+        <span className="flex-1 min-w-0 flex items-center justify-around gap-1">
+          {items.map((it, i) =>
+            costumeArt(it) ? (
+              <img key={i} src={costumeArt(it)} alt={it} draggable={false} className="object-contain" style={{ height: 34, maxWidth: 40, minWidth: 0 }} />
+            ) : null
+          )}
+        </span>
+        {timer}
+      </button>
+    </div>
+  );
+}
+
+function DrawPile({ size = 56 }) {
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="relative" style={{ width: size + 6, height: size + 6 }}>
+        {[2, 1, 0].map((i) => (
+          <CardBack
+            key={i}
+            size={size}
+            style={{
+              position: "absolute",
+              left: i * 2,
+              top: 6 - i * 3,
+              transform: `rotate(${(i - 1) * 4}deg)`,
+              boxShadow: "0 2px 6px rgba(60,30,10,.22)",
+            }}
+          />
+        ))}
+      </div>
+      <span className="font-semibold" style={{ color: `${INK}77`, fontSize: fs(10) }}>
+        السحب
+      </span>
+    </div>
+  );
+}
+
+// Each played card lands with its own slight tilt, so the pile feels hand-stacked.
+const tiltOf = (id) => {
+  let h = 0;
+  for (let i = 0; i < String(id).length; i++) h = (h * 31 + String(id).charCodeAt(i)) | 0;
+  return (Math.abs(h) % 13) - 6; // −6°…+6°
+};
+
+// The last three played cards stay stacked. A new card lands on top, and only after it has landed
+// does the oldest one (at the bottom, already covered) disappear — nothing ever pops out of view.
+const DISCARD_STACK = 3;
+function DiscardPile({ card, size = 56 }) {
+  const [layers, setLayers] = useState(() => (card ? [card] : []));
+  useEffect(() => {
+    if (!card) {
+      setLayers([]);
+      return;
+    }
+    setLayers((l) => (l.length && l[l.length - 1].id === card.id ? l : [...l.slice(-DISCARD_STACK), card]));
+    const t = setTimeout(() => setLayers((l) => l.slice(-DISCARD_STACK)), 520);
+    return () => clearTimeout(t);
+  }, [card?.id]);
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="relative" style={{ width: size + 6, height: size + 6 }}>
+        <div
+          className="absolute rounded-xl"
+          style={{ left: 3, top: 6, width: size, height: size, borderRadius: size * 0.11, border: `1.5px dashed ${INK}33` }}
+        />
+        {layers.map((c, i) => {
+          const top = i === layers.length - 1;
+          const rot = `${tiltOf(c.id)}deg`;
+          return (
+            <div
+              key={c.id}
+              className={`absolute ${top ? "hilla-drop" : ""}`}
+              style={{ left: 3, top: 3, transform: `rotate(${rot})`, "--rot": rot, zIndex: i }}
+            >
+              <AnyCard card={c} size={size} />
+            </div>
+          );
+        })}
+      </div>
+      <span className="font-semibold" style={{ color: `${INK}77`, fontSize: fs(10) }}>
+        آخر كرت
+      </span>
+    </div>
+  );
+}
+
+// Seat: a small fan of card backs with the hand count tucked under it, then the name. Everything
+// is centred, and the active seat gets a soft cream tile with a gold ring (no lift, so nothing
+// gets clipped by the scrolling row).
+function SeatPod({ player, active, isMe, nearWin, thinking }) {
+  const n = player.hand.length;
+  const backs = Math.min(5, n);
+  // Wider, flatter fan as the count grows so five cards still read as a full hand.
+  const spread = backs >= 4 ? 8.5 : 11;
+  const tilt = backs >= 4 ? 9 : 12;
+  return (
+    <div
+      className="flex flex-col items-center text-center flex-shrink-0 hr-20 transition-all duration-300"
+      style={{
+        minWidth: 92,
+        padding: "10px 14px 9px",
+        background: active ? CREAM : "transparent",
+        boxShadow: active ? `0 0 0 2px ${GOLD}, 0 6px 14px -8px rgba(60,30,10,.35)` : "none",
+      }}
+    >
+      <div className="relative" style={{ width: 76, height: 40 }}>
+        {Array.from({ length: backs }).map((_, i) => {
+          const o = i - (backs - 1) / 2;
+          return (
+            <CardBack
+              key={i}
+              size={28}
+              style={{
+                position: "absolute",
+                left: 24 + o * spread,
+                top: 2,
+                transform: `rotate(${o * tilt}deg)`,
+                transformOrigin: "50% 130%",
+                boxShadow: "0 1px 2px rgba(60,30,10,.22)",
+              }}
+            />
+          );
+        })}
+        {n === 0 && <span className="absolute rounded-md" style={{ left: 24, top: 2, width: 28, height: 28, border: `1.5px dashed ${INK}33` }} />}
+        <span
+          className={`absolute left-1/2 -translate-x-1/2 hminw-22 hh-20 px-1.5 rounded-full flex items-center justify-center font-bold ${nearWin ? "hilla-nearwin" : ""}`}
+          style={{ bottom: -2, background: nearWin ? GOLD : INK, color: nearWin ? INK : CREAM, fontSize: fs(10.5), border: `2px solid ${active ? CREAM : PAGE}` }}
+        >
+          {n}
+        </span>
+      </div>
+      <div className="mt-1.5 font-semibold leading-snug whitespace-nowrap" style={{ color: active ? INK : `${INK}99`, fontSize: fs(11.5) }}>
+        {player.isBot ? "🤖 " : player.inactive ? "😴 " : nearWin ? "🔥 " : ""}
+        {player.name}
+        {isMe && player.name !== "أنت" && (
+          <span className="font-medium" style={{ color: GOLD_DK }}>
+            {" "}(أنت)
+          </span>
+        )}
+        {thinking && (
+          <span className="inline-flex gap-0.5 mr-1 align-middle">
+            {[0, 1, 2].map((i) => (
+              <span key={i} className="w-1 h-1 rounded-full hilla-dot" style={{ background: GOLD_DK, animationDelay: `${i * 150}ms` }} />
+            ))}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Centered modal sheet used by every in-game dialog.
+function Sheet({ children, onBackdrop, maxW = 380, z = 50 }) {
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center p-4 hilla-fade"
+      style={{ zIndex: z, background: "rgba(35,31,32,.5)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)" }}
+      onClick={onBackdrop}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full hr-28 p-5 text-center relative hilla-pop"
+        style={{ maxWidth: maxW, borderRadius: 28, background: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 24px 60px -10px rgba(0,0,0,.4)`, maxHeight: "calc(100% - 2rem)", overflowY: "auto" }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+const btn = "rounded-2xl font-bold transition hpress-97 hbtn";
+const btnPrimary = { background: BRAND, color: CREAM, boxShadow: "0 6px 14px -6px rgba(133,21,45,.6)" };
+const btnGhost = { background: "transparent", color: INK, border: `1.5px solid ${INK}26` };
+
+
+// Fonts: Thmanyah can't be embedded in a web page (license), so the closest Google Fonts stand in —
+// IBM Plex Sans Arabic for the interface, Markazi Text for titles and long reading text.
 const GlobalFont = () => (
   <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Tajawal:wght@400;500;700;900&display=swap');
+    .hilla-root, .hilla-root button, .hilla-root input, .hilla-root textarea { font-family: var(--font-plex), "IBM Plex Sans Arabic", system-ui, sans-serif; }
+    .hr-20 { border-radius: 20px; } .hr-22 { border-radius: 22px; } .hr-26 { border-radius: 26px; } .hr-28 { border-radius: 28px; }
+    .hh-20 { height: 20px; } .hminw-22 { min-width: 22px; } .hlead-105 { line-height: 1.05; } .hmaxh-52 { max-height: 52vh; }
+    .hmaxw-90 { max-width: 90vw; } .hmaxw-92 { max-width: 92vw; } .hminh-40 { min-height: 40px; } .htrack-3 { letter-spacing: .3em; }
+    .hpress-97:active:not(:disabled) { transform: scale(.97); } .hpress-98:active { transform: scale(.98); }
+    .hbtn:disabled { opacity: .38; cursor: default; }
+    .hz-55 { z-index: 55; } .hz-58 { z-index: 58; } .hz-60 { z-index: 60; } .hz-65 { z-index: 65; } .hz-70 { z-index: 70; }
+    .hz-9998 { z-index: 9998; } .hz-9999 { z-index: 9999; } .hz-10000 { z-index: 10000; }
+    .display-font { font-family: var(--font-markazi), "Markazi Text", serif; letter-spacing: 0; }
+    .serif-text { font-family: var(--font-markazi), "Markazi Text", serif; }
+    .hilla-root button { -webkit-tap-highlight-color: transparent; }
+    .hilla-card {
+      box-shadow: 0 0 0 1px rgba(35,31,32,.07), 0 6px 14px -6px rgba(60,30,10,.35);
+      transition: transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s ease, opacity .2s ease, filter .2s ease;
+    }
+    button.hilla-card:not(:disabled):hover { transform: translateY(-3px); }
+    .hilla-card.is-selected, button.hilla-card.is-selected:hover {
+      transform: translateY(-12px);
+      box-shadow: 0 0 0 3px ${GOLD}, 0 16px 24px -10px rgba(60,30,10,.55);
+    }
+    .hilla-clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+    .hilla-lastmove { animation: hilla-lastmove 5s ease-out forwards; }
+    @keyframes hilla-lastmove { 0% { opacity: 0; transform: translateY(4px); } 8% { opacity: 1; transform: none; } 70% { opacity: 1; } 100% { opacity: .55; } }
+    .hilla-hand { scroll-snap-type: x proximity; scrollbar-width: none; }
+    .hilla-hand::-webkit-scrollbar { display: none; }
+    .hilla-hand > * { scroll-snap-align: start; }
+    .hilla-deal { animation: hilla-deal .38s cubic-bezier(.2,.8,.2,1) backwards; }
+    .hilla-coord-in { animation: hilla-coord-in .55s cubic-bezier(.2,.8,.2,1) backwards; transform-origin: 50% 60%; }
+    .hilla-drop { animation: hilla-drop .46s cubic-bezier(.2,.9,.3,1.12) backwards; }
+    .hilla-pop { animation: hilla-pop .28s cubic-bezier(.2,.9,.3,1.15) backwards; }
+    .hilla-fade { animation: hilla-fade .2s ease-out backwards; }
+    .hilla-tip { animation: hilla-fade .15s ease-out backwards; }
+    .hilla-float { animation: hilla-float 6s ease-in-out infinite; }
+    .hilla-nearwin { animation: hilla-nearwin 1.2s ease-in-out infinite; }
+    .hilla-dot { animation: hilla-dot 1s ease-in-out infinite; }
+    .hilla-myturn { animation: hilla-myturn 2.4s ease-in-out infinite; }
+    @keyframes hilla-deal { from { opacity: 0; transform: translateY(16px) scale(.9); } to { opacity: 1; transform: none; } }
+    @keyframes hilla-coord-in {
+      0% { opacity: 0; transform: perspective(900px) rotateY(-70deg) scale(.92); }
+      60% { opacity: 1; }
+      100% { opacity: 1; transform: perspective(900px) rotateY(0) scale(1); }
+    }
+    @keyframes hilla-drop {
+      from { opacity: 0; transform: translateY(-30px) rotate(calc(var(--rot, 0deg) - 10deg)) scale(1.18); }
+      70% { opacity: 1; }
+      to { opacity: 1; transform: rotate(var(--rot, 0deg)); }
+    }
+    @keyframes hilla-pop { from { opacity: 0; transform: translateY(10px) scale(.94); } to { opacity: 1; transform: none; } }
+    @keyframes hilla-fade { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes hilla-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    @keyframes hilla-dot { 0%, 100% { opacity: .25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-2px); } }
+    @keyframes hilla-myturn {
+      0%, 100% { box-shadow: 0 0 0 2px ${GOLD}aa, 0 10px 30px -14px rgba(60,30,10,.4); }
+      50% { box-shadow: 0 0 0 3px ${GOLD}, 0 10px 34px -10px rgba(221,173,85,.55); }
+    }
     @keyframes hilla-toast-fade {
       0% { opacity: 0; transform: translate(-50%, -6px); }
       5% { opacity: 1; transform: translate(-50%, 0); }
@@ -1052,8 +1526,8 @@ const GlobalFont = () => (
       100% { opacity: 0; transform: translate(-50%, -8px) scale(0.96); }
     }
     @keyframes hilla-nearwin {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(201,162,39,0); }
-      50% { box-shadow: 0 0 12px 3px rgba(201,162,39,0.75); }
+      0%, 100% { box-shadow: 0 0 0 0 rgba(221,173,85,0); }
+      50% { box-shadow: 0 0 10px 3px rgba(221,173,85,0.8); }
     }
     @keyframes hilla-strip {
       from { width: 100%; }
@@ -1065,19 +1539,41 @@ const GlobalFont = () => (
       80% { opacity: 1; transform: translateX(-50%) translateY(0); }
       100% { opacity: 0; transform: translateX(-50%) translateY(8px); }
     }
-    @keyframes hilla-fan-in {
-      from { opacity: 0; transform: translateY(8px) scale(.9); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-    @keyframes hilla-reactor-tag {
-      0% { opacity: 0; transform: translate(-50%, 8px) scale(.96); }
-      10% { opacity: 1; transform: translate(-50%, 0) scale(1); }
-      82% { opacity: 1; transform: translate(-50%, 0) scale(1); }
-      100% { opacity: 0; transform: translate(-50%, -6px) scale(.98); }
-    }
     @keyframes hilla-confetti {
       0% { transform: translateY(-4vh) rotate(0deg); opacity: 1; }
       100% { transform: translateY(108vh) rotate(var(--cr, 720deg)); opacity: 0.85; }
+    }
+    @keyframes hilla-fan-in {
+      from { opacity: 0; transform: translate3d(-10px, 10px, 0) scale(.6); }
+      to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    }
+    .hilla-sticky { animation: hilla-sticky .32s cubic-bezier(.2,.9,.3,1.1) backwards; }
+    @keyframes hilla-sticky { from { opacity: 0; transform: translateY(-120%); } to { opacity: 1; transform: none; } }
+    .hilla-seatbubble { animation: hilla-seatbubble 5s ease-out forwards; transform-origin: 50% 100%; }
+    @keyframes hilla-seatbubble {
+      0% { opacity: 0; transform: translateY(6px) scale(.6); }
+      5% { opacity: 1; transform: translateY(0) scale(1.08); }
+      9% { transform: translateY(0) scale(1); }
+      90% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-4px) scale(.96); }
+    }
+    .hilla-bubble { animation: hilla-bubble 2.5s cubic-bezier(.2,.9,.3,1.2) forwards; transform-origin: 50% 100%; }
+    @keyframes hilla-bubble {
+      0% { opacity: 0; transform: translateY(14px) scale(.55) rotate(var(--tilt, 0deg)); }
+      12% { opacity: 1; transform: translateY(0) scale(1.08) rotate(var(--tilt, 0deg)); }
+      20% { transform: translateY(0) scale(1) rotate(var(--tilt, 0deg)); }
+      78% { opacity: 1; transform: translateY(-6px) scale(1) rotate(var(--tilt, 0deg)); }
+      100% { opacity: 0; transform: translateY(-22px) scale(.96) rotate(var(--tilt, 0deg)); }
+    }
+    @keyframes hilla-reactor-tag {
+      0% { opacity: 0; transform: translate3d(-50%, 8px, 0); }
+      12% { opacity: 1; transform: translate3d(-50%, 0, 0); }
+      75% { opacity: 1; transform: translate3d(-50%, 0, 0); }
+      100% { opacity: 0; transform: translate3d(-50%, -6px, 0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .hilla-deal, .hilla-coord-in, .hilla-drop, .hilla-pop, .hilla-fade, .hilla-float, .hilla-myturn { animation: none !important; }
+      .hilla-card { transition: none; }
     }
     .tsz-7 { font-size: calc(7px * var(--tsz, 1)); }
     .tsz-9 { font-size: calc(9px * var(--tsz, 1)); }
@@ -1085,19 +1581,29 @@ const GlobalFont = () => (
     .tsz-11 { font-size: calc(11px * var(--tsz, 1)); }
     .tsz-12 { font-size: calc(12px * var(--tsz, 1)); }
     .tsz-13 { font-size: calc(13px * var(--tsz, 1)); }
+    .tsz-14 { font-size: calc(14px * var(--tsz, 1)); }
+    .tsz-15 { font-size: calc(15px * var(--tsz, 1)); }
     .tsz-17 { font-size: calc(17px * var(--tsz, 1)); }
+    .tsz-20 { font-size: calc(20px * var(--tsz, 1)); }
   `}</style>
 );
 
+// The original zigzag diamond lattice, exactly as before (same cream and the same faint gold).
+const ZIG_BG = "#F3E9D2";
+const ZIG_GOLD = "#C9A2270d";
 const pageBg = {
-  background: CREAM,
-  backgroundImage: `linear-gradient(135deg, ${GOLD}0d 25%, transparent 25%), linear-gradient(225deg, ${GOLD}0d 25%, transparent 25%), linear-gradient(45deg, ${GOLD}0d 25%, transparent 25%), linear-gradient(315deg, ${GOLD}0d 25%, transparent 25%)`,
+  background: ZIG_BG,
+  backgroundImage: `linear-gradient(135deg, ${ZIG_GOLD} 25%, transparent 25%), linear-gradient(225deg, ${ZIG_GOLD} 25%, transparent 25%), linear-gradient(45deg, ${ZIG_GOLD} 25%, transparent 25%), linear-gradient(315deg, ${ZIG_GOLD} 25%, transparent 25%)`,
   backgroundPosition: "20px 0, 20px 0, 0 0, 0 0",
   backgroundSize: "40px 40px",
 };
 
+
 /* --------------------------------- GAME BOARD (shared) --------------------------------- */
 
+// If no human can possibly intervene (no human target to warn, no human holding لا ما تقدر),
+// waiting the full 10s is dead air — shorten the reaction window to 2.5s. Bot self-defense is
+// handled separately (700ms) and unaffected.
 function pendingWindowMs(game) {
   const pa = game.pendingAction;
   if (!pa) return BLOCK_WINDOW_MS;
@@ -1109,6 +1615,7 @@ function pendingWindowMs(game) {
   return humanTarget || humanBlocker ? BLOCK_WINDOW_MS : 2500;
 }
 
+// F2 — win celebration: CSS-only confetti in the four region colours plus gold and the brand red.
 function Confetti() {
   const pieces = useMemo(
     () =>
@@ -1116,7 +1623,7 @@ function Confetti() {
         left: Math.random() * 100,
         delay: Math.random() * 0.9,
         dur: 2.2 + Math.random() * 1.8,
-        color: [MAROON, GOLD, TEAL, "#5B2C6F"][i % 4],
+        color: [BRAND, GOLD, ...REGIONS.map((r) => r.color)][i % 6],
         size: 6 + Math.random() * 7,
         rot: 360 + Math.random() * 540,
         shape: i % 3,
@@ -1124,20 +1631,19 @@ function Confetti() {
     []
   );
   return (
-    <div className="pointer-events-none fixed inset-0 overflow-hidden z-[57]" aria-hidden="true">
+    <div className="fixed inset-0 pointer-events-none hz-70 overflow-hidden">
       {pieces.map((p, i) => (
         <span
           key={i}
-          className="absolute top-0"
           style={{
+            position: "absolute",
+            top: "-5vh",
             left: `${p.left}%`,
             width: p.size,
-            height: p.shape === 0 ? p.size : p.size * 0.66,
-            borderRadius: p.shape === 2 ? 999 : 1,
+            height: p.shape === 1 ? p.size : p.size * 0.45,
             background: p.color,
-            opacity: 0.95,
-            transform: `rotate(${p.rot}deg)`,
-            ["--cr"]: `${p.rot}deg`,
+            borderRadius: p.shape === 2 ? "50%" : 2,
+            "--cr": `${p.rot}deg`,
             animation: `hilla-confetti ${p.dur}s ${p.delay}s ease-in forwards`,
           }}
         />
@@ -1146,9 +1652,7 @@ function Confetti() {
   );
 }
 
-// #31 — end-of-game stats, computed from game.stats/coordRounds/duration. Display-only.
-// Keeps production's id-keyed stats; renders the delta's row order, hero styling, grammar
-// helpers, perspective-aware naming and a share button.
+// F2 — end-of-game fun stats, computed from game.stats/turnSerial. Display-only.
 function WinStats({ game, myId, isOnline }) {
   const [copied, setCopied] = useState(false);
   const targeted = game.stats?.targetedByPlayerId || {};
@@ -1157,16 +1661,18 @@ function WinStats({ game, myId, isOnline }) {
   const winner = game.players.find((p) => p.id === game.winner);
   const runnerUp = game.players.filter((p) => p.id !== game.winner).sort((a, b) => a.hand.length - b.hand.length)[0];
 
-  // Name each seat from the reader's point of view, so "أنت" reads naturally (local + online).
+  // Name each seat from the reader's point of view, so "أنت" reads naturally.
   const who = (p) => (p ? (isOnline ? (p.id === myId ? "أنت" : p.name) : p.isBot ? p.name : "أنت") : "");
-  const cardsLeft = (n) => (n === 1 ? "بقي له كرت واحد" : n === 2 ? "بقي له كرتين" : `بقي له ${n} كروت`);
+  const cardsLeft = (n) => (n === 1 ? "بقي له كرت واحد" : n === 2 ? "بقي له كرتين" : n <= 10 ? `بقي له ${n} كروت` : `بقي له ${n} كرت`);
   const times = (n) => (n === 1 ? "مرة واحدة" : n === 2 ? "مرتين" : `${n} مرات`);
 
   const durationMs = game.endedAtMs && game.startedAtMs ? game.endedAtMs - game.startedAtMs : null;
   const durationText = (() => {
     if (!durationMs || durationMs < 0) return null;
     const total = Math.round(durationMs / 1000);
-    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
   })();
 
   const rows = [
@@ -1193,68 +1699,187 @@ function WinStats({ game, myId, isOnline }) {
   }
 
   return (
-    <div className="mt-6 mx-auto max-w-xs rounded-2xl border-2 p-4 relative" style={{ background: CREAM2, borderColor: GOLD }}>
-      <CornerFlourish pos="tl" color={GOLD} />
-      <CornerFlourish pos="tr" color={GOLD} />
-      <div className="font-black mb-2 text-center" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
-        حصيلة اللعبة
-      </div>
-      {rows.map((r, i) => (
-        <div
-          key={i}
-          className={`flex justify-between items-baseline gap-2 ${r.hero ? "py-1.5" : "py-1"}`}
-          style={{ color: INK, borderBottom: i < rows.length - 1 ? `1px solid ${MAROON}22` : "none" }}
-        >
-          <span className={r.hero ? "text-sm font-bold" : "tsz-12"} style={{ color: r.hero ? MAROON : `${INK}99` }}>
-            {r.l}
-          </span>
-          <span className={`font-black text-left ${r.hero ? "text-base" : "text-sm"}`} style={{ color: r.hero ? MAROON : INK }}>
-            {r.v}
-          </span>
+    <div className="mt-6 mx-auto max-w-xs hr-26 overflow-hidden text-right hilla-pop" style={{ background: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 18px 40px -16px rgba(60,30,10,.45)` }}>
+      <div className="px-4 pb-4 pt-4">
+        <div className="display-font font-bold mb-1 text-center tsz-20" style={{ color: BRAND }}>
+          حصيلة اللعبة
         </div>
-      ))}
-      <button onClick={share} className="w-full mt-3 py-2 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5" style={{ background: MAROON, color: CREAM }}>
-        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-        {copied ? "تم نسخ النتيجة" : "شارك النتيجة"}
-      </button>
+        {rows.map((r, i) => (
+          <div
+            key={i}
+            className={`flex justify-between items-baseline gap-2 ${r.hero ? "py-1.5" : "py-1"}`}
+            style={{ color: INK, borderBottom: i < rows.length - 1 ? `1px solid ${INK}14` : "none" }}
+          >
+            <span className={r.hero ? "tsz-13 font-semibold" : "tsz-12"} style={{ color: r.hero ? BRAND : `${INK}99` }}>
+              {r.l}
+            </span>
+            <span className={`font-bold text-left ${r.hero ? "tsz-15" : "tsz-13"}`} style={{ color: r.hero ? BRAND : INK }}>
+              {r.v}
+            </span>
+          </div>
+        ))}
+        <button onClick={share} className={`w-full mt-3 py-2.5 tsz-13 flex items-center justify-center gap-1.5 ${btn}`} style={btnPrimary}>
+          {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+          {copied ? "تم نسخ النتيجة" : "شارك النتيجة"}
+        </button>
+      </div>
     </div>
   );
 }
 
+// F9 — spectator reaction strip: shown instead of the full-screen modal to anyone who can't
+// intervene (not the target, holds no لا ما تقدر). Gold line drains in real time — the negative
+// animation-delay syncs it to startedAt, so polling re-renders never restart it.
 function ReactionStrip({ pa, players, windowMs }) {
   if (!pa) return null;
   const target = players.find((p) => p.id === pa.targetId);
   const startedAt = typeof pa.startedAt === "number" ? pa.startedAt : Date.now();
   const elapsed = Math.max(0, Math.min(windowMs, Date.now() - startedAt));
   return (
-    <div className="fixed left-0 right-0 z-[60] pointer-events-none" dir="rtl" style={{ top: "calc(env(safe-area-inset-top, 0px) + 0.5rem)" }}>
-      <div className="mx-auto max-w-md rounded-xl overflow-hidden shadow-lg border" style={{ background: `${MAROON}e6`, borderColor: GOLD }}>
-        <div className="px-3 py-1.5 text-xs font-bold text-center" style={{ color: CREAM }}>
-          ⚔️ {pa.actorName} يستخدم {actionMeta(pa.actionType).name} ضد {target?.name}
+    <div className="fixed left-0 right-0 hz-60 pointer-events-none px-3" dir="rtl" style={{ top: "calc(env(safe-area-inset-top, 0px) + 0.5rem)" }}>
+      <div className="mx-auto max-w-md rounded-2xl overflow-hidden shadow-lg flex items-center gap-2 pl-3 hilla-pop" style={{ background: `${INK}ee` }}>
+        <ActionThumb type={pa.actionType} size={40} radius={0} />
+        <div className="flex-1 py-1.5 tsz-12 font-semibold" style={{ color: CREAM }}>
+          {pa.actorName} يستخدم <b style={{ color: GOLD }}>{actionMeta(pa.actionType).name}</b> ضد {target?.name}
         </div>
+      </div>
+      <div className="mx-auto max-w-md px-3">
         <div style={{ height: 3, background: `${CREAM}22` }}>
-          <div
-            style={{
-              height: 3,
-              background: GOLD,
-              animation: `hilla-strip ${windowMs / 1000}s linear forwards`,
-              animationDelay: `-${elapsed}ms`,
-            }}
-          />
+          <div style={{ height: 3, background: GOLD, animation: `hilla-strip ${windowMs / 1000}s linear forwards`, animationDelay: `-${elapsed}ms` }} />
         </div>
       </div>
     </div>
   );
 }
 
+// F10 — cultural hint card: appears near the bottom after the player places an item, teaching
+// what the piece actually is. Limited to the first few plays per game so it never nags.
+function EduToast({ data }) {
+  if (!data) return null;
+  const info = ITEM_INFO[data.name];
+  return (
+    <div
+      dir="rtl"
+      className="fixed left-1/2 hz-58 w-80 hmaxw-92 rounded-2xl shadow-xl pointer-events-none p-2.5 flex items-center gap-3"
+      style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)", background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}, 0 16px 30px -12px rgba(60,30,10,.5)`, animation: "hilla-edu 5s ease-out forwards" }}
+    >
+      {info && <ItemCard card={{ id: "edu", name: data.name, region: info.region, rarity: info.rarity }} size={64} />}
+      <div className="flex-1 min-w-0 text-right">
+        <div className="tsz-13 font-bold" style={{ color: info?.color || BRAND }}>
+          {data.name}
+          {info && <span className="font-medium tsz-11 mr-1" style={{ color: `${INK}77` }}>· {info.regionName}</span>}
+        </div>
+        <div className="serif-text tsz-15 leading-snug" style={{ color: INK }}>
+          {data.text}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// F7 — iPhone haptics. iOS Safari has no navigator.vibrate; the one semi-official path is the
+// haptic that fires when an <input type="checkbox" switch> toggles (iOS 17.4+). We keep a hidden
+// switch and click it. Android falls back to navigator.vibrate. Everything is wrapped in
+// try/catch and degrades to a silent no-op — zero risk to gameplay.
+function useIosHaptic() {
+  const ref = useRef(null);
+  const fire = useCallback(() => {
+    try {
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(35);
+        return;
+      }
+      ref.current?.click();
+    } catch {}
+  }, []);
+  const node = (
+    <label aria-hidden="true" style={{ position: "fixed", top: -100, left: -100, opacity: 0, pointerEvents: "none" }}>
+      <input type="checkbox" ref={ref} readOnly {...{ switch: "" }} />
+    </label>
+  );
+  return [fire, node];
+}
+
+function CountdownRing({ pendingActionId, startedAt, size = 56, windowSec = BLOCK_WINDOW_SEC, windowMs: windowMsProp, className = "mx-auto mb-2" }) {
+  const safeStart = typeof startedAt === "number" ? startedAt : Date.now();
+  const windowMs = typeof windowMsProp === "number" ? windowMsProp : windowSec * 1000;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    setNow(Date.now());
+    const iv = setInterval(() => setNow(Date.now()), 200);
+    return () => clearInterval(iv);
+  }, [pendingActionId]);
+  const elapsed = now - safeStart;
+  const remaining = Math.ceil(Math.max(0, windowMs - elapsed) / 1000);
+  const r = (size - 6) / 2;
+  const circumference = 2 * Math.PI * r;
+  const dashoffset = Math.max(0, Math.min(circumference, (elapsed / windowMs) * circumference));
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className={className} style={{ display: "block" }}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill={CREAM} stroke={`${INK}14`} strokeWidth="3.5" />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke={remaining <= 3 ? BRAND : GOLD}
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={dashoffset}
+        style={{ transform: "rotate(-90deg)", transformOrigin: `${size / 2}px ${size / 2}px`, transition: "stroke .3s" }}
+      />
+      <text
+        x={size / 2}
+        y={size / 2}
+        dy="0.36em"
+        textAnchor="middle"
+        fontSize={size * 0.36}
+        fontWeight="700"
+        fill={remaining <= 3 ? BRAND : INK}
+        fontFamily="IBM Plex Sans Arabic, sans-serif"
+      >
+        {remaining}
+      </text>
+    </svg>
+  );
+}
+
+
+
+// Saudi one-liners — sent through the same reactionEvent as the emoji, shown as a speech bubble.
+const PHRASES = ["كفو!", "ظلم!", "يا زينه", "الله يعين", "ههههه"];
+
+// Reaction FX layer — imperative Web Animations API particles (no per-frame React re-renders).
+// Fixed to the viewport so it's unaffected by page scroll, and pointer-events-none so it never
+// blocks play. `trigger` is the shared-state reactionEvent; each new id spawns one burst, and
+// bursts stack rather than interrupting each other. Purely visual — never read by game logic.
 function ReactionFX({ trigger, myId, isOnline }) {
   const layerRef = useRef(null);
   const [tag, setTag] = useState(null);
+  const [bubbles, setBubbles] = useState([]);
   const seenRef = useRef(new Set(trigger?.id ? [trigger.id] : []));
 
   useEffect(() => {
     if (!trigger || seenRef.current.has(trigger.id)) return;
     seenRef.current.add(trigger.id);
+
+    // A phrase pops up as a speech bubble (with who said it) instead of raining particles.
+    if (PHRASES.includes(trigger.emoji)) {
+      const mine = isOnline ? trigger.byId === myId : true;
+      const b = {
+        id: trigger.id,
+        text: trigger.emoji,
+        by: mine ? "أنت" : trigger.byName,
+        small: !!trigger.single,
+        dx: Math.round(-70 + Math.random() * 140),
+        top: 28 + Math.random() * 14,
+        tilt: (-4 + Math.random() * 8).toFixed(1),
+      };
+      setBubbles((list) => [...list.slice(-3), b]);
+      const t = setTimeout(() => setBubbles((list) => list.filter((x) => x.id !== b.id)), 2500);
+      return () => clearTimeout(t);
+    }
 
     const layer = layerRef.current;
     if (!layer) return;
@@ -1277,6 +1902,9 @@ function ReactionFX({ trigger, myId, isOnline }) {
         left: `${x}%`,
         top: "-80px",
         fontSize: `${size}px`,
+        // display:block + roomy line-height matter here: an inline span with line-height 1 gets
+        // rasterized to a box tighter than the emoji glyph once `filter` applies, which visibly
+        // slices the top off the emoji in WebKit.
         display: "block",
         lineHeight: "1.35",
         pointerEvents: "none",
@@ -1310,15 +1938,47 @@ function ReactionFX({ trigger, myId, isOnline }) {
       setTimeout(() => particle.remove(), duration + delay + 100);
     }
 
+    // Who sent it — shown briefly so it's clear, then fades on its own.
     const mine = isOnline ? trigger.byId === myId : true;
     setTag({ id: trigger.id, text: `${emoji} ${mine ? "أنت" : trigger.byName}` });
     const t = setTimeout(() => setTag(null), 2600);
     return () => clearTimeout(t);
-  }, [trigger, myId, isOnline]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trigger?.id]);
 
   return (
     <>
       <div ref={layerRef} className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 9990 }} />
+      {bubbles.map((b) => (
+        <div
+          key={b.id}
+          className="fixed pointer-events-none"
+          style={{ left: "50%", top: `${b.top}%`, zIndex: 9992, marginLeft: b.dx, transform: "translateX(-50%)" }}
+        >
+          <div className="hilla-bubble" style={{ "--tilt": `${b.tilt}deg` }}>
+            <div
+              className="relative text-center"
+              style={{
+                background: CREAM,
+                borderRadius: 22,
+                padding: b.small ? "6px 16px 8px" : "8px 22px 10px",
+                boxShadow: `0 0 0 2px ${GOLD}, 0 14px 30px -10px rgba(60,30,10,.5)`,
+              }}
+            >
+              <div className="tsz-11 font-semibold whitespace-nowrap" style={{ color: `${INK}88` }}>
+                {b.by}
+              </div>
+              <div className="display-font font-bold leading-none whitespace-nowrap" style={{ color: BRAND, fontSize: b.small ? 26 : 36 }}>
+                {b.text}
+              </div>
+              <span
+                className="absolute left-1/2"
+                style={{ bottom: -6, width: 12, height: 12, marginLeft: -6, background: CREAM, transform: "rotate(45deg)", boxShadow: `2px 2px 0 0 ${GOLD}` }}
+              />
+            </div>
+          </div>
+        </div>
+      ))}
       {tag && (
         <div
           key={tag.id}
@@ -1338,13 +1998,68 @@ function ReactionFX({ trigger, myId, isOnline }) {
   );
 }
 
+// A reaction also sits above the sender's own seat for 5 seconds, so it's clear who said what.
+// Rendered fixed to the viewport (measured from the seat) so the scrolling seat row never clips it.
+const SEAT_REACT_MS = 5000;
+
+function SeatBubble({ anchor, text }) {
+  const [pos, setPos] = useState(null);
+  useEffect(() => {
+    if (!anchor) return;
+    const update = () => {
+      const r = anchor.getBoundingClientRect();
+      setPos({ x: r.left + r.width / 2, y: r.top });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    const iv = setInterval(update, 250); // follows the seat row if it scrolls sideways
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+      clearInterval(iv);
+    };
+  }, [anchor]);
+  if (!pos) return null;
+  const isPhrase = PHRASES.includes(text);
+  return (
+    <div className="fixed pointer-events-none" style={{ left: pos.x, top: pos.y, zIndex: 9993, transform: "translate(-50%, -100%)" }}>
+      <div className="hilla-seatbubble" style={{ marginBottom: 2 }}>
+        <div
+          className="relative flex items-center justify-center whitespace-nowrap"
+          style={{
+            background: CREAM,
+            borderRadius: 16,
+            padding: isPhrase ? "4px 12px 5px" : "2px 9px 3px",
+            minWidth: 34,
+            boxShadow: `0 0 0 1.5px ${GOLD}, 0 8px 18px -8px rgba(60,30,10,.5)`,
+          }}
+        >
+          <span className={isPhrase ? "font-bold tsz-13" : "text-xl leading-snug"} style={{ color: BRAND }}>
+            {text}
+          </span>
+          <span
+            className="absolute left-1/2"
+            style={{ bottom: -5, width: 10, height: 10, marginLeft: -5, background: CREAM, transform: "rotate(45deg)", boxShadow: `1.5px 1.5px 0 0 ${GOLD}` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Floating reaction button, pinned bottom-left of the viewport. Single tap opens a small picker:
+// Saudi phrases stacked as pills, with the emoji in one row underneath, right above the button.
 function ReactionButton({ onReact }) {
   const [open, setOpen] = useState(false);
-
+  const pick = (v) => {
+    onReact(v);
+    setOpen(false);
+  };
   return (
     <>
       {open && <div className="fixed inset-0" style={{ zIndex: 9990 }} onClick={() => setOpen(false)} />}
-      <div className="fixed left-4 bottom-4 flex flex-col-reverse items-center gap-3" style={{ zIndex: 9991 }}>
+      <div dir="ltr" className="fixed left-4 bottom-4 flex flex-col-reverse items-start gap-2.5" style={{ zIndex: 9991 }}>
         <button
           onClick={() => setOpen((v) => !v)}
           className="rounded-full flex items-center justify-center transition-transform active:scale-90 p-0"
@@ -1363,132 +2078,68 @@ function ReactionButton({ onReact }) {
         >
           {open ? <X className="w-5 h-5" /> : <Smile className="w-5 h-5" />}
         </button>
-        {open &&
-          REACTIONS.map((emoji, i) => (
-            <button
-              key={emoji}
-              onClick={() => {
-                onReact(emoji);
-                setOpen(false);
-              }}
-              className="rounded-full flex items-center justify-center active:scale-90"
-              style={{
-                width: 44,
-                height: 44,
-                background: CREAM,
-                boxShadow: "0 4px 10px rgba(0,0,0,.12)",
-                animation: "hilla-fan-in .18s ease-out both",
-                animationDelay: `${i * 20}ms`,
-              }}
-              title={emoji}
-            >
-              <span style={{ fontSize: 24, lineHeight: 1 }}>{emoji}</span>
-            </button>
-          ))}
+        {open && (
+          <div
+            dir="rtl"
+            className="hr-22 p-2.5"
+            style={{
+              width: 236,
+              background: CREAM,
+              boxShadow: `0 0 0 1.5px ${GOLD}, 0 14px 30px -12px rgba(0,0,0,.35)`,
+              transformOrigin: "0% 100%",
+              animation: "hilla-pop .2s cubic-bezier(.2,.9,.3,1.15) backwards",
+            }}
+          >
+            <div className="flex flex-wrap gap-1.5 justify-center">
+              {PHRASES.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => pick(t)}
+                  className="rounded-full font-bold tsz-13 active:scale-95 transition-transform whitespace-nowrap"
+                  style={{ padding: "5px 12px", background: `${BRAND}0f`, color: BRAND }}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+            <div className="h-px my-2" style={{ background: `${INK}14` }} />
+            <div dir="ltr" className="flex justify-between px-1">
+              {REACTIONS.map((e) => (
+                <button key={e} onClick={() => pick(e)} className="text-2xl leading-none p-1 active:scale-90 transition-transform">
+                  {e}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
 }
 
-function EduToast({ data }) {
+
+function BlockFlashToast({ data }) {
   if (!data) return null;
   return (
     <div
-      dir="rtl"
-      className="fixed left-1/2 z-[58] w-80 max-w-[92vw] rounded-xl border-2 shadow-xl pointer-events-none px-3 py-2"
-      style={{
-        bottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)",
-        background: CREAM,
-        borderColor: GOLD,
-        animation: "hilla-edu 5s ease-out forwards",
-        fontFamily: "Tajawal",
-      }}
+      className="fixed left-1/2 hz-65 pr-2 pl-4 py-2 rounded-2xl tsz-13 font-bold pointer-events-none shadow-2xl flex items-center gap-2.5 whitespace-nowrap"
+      style={{ top: "calc(env(safe-area-inset-top, 0px) + 4rem)", background: "#961E21", color: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 18px 34px -12px rgba(0,0,0,.5)`, animation: "hilla-block-flash 4s ease-out forwards" }}
     >
-      <div className="tsz-11 font-black mb-0.5" style={{ color: MAROON }}>
-        📜 {data.name}
-      </div>
-      <div className="tsz-11 leading-snug" style={{ color: INK }}>
-        {data.text}
-      </div>
+      <ActionThumb type="block" size={40} radius={10} />
+      <span>
+        {data.blockerName} صدّ {data.actorName} بـ لا ما تقدر!
+      </span>
     </div>
   );
 }
 
-function useIosHaptic() {
-  const ref = useRef(null);
-  const fire = useCallback(() => {
-    try {
-      if (typeof navigator !== "undefined" && navigator.vibrate) {
-        navigator.vibrate(35);
-        return;
-      }
-      ref.current?.click();
-    } catch {}
-  }, []);
-  const node = (
-    <label aria-hidden="true" style={{ position: "fixed", top: -100, left: -100, opacity: 0, pointerEvents: "none" }}>
-      <input type="checkbox" ref={ref} readOnly {...{ switch: "" }} />
-    </label>
-  );
-  return [fire, node];
-}
+const cardsWord = (n) => (n === 1 ? "الكرت" : n === 2 ? "الكرتين" : n <= 10 ? `${n} كروت` : `${n} كرت`);
 
-function CountdownRing({ pendingActionId, startedAt, windowMs = BLOCK_WINDOW_MS, size = 56 }) {
-  const safeStart = typeof startedAt === "number" ? startedAt : Date.now();
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    setNow(Date.now());
-    const iv = setInterval(() => setNow(Date.now()), 200);
-    return () => clearInterval(iv);
-  }, [pendingActionId]);
-  const elapsed = now - safeStart;
-  const remainingMs = Math.max(0, windowMs - elapsed);
-  const remaining = Math.ceil(remainingMs / 1000);
-  const circumference = 151;
-  const dashoffset = Math.max(0, Math.min(circumference, (elapsed / windowMs) * circumference));
-  const r = (size - 8) / 2;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="mx-auto mb-2">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={CREAM2} strokeWidth="4" />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill="none"
-        stroke={remainingMs <= 3000 ? MAROON : GOLD}
-        strokeWidth="4"
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={dashoffset}
-        style={{ transform: "rotate(-90deg)", transformOrigin: `${size / 2}px ${size / 2}px` }}
-      />
-      <text x={size / 2} y={size / 2 + 6} textAnchor="middle" fontSize="18" fontWeight="900" fill={MAROON} fontFamily="Tajawal">
-        {remaining}
-      </text>
-    </svg>
-  );
-}
 
-// Ambient "last move" notification (F1): renders a local, turn-aware move pill.
-// Pure CSS animation (4s: ~1s hold then fade), re-triggered by React key remount.
+// Production: which log line becomes the quiet "last move" line under the table (turn-aware,
+// prefers the actual play over the generic "ended turn" entry).
 const MOVE_TOAST_PRIORITY = { noPlay: 1, play: 2 };
 
-function MoveToast({ text }) {
-  if (!text) return null;
-  return (
-    <div
-      className="fixed left-1/2 z-[55] max-w-[90vw] px-3 py-1.5 rounded-full text-xs font-bold pointer-events-none shadow-md whitespace-nowrap overflow-hidden text-ellipsis"
-      style={{
-        top: "calc(env(safe-area-inset-top, 0px) + 4rem)",
-        background: `${INK}cc`,
-        color: CREAM,
-        animation: "hilla-toast-fade 4s ease-out forwards",
-      }}
-    >
-      {text}
-    </div>
-  );
-}
 
 function getInsertedLogEntries(prevLog, nextLog) {
   if (!Array.isArray(prevLog) || prevLog.length === 0) return [];
@@ -1576,28 +2227,6 @@ function pickPriorityMoveToast(entries, currentGame, prevGame, shownTurnToastKey
   }
 
   return null;
-}
-
-// Prominent لا ما تقدر notification (F2). Display-only; reacts to game.blockEvent.
-function BlockFlashToast({ data }) {
-  if (!data) return null;
-  return (
-    <div
-      className="fixed left-1/2 z-[65] px-5 py-3 rounded-2xl text-sm font-black pointer-events-none shadow-2xl border-2 flex items-center gap-2"
-      style={{
-        top: "calc(env(safe-area-inset-top, 0px) + 6.75rem)",
-        background: MAROON,
-        color: CREAM,
-        borderColor: GOLD,
-        animation: "hilla-block-flash 4s ease-out forwards",
-      }}
-    >
-      <Shield className="w-5 h-5 flex-shrink-0" style={{ color: GOLD }} />
-      <span>
-        🛡️ {data.blockerName} صدّ {data.actorName} بـ لا ما تقدر!
-      </span>
-    </div>
-  );
 }
 
 // Optional post-game survey (V2 analytics). Shown only on the winner screen,
@@ -1710,10 +2339,44 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   const [bigText, setBigText] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
+  const seatRefs = useRef({});
+  const coordRef = useRef(null);
+  const [coordHidden, setCoordHidden] = useState(false);
+  useEffect(() => {
+    const el = coordRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      ([e]) => setCoordHidden(!e.isIntersecting && e.boundingClientRect.top < 0),
+      { threshold: 0, rootMargin: "-40px 0px 0px 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [!!game.winner]);
+  const [seatReacts, setSeatReacts] = useState({}); // playerId -> { id, text }
+  const seenReactRef = useRef(game.reactionEvent?.id || null);
+  useEffect(() => {
+    const ev = game.reactionEvent;
+    if (!ev || ev.id === seenReactRef.current) return;
+    seenReactRef.current = ev.id;
+    setSeatReacts((m) => ({ ...m, [ev.byId]: { id: ev.id, text: ev.emoji } }));
+    const t = setTimeout(
+      () => setSeatReacts((m) => (m[ev.byId]?.id === ev.id ? Object.fromEntries(Object.entries(m).filter(([k]) => k !== ev.byId)) : m)),
+      SEAT_REACT_MS
+    );
+    return () => clearTimeout(t);
+  }, [game.reactionEvent?.id]);
+  const cardSize = useCardSize();
+  const vw = useViewportWidth();
+  const wide = vw >= 640;
 
   const current = game.players[game.currentPlayerIndex];
-  const viewer = isOnline ? game.players.find((p) => p.id === myId) || current : current;
-  const isMyTurn = isOnline ? current.id === myId : true;
+  // Local game with a single human against bots: that human's hand stays on screen the whole
+  // time (just inactive during bot turns) instead of disappearing behind a "thinking" panel.
+  const humans = game.players.filter((p) => !p.isBot);
+  const soloHuman = !isOnline && humans.length === 1 ? humans[0] : null;
+  const viewer = isOnline ? game.players.find((p) => p.id === myId) || current : soloHuman || current;
+  const isMyTurn = isOnline ? current.id === myId : soloHuman ? current.id === soloHuman.id : true;
 
   // Exactly one client is allowed to run automated (bot) moves: the single local device in
   // local mode, or the host in online mode. Everyone else just watches through polling.
@@ -2218,6 +2881,11 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     if (game.actionUsedThisTurn) return;
     const card = viewer.hand.find((c) => c.id === cardId);
     if (!card) return;
+    // لا ما تقدر is purely reactive — it's used from the incoming-action window, never as a turn action.
+    if (card.actionType === "block") {
+      setErrMsg("لا ما تقدر تستخدمه كردّ فعل لما أحد يلعب أكشن.");
+      return;
+    }
     if (card.actionType === "freeze") {
       track([
         mkEvent(game, "action_played", viewer, {
@@ -2307,97 +2975,214 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   }, [game.pendingAction, game.players]);
 
   const winnerPlayer = game.winner ? game.players.find((p) => p.id === game.winner) : null;
+  const topDiscard = game.discardPile.length ? game.discardPile[game.discardPile.length - 1] : null;
+  const multiHumanLocal = !isOnline && humans.length > 1;
+  const showPassScreen = multiHumanLocal && !current.isBot && !revealed;
+  const showThinkingPanel = multiHumanLocal && current.isBot;
+  const handActive = isMyTurn && !current.isBot;
+
+  const itemCards = viewer.hand.filter((c) => c.kind === "item");
+  const actionCards = viewer.hand.filter((c) => c.kind === "action");
+
+  function renderItems() {
+    if (itemCards.length === 0) {
+      return (
+        <div className="tsz-13 py-6 w-full text-center" style={{ color: `${INK}55` }}>
+          ما عندك عناصر لبس.
+        </div>
+      );
+    }
+    const onPick = (id) => (handActive ? toggleSelect(id) : null);
+    const node = (c, i) => (
+      <div key={c.id} className="hilla-deal pt-4" style={{ animationDelay: `${Math.min(i, 12) * 28}ms` }}>
+        <ItemCard card={c} size={cardSize} selected={selected.includes(c.id)} onClick={() => onPick(c.id)} />
+      </div>
+    );
+    if (!sortByRegion) return itemCards.map(node);
+    const sorted = sortItemsByRegion(itemCards);
+    const nodes = [];
+    let lastRegion = null;
+    sorted.forEach((c, i) => {
+      if (c.region !== lastRegion) {
+        if (lastRegion !== null) nodes.push(<span key={`div-${c.region}`} className="self-stretch w-px my-4 flex-shrink-0" style={{ background: `${INK}22` }} />);
+        lastRegion = c.region;
+      }
+      nodes.push(node(c, i));
+    });
+    return nodes;
+  }
+
+  // Turn banner text + timer, one line under the table.
+  function renderTurnBanner() {
+    if (game.pendingAction || game.digOptions) return null;
+    if (current.isBot) {
+      return (
+        <div className="flex items-center gap-2 tsz-13 font-semibold" style={{ color: `${INK}88` }}>
+          🤖 {current.name} يفكر
+          <span className="flex gap-0.5">
+            {[0, 1, 2].map((i) => (
+              <span key={i} className="w-1.5 h-1.5 rounded-full hilla-dot" style={{ background: GOLD_DK, animationDelay: `${i * 150}ms` }} />
+            ))}
+          </span>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center gap-2.5">
+        {/* Online, only the active player sees the ring; everyone still runs the timeout CAS. */}
+        {(!isOnline || isMyTurn) && (
+          <CountdownRing
+            pendingActionId={`turn-${game.turnSerial ?? 0}`}
+            startedAt={game.turnStartedAt}
+            size={38}
+            windowMs={current.inactive ? INACTIVE_SKIP_MS : TURN_TIMEOUT_MS}
+            className=""
+          />
+        )}
+        <div className="tsz-14 font-bold text-right" style={{ color: isMyTurn ? BRAND : `${INK}88` }}>
+          {current.inactive ? `😴 ${current.name} غير نشط الحين` : isMyTurn ? "دورك، العب قبل ما ينتهي الوقت" : `دور ${current.name} الحين`}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
       dir="rtl"
-      className="min-h-screen w-full p-4"
-      style={{ ...pageBg, fontFamily: "Tajawal", paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)", "--tsz": bigText ? 1.18 : 1 }}
+      className="hilla-root min-h-screen w-full px-3 pt-3 pb-24"
+      style={{
+        ...pageBg,
+        color: INK,
+        paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)",
+        "--tsz": bigText ? 1.18 : 1,
+      }}
     >
       <GlobalFont />
-      <div className="max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-2xl font-black" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
-            حُلّة {isOnline && <Wifi className="inline w-4 h-4 mb-1" style={{ color: TEAL }} />}
+      <div className="max-w-2xl mx-auto">
+        {/* header */}
+        <div className="flex items-center justify-between px-1 mb-2">
+          <div className="flex items-center gap-2">
+            <Wordmark height={30} />
+            {isOnline && <Wifi className="w-4 h-4" style={{ color: `${INK}66` }} />}
           </div>
-          <div className="relative">
+          <div className="flex items-center gap-2">
+            {!winnerPlayer && (
+              <span className="tsz-11 font-semibold px-2.5 py-1 rounded-full" style={{ background: `${INK}0d`, color: `${INK}88` }}>
+                جولة {game.coordRounds ?? 1}
+              </span>
+            )}
             <button
               onClick={() => setMenuOpen((v) => !v)}
-              className="p-2 rounded-lg border-2"
-              style={menuOpen ? { background: MAROON, color: CREAM, borderColor: MAROON } : { color: `${MAROON}99`, borderColor: `${MAROON}33` }}
+              className="w-10 h-10 rounded-full flex items-center justify-center transition active:scale-95"
+              style={menuOpen ? { background: INK, color: CREAM } : { background: CREAM, color: INK, boxShadow: "0 2px 8px -2px rgba(60,30,10,.3)" }}
               title="القائمة"
             >
               <Menu className="w-4 h-4" />
             </button>
           </div>
         </div>
-        <DiamondLattice color={GOLD} thickness={10} />
 
-        <MoveToast key={moveToast?.id || "none"} text={moveToast?.text || ""} />
+        <DiamondLattice thickness={10} />
+
         <EduToast key={eduToast?.id || "edu-none"} data={eduToast} />
         {hapticNode}
         <BlockFlashToast key={freshBlockEvent?.id || "none"} data={freshBlockEvent} />
         <ReactionFX trigger={game.reactionEvent} myId={myId} isOnline={isOnline} />
+        {!winnerPlayer &&
+          Object.entries(seatReacts).map(([pid, r]) => <SeatBubble key={r.id} anchor={seatRefs.current[pid]} text={r.text} />)}
         <ReactionButton onReact={sendReaction} />
 
         {winnerPlayer ? (
-          <div className="mt-10 text-center">
+          <div className="mt-8 text-center">
             <Confetti />
-            <div className="text-4xl font-black mb-3" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
-              🎉 فاز {winnerPlayer.name}!
+            <div className="relative mx-auto mb-4 hilla-float" style={{ width: 120 }}>
+              <CardBack size={120} tall style={{ boxShadow: "0 20px 40px -14px rgba(60,30,10,.6)" }} />
+            </div>
+            <div className="display-font font-bold leading-none" style={{ color: BRAND, fontSize: fs(46) }}>
+              {(isOnline ? winnerPlayer.id === myId : soloHuman ? winnerPlayer.id === soloHuman.id : false) ? "فزت!" : `فاز ${winnerPlayer.name}!`}
             </div>
             <WinStats game={game} myId={myId} isOnline={isOnline} />
-            <button onClick={onExit} className="mt-4 px-6 py-3 rounded-xl font-bold" style={{ background: MAROON, color: CREAM }}>
+            <button onClick={onExit} className={`mt-5 px-8 py-3 tsz-15 ${btn}`} style={btnPrimary}>
               العب من جديد
             </button>
             <PostGameSurvey game={game} myId={myId} isOnline={isOnline} />
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap gap-2 mt-4 mb-4">
-              {game.players.map((p, i) => {
-                const nearWin = p.hand.length <= 3;
-                const active = i === game.currentPlayerIndex;
-                return (
-                  <div
-                    key={p.id}
-                    className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 border-2"
-                    style={{
-                      ...(active ? { background: MAROON, color: CREAM, borderColor: MAROON } : { color: `${INK}99`, borderColor: `${MAROON}33` }),
-                      ...(nearWin ? { borderColor: GOLD, animation: "hilla-nearwin 1.2s ease-in-out infinite" } : {}),
-                    }}
-                  >
-                    {nearWin ? "🔥 " : ""}
-                    {p.isBot ? "🤖 " : p.inactive ? "😴 " : ""}
-                    {p.name} {isOnline && p.id === myId && <span style={{ color: GOLD }}>(أنت)</span>} <span className="opacity-70">({p.hand.length})</span>
-                  </div>
-                );
-              })}
+            {/* seats */}
+            <div className="hilla-hand flex overflow-x-auto -mx-3 px-4 pt-2 pb-5 -mb-2">
+              <div className="flex gap-1.5 mx-auto">
+              {game.players.map((p, i) => (
+                <div key={p.id} ref={(el) => (seatRefs.current[p.id] = el)}>
+                  <SeatPod
+                    player={p}
+                    active={i === game.currentPlayerIndex}
+                    isMe={isOnline ? p.id === myId : soloHuman ? p.id === soloHuman.id : false}
+                    nearWin={p.hand.length <= 3}
+                    thinking={p.isBot && i === game.currentPlayerIndex && !game.pendingAction}
+                  />
+                </div>
+              ))}
+              </div>
             </div>
 
-            <div className="flex flex-col items-center gap-4 mb-6">
-              {game.lockCoord && (
-                <div className="text-xs font-bold flex items-center gap-1" style={{ color: GOLD }}>
-                  <Repeat2 className="w-3 h-3" /> ثبّت الحَلّة مفعّل — هذا الكرت سيبقى جولة إضافية
+            {/* table */}
+            <div ref={coordRef}>
+              {wide ? (
+                <div className="flex items-center justify-center gap-6 mt-3">
+                  <DrawPile size={58} />
+                  <CoordCard key={game.currentCoord.id} card={game.currentCoord} width={420} />
+                  <DiscardPile card={topDiscard} size={58} />
+                </div>
+              ) : (
+                <div className="flex justify-center mt-3">
+                  <CoordCard key={game.currentCoord.id} card={game.currentCoord} width={Math.min(380, vw - 24)} />
                 </div>
               )}
-              <CoordCard card={game.currentCoord} />
-              {/* Turn timer (#26). Rendering-only: online, the ring shows to the active player
-                  only (isMyTurn); everyone else keeps just the "دور فلان الآن..." status. Local is
-                  unchanged (isMyTurn is always true there). Every client still runs the timeout CAS
-                  internally regardless of this visibility. */}
-              {isMyTurn && !current.isBot && !game.pendingAction && !game.digOptions && (
-                <CountdownRing
-                  pendingActionId={`turn-${game.turnSerial}`}
-                  startedAt={game.turnStartedAt}
-                  windowMs={current.inactive ? INACTIVE_SKIP_MS : TURN_TIMEOUT_MS}
-                  size={44}
-                />
-              )}
-              {isOnline && !isMyTurn && (
-                <div className="text-sm font-bold" style={{ color: `${INK}88` }}>
-                  ⏳ دور {current.name} الآن...
-                </div>
+            </div>
+            {coordHidden && !game.pendingAction && !game.digOptions && (
+              <StickyCoordBar
+                card={game.currentCoord}
+                onJump={() => {
+                  try {
+                    coordRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                  } catch {}
+                }}
+                timer={
+                  !current.isBot && (!isOnline || isMyTurn) ? (
+                    <CountdownRing
+                      pendingActionId={`sticky-${game.turnSerial ?? 0}`}
+                      startedAt={game.turnStartedAt}
+                      size={36}
+                      windowMs={current.inactive ? INACTIVE_SKIP_MS : TURN_TIMEOUT_MS}
+                      className="flex-shrink-0"
+                    />
+                  ) : null
+                }
+              />
+            )}
+            {game.lockCoord && (
+              <div className="mt-3 mx-auto w-fit flex items-center gap-2 pl-3 rounded-full tsz-12 font-semibold hilla-pop" style={{ background: CREAM, color: INK, boxShadow: `0 0 0 1px ${GOLD}` }}>
+                <span className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: GOLD }}>
+                  <Repeat2 className="w-3.5 h-3.5" style={{ color: INK }} />
+                </span>
+                ثبّت الحَلّة مفعّل: نفس الكرت جولة زيادة
+              </div>
+            )}
+            {wide ? (
+              <div className="flex justify-center mt-3 hminh-40">{renderTurnBanner()}</div>
+            ) : (
+              <div className="flex items-center justify-between gap-2 mt-3">
+                <DrawPile size={42} />
+                <div className="flex-1 flex justify-center hminh-40 min-w-0">{renderTurnBanner()}</div>
+                <DiscardPile card={topDiscard} size={42} />
+              </div>
+            )}
+            <div className="h-5 mt-1 flex justify-center overflow-hidden px-4">
+              {!game.winner && moveToast?.text && (
+                <span key={moveToast.id} className="hilla-lastmove tsz-12 truncate" style={{ color: `${INK}88` }}>
+                  {moveToast.text}
+                </span>
               )}
             </div>
 
@@ -2420,254 +3205,276 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                 const iCanBlock = isOnline ? eligibleBlockers.some((p) => p.id === myId) : eligibleBlockers.some((p) => !p.isBot);
                 return iAmTarget || iCanBlock;
               })() && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                <div className="rounded-2xl p-6 max-w-sm w-full text-center border-2" style={{ background: CREAM, borderColor: MAROON }}>
-                  <CountdownRing pendingActionId={game.pendingAction.id} startedAt={game.pendingAction.startedAt} windowMs={pendingWindowMs(game)} />
+                <Sheet>
                   {(() => {
-                    const actorPlayer = game.players.find((p) => p.id === game.pendingAction.actorId);
-                    const targetPlayer = game.players.find((p) => p.id === game.pendingAction.targetId);
+                    const pa = game.pendingAction;
+                    const actorPlayer = game.players.find((p) => p.id === pa.actorId);
+                    const targetPlayer = game.players.find((p) => p.id === pa.targetId);
                     const actorIsMe = isOnline ? actorPlayer?.id === myId : !actorPlayer?.isBot;
                     const targetIsMe = isOnline ? targetPlayer?.id === myId : !targetPlayer?.isBot;
                     return (
-                      <div className="mb-1" style={{ color: INK }}>
-                        <div className="font-bold">
-                          {actorIsMe ? "أنت تستخدم" : `${game.pendingAction.actorName} يستخدم`} {actionMeta(game.pendingAction.actionType).name}
-                        </div>
-                        {targetIsMe ? (
-                          <div className="text-lg font-black mt-1" style={{ color: MAROON }}>
-                            ⚠️ ضدك أنت!
-                          </div>
-                        ) : (
-                          <div className="text-sm mt-1" style={{ color: `${INK}99` }}>
-                            ضد {targetPlayer?.name}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                  <div className="text-xs mb-4" style={{ color: `${INK}88` }}>
-                    {isOnline ? (
-                      eligibleBlockers.some((p) => p.id === myId) ? (
-                        <>
-                          عندك فرصة تستخدم <b className="font-black" style={{ color: MAROON }}>لا ما تقدر</b> قبل ما تنتهي العدّة.
-                        </>
-                      ) : (
-                        "بينفّذ تلقائيًا بعد العدّة."
-                      )
-                    ) : (
                       <>
-                        أي لاعب عنده <b className="font-black" style={{ color: MAROON }}>لا ما تقدر</b> يقدر يستخدمه الحين، وإلا بينفّذ تلقائيًا بعد العدّة.
-                      </>
-                    )}
-                  </div>
-                  <div className="space-y-2 mb-3">
-                    {isOnline
-                      ? eligibleBlockers
-                          .filter((p) => p.id === myId)
-                          .map((p) => (
-                            <button key={p.id} onClick={() => cancelWithBlock(p.id)} className="w-full py-2 rounded-lg text-sm font-bold" style={{ background: MAROON, color: CREAM }}>
-                              استخدم لا ما تقدر
-                            </button>
-                          ))
-                      : eligibleBlockers
-                          .filter((p) => !p.isBot)
-                          .map((p) => (
-                            <button key={p.id} onClick={() => cancelWithBlock(p.id)} className="w-full py-2 rounded-lg text-sm font-bold" style={{ background: MAROON, color: CREAM }}>
-                              {p.name}: استخدم لا ما تقدر
+                        <div className="flex items-start justify-center gap-3 mb-3">
+                          <ActionCard actionType={pa.actionType} size={150} showDesc={false} className="hilla-drop" />
+                          <div className="absolute top-4 left-4">
+                            <CountdownRing pendingActionId={pa.id} startedAt={pa.startedAt} windowMs={pendingWindowMs(game)} size={48} className="" />
+                          </div>
+                        </div>
+                        <div className="mb-1" style={{ color: INK }}>
+                          <div className="font-semibold tsz-14">
+                            {actorIsMe ? "أنت تستخدم" : `${pa.actorName} يستخدم`} <b style={{ color: BRAND }}>{actionMeta(pa.actionType).name}</b>
+                          </div>
+                          {targetIsMe ? (
+                            <div className="display-font font-bold mt-0.5 tsz-20" style={{ color: BRAND }}>
+                              ضدك أنت!
+                            </div>
+                          ) : (
+                            <div className="tsz-13 mt-1" style={{ color: `${INK}99` }}>
+                              ضد {targetPlayer?.name}
+                            </div>
+                          )}
+                        </div>
+                        <div className="tsz-12 mb-4 mt-1" style={{ color: `${INK}88` }}>
+                          {isOnline ? (
+                            eligibleBlockers.some((p) => p.id === myId) ? (
+                              <>
+                                عندك فرصة تستخدم <b className="font-bold" style={{ color: BRAND }}>لا ما تقدر</b> قبل ما تنتهي العدّة.
+                              </>
+                            ) : (
+                              "بينفّذ تلقائيًا بعد العدّة."
+                            )
+                          ) : (
+                            <>
+                              أي لاعب عنده <b className="font-bold" style={{ color: BRAND }}>لا ما تقدر</b> يقدر يستخدمه الحين، وإلا بينفّذ تلقائيًا بعد العدّة.
+                            </>
+                          )}
+                        </div>
+                        <div className="space-y-2 mb-1">
+                          {(isOnline ? eligibleBlockers.filter((p) => p.id === myId) : eligibleBlockers.filter((p) => !p.isBot)).map((p) => (
+                            <button
+                              key={p.id}
+                              onClick={() => cancelWithBlock(p.id)}
+                              className={`w-full py-2 pr-2 pl-4 tsz-14 flex items-center gap-3 ${btn}`}
+                              style={{ background: "#961E21", color: CREAM, boxShadow: "0 8px 18px -8px rgba(150,30,33,.7)" }}
+                            >
+                              <ActionThumb type="block" size={36} radius={9} />
+                              <span className="flex-1 text-center">{isOnline || soloHuman ? "استخدم لا ما تقدر" : `${p.name}: استخدم لا ما تقدر`}</span>
                             </button>
                           ))}
-                  </div>
-                  {errMsg && (
-                    <div className="text-xs font-bold px-3 py-1.5 rounded-lg" style={{ background: `${MAROON}15`, color: MAROON }}>
-                      {errMsg}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+                        </div>
+                        {errMsg && (
+                          <div className="tsz-12 font-semibold px-3 py-1.5 rounded-xl mt-2" style={{ background: `${BRAND}14`, color: BRAND }}>
+                            {errMsg}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </Sheet>
+              )}
 
             {needTarget && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                <div className="rounded-2xl p-6 max-w-sm w-full text-center border-2" style={{ background: CREAM, borderColor: MAROON }}>
-                  <div className="font-bold mb-4" style={{ color: INK }}>
-                    اختر اللاعب المستهدف لـ {actionMeta(needTarget.actionType).name}
-                  </div>
-                  <div className="space-y-2">
-                    {game.players.filter((p) => p.id !== viewer.id).map((p) => (
-                      <button key={p.id} onClick={() => chooseTarget(p.id)} className="w-full py-2 rounded-lg border-2" style={{ color: INK, borderColor: `${MAROON}33` }}>
-                        {p.name}
+              <Sheet onBackdrop={() => setNeedTarget(null)}>
+                <div className="flex justify-center mb-3">
+                  <ActionCard card={needTarget} size={170} />
+                </div>
+                <div className="tsz-13 mb-3 -mt-1" style={{ color: `${INK}99` }}>
+                  {actionMeta(needTarget.actionType).desc}
+                </div>
+                <div className="font-bold tsz-15 mb-3" style={{ color: INK }}>
+                  على مين؟
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {game.players
+                    .filter((p) => p.id !== viewer.id)
+                    .map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => chooseTarget(p.id)}
+                        className={`py-2.5 px-2 tsz-13 flex items-center justify-center gap-1.5 ${btn}`}
+                        style={{ background: PAGE, color: INK, boxShadow: `inset 0 0 0 1.5px ${INK}1a` }}
+                      >
+                        <span className="truncate">{p.isBot ? "🤖 " : ""}{p.name}</span>
+                        <span className="tsz-11 font-semibold px-1.5 rounded-full" style={{ background: p.hand.length <= 3 ? GOLD : `${INK}12` }}>
+                          {p.hand.length}
+                        </span>
                       </button>
                     ))}
-                  </div>
-                  <button onClick={() => setNeedTarget(null)} className="mt-3 text-xs" style={{ color: `${INK}66` }}>
-                    إلغاء
-                  </button>
                 </div>
-              </div>
+                <button onClick={() => setNeedTarget(null)} className="mt-4 tsz-12 font-semibold" style={{ color: `${INK}77` }}>
+                  إلغاء
+                </button>
+              </Sheet>
             )}
 
             {giveStep && <GivePicker viewer={viewer} onConfirm={confirmGiveTake} onCancel={() => setGiveStep(null)} />}
 
             {game.digOptions && (!isOnline || game.digOptions.playerId === myId) && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                <div className="rounded-2xl p-6 max-w-md w-full text-center border-2" style={{ background: CREAM, borderColor: MAROON }}>
-                  <div className="font-bold mb-4" style={{ color: INK }}>
-                    اختر كرت واحد تحتفظ به من فتّش الصندوق
-                  </div>
-                  <div className="flex justify-center gap-3">
-                    {game.digOptions.cards.map((c) =>
-                      c.kind === "item" ? <ItemCard key={c.id} card={c} onClick={() => finishDig(c.id)} /> : <ActionCard key={c.id} card={c} onClick={() => finishDig(c.id)} />
-                    )}
-                  </div>
+              <Sheet maxW={440}>
+                <div className="display-font font-bold tsz-20 mb-1" style={{ color: BRAND }}>
+                  فتّش الصندوق
                 </div>
-              </div>
+                <div className="tsz-13 mb-4" style={{ color: `${INK}88` }}>
+                  اختر كرت واحد تحتفظ فيه، والباقي يرجع للسحب.
+                </div>
+                <div className="flex justify-center gap-2.5 pt-3">
+                  {game.digOptions.cards.map((c, i) => (
+                    <div key={c.id} className="hilla-deal" style={{ animationDelay: `${i * 90}ms` }}>
+                      <AnyCard card={c} size={cardSize <= 88 ? 96 : 116} onClick={() => finishDig(c.id)} />
+                    </div>
+                  ))}
+                </div>
+              </Sheet>
             )}
             {game.digOptions && isOnline && game.digOptions.playerId !== myId && (
-              <div className="text-center text-sm mb-4" style={{ color: `${INK}66` }}>
-                {game.players.find((p) => p.id === game.digOptions.playerId)?.name} يفتّش الصندوق الآن...
+              <div className="text-center tsz-13 mb-2" style={{ color: `${INK}77` }}>
+                {game.players.find((p) => p.id === game.digOptions.playerId)?.name} يفتّش الصندوق الحين…
               </div>
             )}
 
-            {!isOnline && current.isBot ? (
-              <div className="text-center py-14">
-                <div className="text-lg font-bold mb-2" style={{ color: MAROON }}>
-                  🤖 {current.name} يفكر...
+            {/* hand */}
+            {showThinkingPanel ? (
+              <div className="mt-5 hr-28 py-12 text-center" style={{ background: `${CREAM}aa` }}>
+                <div className="tsz-15 font-bold mb-2" style={{ color: INK }}>
+                  🤖 {current.name} يفكر…
                 </div>
                 <div className="flex justify-center gap-1.5">
                   {[0, 1, 2].map((i) => (
-                    <span key={i} className="w-2 h-2 rounded-full animate-pulse" style={{ background: GOLD, animationDelay: `${i * 150}ms` }} />
+                    <span key={i} className="w-2 h-2 rounded-full hilla-dot" style={{ background: GOLD, animationDelay: `${i * 150}ms` }} />
                   ))}
                 </div>
               </div>
-            ) : !isOnline && !revealed && game.players.filter((p) => !p.isBot).length > 1 ? (
-              <div className="text-center py-14">
-                <div className="text-lg font-bold mb-2" style={{ color: INK }}>
-                  مرر الجهاز إلى
+            ) : showPassScreen ? (
+              <div className="mt-5 hr-28 py-8 text-center hilla-pop" style={{ background: CREAM, boxShadow: "0 18px 40px -20px rgba(60,30,10,.5)" }}>
+                <div className="mx-auto mb-3 w-fit hilla-float">
+                  <CardBack size={84} tall style={{ boxShadow: "0 14px 28px -12px rgba(60,30,10,.6)" }} />
                 </div>
-                <div className="text-3xl font-black mb-6" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
+                <div className="tsz-13 font-semibold mb-1" style={{ color: `${INK}88` }}>
+                  مرّر الجهاز إلى
+                </div>
+                <div className="display-font font-bold mb-5" style={{ color: BRAND, fontSize: fs(38) }}>
                   {current.name}
                 </div>
-                <button onClick={() => setRevealed(true)} className="px-6 py-3 rounded-xl font-bold" style={{ background: MAROON, color: CREAM }}>
-                  اضغط لإظهار يدك
+                <button onClick={() => setRevealed(true)} className={`px-7 py-3 tsz-15 ${btn}`} style={btnPrimary}>
+                  اكشف يدك
                 </button>
               </div>
             ) : (
-              <>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs font-bold" style={{ color: `${INK}77` }}>
-                    عناصر اللبس {isOnline && <span style={{ color: GOLD }}>({viewer?.name})</span>}
+              <section
+                className={`mt-4 hr-28 px-3 pt-3 pb-3 ${handActive ? "hilla-myturn" : ""}`}
+                style={{ background: CREAM, boxShadow: "0 10px 30px -14px rgba(60,30,10,.4)" }}
+              >
+                <div className="flex items-center justify-between px-1">
+                  <div className="tsz-13 font-bold flex items-center gap-1.5" style={{ color: INK }}>
+                    {isOnline || soloHuman ? "يدك" : `يد ${viewer.name}`}
+                    <span className="tsz-11 font-semibold px-1.5 rounded-full" style={{ background: `${INK}0f`, color: `${INK}88` }}>
+                      {viewer.hand.length}
+                    </span>
                   </div>
                   <button
                     onClick={() => setSortByRegion((s) => !s)}
-                    className="tsz-11 font-bold px-2.5 py-1 rounded-lg border-2 flex items-center gap-1"
-                    style={sortByRegion ? { background: MAROON, color: CREAM, borderColor: MAROON } : { color: MAROON, borderColor: `${MAROON}55` }}
+                    className="tsz-11 font-semibold px-3 py-1.5 rounded-full transition"
+                    style={sortByRegion ? { background: INK, color: CREAM } : { background: `${INK}0b`, color: `${INK}aa` }}
                   >
-                    🗂️ رتّب حسب المنطقة
+                    رتّب حسب المنطقة
                   </button>
                 </div>
-                <div className="flex gap-2 overflow-x-auto pb-3 mb-3">
-                  {(() => {
-                    const itemCards = viewer.hand.filter((c) => c.kind === "item");
-                    if (itemCards.length === 0) {
-                      return (
-                        <div className="text-sm py-4" style={{ color: `${INK}44` }}>
-                          لا توجد عناصر لبس في يدك.
-                        </div>
-                      );
-                    }
-                    if (!sortByRegion) {
-                      return itemCards.map((c) => <ItemCard key={c.id} card={c} selected={selected.includes(c.id)} onClick={() => (isMyTurn ? toggleSelect(c.id) : null)} />);
-                    }
-                    const sorted = sortItemsByRegion(itemCards);
-                    const nodes = [];
-                    let lastRegion = null;
-                    sorted.forEach((c, i) => {
-                      if (c.region !== lastRegion) {
-                        if (lastRegion !== null) nodes.push(<DiamondLattice key={`div-${c.region}`} vertical color={GOLD} thickness={6} />);
-                        lastRegion = c.region;
-                      }
-                      nodes.push(<ItemCard key={c.id} card={c} selected={selected.includes(c.id)} onClick={() => (isMyTurn ? toggleSelect(c.id) : null)} />);
-                    });
-                    return nodes;
-                  })()}
-                </div>
 
-                {errMsg && (
-                  <div className="text-xs font-bold mb-2 px-3 py-1.5 rounded-lg inline-block" style={{ background: `${MAROON}15`, color: MAROON }}>
+                <div className="tsz-11 font-semibold mt-2 px-1" style={{ color: `${INK}77` }}>
+                  عناصر اللبس
+                </div>
+                <div className="hilla-hand flex gap-2 overflow-x-auto -mx-3 px-3 pb-4 -mb-1">{renderItems()}</div>
+
+                {actionCards.length > 0 && (
+                  <>
+                    <div className="tsz-11 font-semibold mt-1 px-1" style={{ color: `${INK}77` }}>
+                      أكشن: واحد بس، قبل ما تحط عناصرك
+                      {game.actionUsedThisTurn && isMyTurn && <span style={{ color: GOLD_DK }}> · استخدمته هالدور</span>}
+                    </div>
+                    <div className="hilla-hand flex gap-2 overflow-x-auto -mx-3 px-3 pb-4 -mb-2">
+                      {actionCards.map((c, i) => (
+                        <div key={c.id} className="hilla-deal pt-2" style={{ animationDelay: `${i * 28}ms` }}>
+                          <ActionCard card={c} size={Math.round(cardSize * 0.86)} disabled={!handActive || game.actionUsedThisTurn} onClick={() => startAction(c.id)} />
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {errMsg && !game.pendingAction && (
+                  <div className="tsz-12 font-semibold mb-2 px-3 py-1.5 rounded-xl hilla-pop" style={{ background: `${BRAND}14`, color: BRAND }}>
                     {errMsg}
                   </div>
                 )}
 
-                <div className="flex gap-2 mb-6">
+                <div className="flex gap-2 mt-1">
                   <button
                     onClick={playSelectedItems}
-                    disabled={selected.length === 0 || !isMyTurn}
-                    className="px-5 py-2 rounded-lg font-bold disabled:opacity-30"
-                    style={{ background: TEAL, color: CREAM }}
+                    disabled={selected.length === 0 || !handActive}
+                    className={`flex-1 py-3 tsz-14 ${btn}`}
+                    style={btnPrimary}
                   >
-                    ضع العنصر/العناصر المحددة
+                    {selected.length === 0 ? "اختر كروت تطابق التنسيق" : `حط ${cardsWord(selected.length)}`}
                   </button>
-                  <button onClick={endMyTurn} disabled={!isMyTurn} className="px-5 py-2 rounded-lg font-bold disabled:opacity-30" style={{ background: MAROON, color: CREAM }}>
+                  <button onClick={endMyTurn} disabled={!handActive} className={`px-5 py-3 tsz-14 ${btn}`} style={btnGhost}>
                     خلصت دوري
                   </button>
                 </div>
-
-                <div className="text-xs mb-2 font-bold" style={{ color: `${INK}77` }}>
-                  كروت الأكشن — كرت واحد بس، وقبل ما تحط عناصرك {game.actionUsedThisTurn && isMyTurn && <span style={{ color: GOLD }}>(مستخدم هذي الجولة)</span>}
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-3">
-                  {viewer.hand
-                    .filter((c) => c.kind === "action")
-                    .map((c) => (
-                      <ActionCard key={c.id} card={c} disabled={!isMyTurn || game.actionUsedThisTurn} onClick={() => startAction(c.id)} />
-                    ))}
-                  {viewer.hand.filter((c) => c.kind === "action").length === 0 && (
-                    <div className="text-sm py-4" style={{ color: `${INK}44` }}>
-                      لا توجد كروت أكشن في يدك.
-                    </div>
-                  )}
-                </div>
-              </>
+              </section>
             )}
 
-            <div className="mt-8 rounded-xl p-3 max-h-32 overflow-y-auto border-2" style={{ background: CREAM2, borderColor: `${MAROON}22` }}>
-              {game.log.map((l, i) => (
-                <div key={i} className="tsz-11 mb-1" style={{ color: `${INK}77` }}>
-                  {l}
-                </div>
-              ))}
-            </div>
+            <button
+              onClick={() => setLogOpen((v) => !v)}
+              className="mt-4 mx-auto flex items-center gap-1.5 tsz-11 font-semibold px-3 py-1.5 rounded-full"
+              style={{ color: `${INK}88`, background: `${INK}0a` }}
+            >
+              السجل {logOpen ? "▴" : "▾"}
+            </button>
+            {logOpen && (
+              <div className="mt-2 rounded-2xl p-3 max-h-40 overflow-y-auto hilla-pop" style={{ background: `${CREAM}cc` }}>
+                {game.log.map((l, i) => (
+                  <div key={i} className="tsz-11 mb-1" style={{ color: `${INK}88` }}>
+                    {l}
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>
 
       {menuOpen && (
         <>
-          <div className="fixed inset-0 z-[69] backdrop-blur-sm bg-black/10" onClick={() => setMenuOpen(false)} />
-          <div className="fixed z-[70] w-48 rounded-xl border-2 shadow-xl overflow-hidden" style={{ top: "calc(env(safe-area-inset-top, 0px) + 3.5rem)", left: "1rem", background: CREAM, borderColor: MAROON }}>
+          <div className="fixed inset-0 hz-9998 backdrop-blur-sm bg-black/10" onClick={() => setMenuOpen(false)} />
+          <div
+            className="fixed hz-9999 w-52 rounded-2xl shadow-xl overflow-hidden hilla-pop"
+            style={{ top: "calc(env(safe-area-inset-top, 0px) + 3.75rem)", left: "1rem", background: CREAM, boxShadow: "0 18px 40px -12px rgba(0,0,0,.35)" }}
+          >
             <button
               onClick={() => setMenuOpen(false)}
-              className="w-full text-right px-3 py-2.5 text-sm font-black flex items-center gap-2"
-              style={{ color: CREAM, background: TEAL }}
+              className="w-full text-right px-4 py-3 tsz-13 font-bold flex items-center gap-2"
+              style={{ color: CREAM, background: OLD_TEAL }}
             >
               <Check className="w-4 h-4" /> استمرار اللعب
-            </button>
-            <button
-              onClick={() => setBigText((v) => !v)}
-              className="w-full text-right px-3 py-2.5 text-sm font-bold flex items-center gap-2 border-t"
-              style={{ color: INK, background: bigText ? `${MAROON}15` : "transparent", borderColor: `${MAROON}22` }}
-            >
-              <Type className="w-4 h-4" style={{ color: MAROON }} /> تكبير النص {bigText ? "✓" : ""}
             </button>
             <button
               onClick={() => {
                 setMenuOpen(false);
                 setShowRules(true);
               }}
-              className="w-full text-right px-3 py-2.5 text-sm font-bold flex items-center gap-2 border-t"
-              style={{ color: INK, borderColor: `${MAROON}22` }}
+              className="w-full text-right px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
+              style={{ color: INK, borderColor: `${INK}12` }}
             >
-              <HelpCircle className="w-4 h-4" style={{ color: MAROON }} /> كيف ألعب؟
+              <HelpCircle className="w-4 h-4" style={{ color: BRAND }} /> كيف ألعب؟
+            </button>
+            <button
+              onClick={() => {
+                setBigText((v) => !v);
+              }}
+              className="w-full text-right px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
+              style={{ color: INK, background: bigText ? `${GOLD}33` : "transparent", borderColor: `${INK}12` }}
+            >
+              <Type className="w-4 h-4" style={{ color: BRAND }} /> تكبير النص {bigText ? "✓" : ""}
             </button>
             <button
               onClick={() => {
@@ -2675,23 +3482,23 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                   window.location.reload();
                 } catch {}
               }}
-              className="w-full text-right px-3 py-2.5 text-sm font-bold flex items-center gap-2 border-t"
-              style={{ color: INK, borderColor: `${MAROON}22` }}
+              className="w-full text-right px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
+              style={{ color: INK, borderColor: `${INK}12` }}
             >
-              <RefreshCw className="w-4 h-4" style={{ color: MAROON }} /> تحديث الصفحة
+              <RefreshCw className="w-4 h-4" style={{ color: BRAND }} /> تحديث الصفحة
             </button>
             <button
               onClick={onExit}
-              className="w-full text-right px-3 py-2.5 text-sm font-bold flex items-center gap-2 border-t"
-              style={{ color: INK, borderColor: `${MAROON}22` }}
+              className="w-full text-right px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
+              style={{ color: INK, borderColor: `${INK}12` }}
             >
-              <RotateCcw className="w-4 h-4" style={{ color: MAROON }} /> لعبة جديدة
+              <RotateCcw className="w-4 h-4" style={{ color: BRAND }} /> لعبة جديدة
             </button>
             {onGoHome && (
               <button
                 onClick={onGoHome}
-                className="w-full text-right px-3 py-2.5 text-sm font-bold flex items-center gap-2 border-t"
-                style={{ color: MAROON, borderColor: `${MAROON}22` }}
+                className="w-full text-right px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
+                style={{ color: BRAND, borderColor: `${INK}12` }}
               >
                 <LogOut className="w-4 h-4" /> خروج
               </button>
@@ -2700,8 +3507,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
         </>
       )}
 
-      {/* Rendered last + z-[10000] so it sits above the game screen and the ☰ menu. Uses the
-          in-game bigText so A+ scales the rules text too. */}
+      {/* Rendered last so it sits above the board and the ☰ menu; scales with A+. */}
       {showRules && <HowToPlay onClose={() => setShowRules(false)} bigText={bigText} />}
     </div>
   );
@@ -2727,8 +3533,8 @@ function HelpButton({ onClick, className = "" }) {
     <button
       onClick={onClick}
       title="كيف ألعب؟"
-      className={`w-9 h-9 rounded-full border-2 flex items-center justify-center font-black ${className}`}
-      style={{ color: MAROON, borderColor: MAROON, background: CREAM }}
+      className={`w-10 h-10 rounded-full flex items-center justify-center transition active:scale-95 ${className}`}
+      style={{ color: INK, background: CREAM, boxShadow: "0 2px 8px -2px rgba(60,30,10,.3)" }}
     >
       <HelpCircle className="w-5 h-5" />
     </button>
@@ -2741,7 +3547,7 @@ function HelpButton({ onClick, className = "" }) {
 function HowToPlay({ onClose, bigText }) {
   const Section = ({ title, children }) => (
     <div className="mb-3">
-      <div className="tsz-13 font-black mb-1" style={{ color: MAROON }}>
+      <div className="tsz-13 font-bold mb-1" style={{ color: BRAND }}>
         {title}
       </div>
       <div className="tsz-12 leading-relaxed" style={{ color: INK }}>
@@ -2752,9 +3558,9 @@ function HowToPlay({ onClose, bigText }) {
   return (
     <div
       dir="rtl"
-      className="fixed inset-0 z-[10000] flex items-center justify-center"
+      className="hilla-root fixed inset-0 hz-10000 flex items-center justify-center hilla-fade"
       style={{
-        background: "rgba(0,0,0,0.55)",
+        background: "rgba(35,31,32,0.55)",
         "--tsz": bigText ? 1.18 : 1,
         paddingTop: "calc(env(safe-area-inset-top, 0px) + 1.5rem)",
         paddingRight: "max(1.25rem, calc(env(safe-area-inset-right, 0px) + 1rem))",
@@ -2762,52 +3568,62 @@ function HowToPlay({ onClose, bigText }) {
         paddingLeft: "max(1.25rem, calc(env(safe-area-inset-left, 0px) + 1rem))",
       }}
     >
+      <GlobalFont />
       <div
-        className="w-full max-w-md rounded-2xl border-2 shadow-2xl flex flex-col overflow-hidden"
-        style={{
-          background: CREAM,
-          borderColor: MAROON,
-          fontFamily: "Tajawal",
-          maxHeight: "100%",
-        }}
+        className="w-full max-w-md hr-26 flex flex-col overflow-hidden hilla-pop"
+        style={{ background: CREAM, maxHeight: "100%", boxShadow: `0 0 0 2px ${GOLD}, 0 24px 60px -10px rgba(0,0,0,.4)` }}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b-2 flex-shrink-0" style={{ background: CREAM2, borderColor: `${MAROON}22` }}>
-          <div className="tsz-17 font-black" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
+        <div className="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0" style={{ background: CREAM }}>
+          <div className="display-font tsz-20 font-bold" style={{ color: BRAND }}>
             وش قوانين حُلّة؟
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg" style={{ color: MAROON }} title="إغلاق">
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ color: INK, background: `${INK}0d` }} title="إغلاق">
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-4 overflow-y-auto" style={{ background: CREAM }}>
+
+        <div className="p-4 pt-2 overflow-y-auto" style={{ background: CREAM }}>
           <Section title="الهدف">أول لاعب يتخلص من كل كروته يفوز.</Section>
           <Section title="كرت تنسيق منطقة">
             تقدر تحط أي عدد من كروت العناصر بشرط تكون من نفس منطقة الكرت ومن العناصر المعروضة عليه (بدون تكرار نفس العنصر).
           </Section>
-          <Section title="كرت تنسيق عشوائي">عنصر واحد بس بكل مرة — من أي منطقة، طالما اسمه من ضمن العناصر المعروضة على الكرت.</Section>
+
+          <Section title="كرت تنسيق عشوائي">
+            عنصر واحد بس بكل مرة، من أي منطقة، طالما اسمه من ضمن العناصر المعروضة على الكرت.
+          </Section>
+
           <Section title="كروت الأكشن">
-            كرت أكشن واحد بس بكل جولة، ويُلعب قبل ما تحط عناصرك (مو بعدها). لا ما تقدر استثناء — تقدر تستخدمها أي وقت كردّ فعل.
+            كرت أكشن واحد بس بكل جولة، ويُلعب قبل ما تحط عناصرك (مو بعدها). لا ما تقدر استثناء، تقدر تستخدمها أي وقت
+            كردّ فعل.
           </Section>
           <div className="space-y-1.5 mb-3">
-            {ACTION_TYPES.map((a) => {
-              const Icon = a.icon;
-              return (
-                <div key={a.id} className="rounded-xl px-3 py-1.5" style={{ background: `${MAROON}0d` }}>
-                  <div className="flex items-center gap-2 font-black tsz-12" style={{ color: MAROON }}>
-                    <Icon className="w-3 h-3 flex-shrink-0" />
+            {ACTION_TYPES.map((a) => (
+              <div key={a.id} className="rounded-2xl p-1.5 pl-3 flex items-center gap-2.5" style={{ background: `${INK}08` }}>
+                <ActionThumb type={a.id} size={44} radius={12} />
+                <div className="min-w-0">
+                  <div className="font-bold tsz-12" style={{ color: INK }}>
                     {a.name}
                   </div>
                   <div className="tsz-11 mt-0.5" style={{ color: `${INK}aa` }}>
                     {a.desc}
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
           <Section title="الندرة">
-            كل عنصر عليه بادج شائع/متوسط/نادر — الشائع يطلع كثير بكروت التنسيق وسهل تتخلص منه، والنادر يطلع نادر فيصعب تصريفه.
+            <span className="flex gap-1.5 my-1">
+              {["common", "medium", "rare"].map((r) => (
+                <span key={r} className="px-2.5 py-0.5 rounded-full tsz-11 font-semibold" style={{ background: RARITY_META[r].color, color: RARITY_META[r].text }}>
+                  {RARITY_META[r].label}
+                </span>
+              ))}
+            </span>
+            كل عنصر عليه علامة ندرة: شائع أو متوسط أو نادر. الشائع يطلع كثير بكروت التنسيق وسهل تتخلص منه، والنادر يطلع نادر
+            فيصعب تصريفه.
           </Section>
-          <button onClick={onClose} className="w-full py-2.5 rounded-xl font-black tsz-13" style={{ background: MAROON, color: CREAM }}>
+
+          <button onClick={onClose} className={`w-full py-3 tsz-14 ${btn}`} style={btnPrimary}>
             يلا نلعب
           </button>
         </div>
@@ -2824,35 +3640,68 @@ function GivePicker({ viewer, onConfirm, onCancel }) {
     setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : c.length < max ? [...c, id] : c));
   }
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="rounded-2xl p-6 max-w-lg w-full text-center border-2" style={{ background: CREAM, borderColor: MAROON }}>
-        <div className="font-bold mb-1" style={{ color: INK }}>
-          عطني وأعطيك
+    <Sheet maxW={520}>
+      <div className="flex items-center justify-center gap-3 mb-3">
+        <ActionThumb type="giveTake" size={56} radius={16} />
+        <div className="text-right">
+          <div className="display-font font-bold tsz-20 leading-none" style={{ color: BRAND }}>
+            عطني وأعطيك
+          </div>
+          <div className="tsz-12 mt-1" style={{ color: `${INK}88` }}>
+            اختر {max === 2 ? "كرتين" : "كرت واحد"} من يدك تعطيها للاعب الثاني.
+          </div>
         </div>
-        <div className="text-xs mb-4" style={{ color: `${INK}88` }}>
-          اختر {max === 2 ? "كرتين" : "كرت واحد"} من يدك لإعطائها للاعب الآخر.
-        </div>
-        <div className="flex gap-2 overflow-x-auto justify-center pb-3">
-          {items.map((c) =>
-            c.kind === "item" ? (
-              <ItemCard key={c.id} small card={c} selected={chosen.includes(c.id)} onClick={() => toggle(c.id)} />
-            ) : (
-              <ActionCard key={c.id} card={c} selected={chosen.includes(c.id)} onClick={() => toggle(c.id)} />
-            )
-          )}
-        </div>
-        <div className="flex gap-2 justify-center mt-3">
-          <button onClick={() => onConfirm(chosen)} disabled={chosen.length !== max} className="px-5 py-2 rounded-lg font-bold disabled:opacity-30" style={{ background: TEAL, color: CREAM }}>
-            تأكيد
-          </button>
-          <button onClick={onCancel} className="px-5 py-2 rounded-lg border-2" style={{ color: `${INK}88`, borderColor: `${MAROON}33` }}>
-            إلغاء
-          </button>
-        </div>
+      </div>
+      <div className="flex flex-wrap gap-2 justify-center pt-3 pb-2 hmaxh-52 overflow-y-auto">
+        {items.map((c) => (
+          <AnyCard key={c.id} card={c} size={76} selected={chosen.includes(c.id)} onClick={() => toggle(c.id)} />
+        ))}
+      </div>
+      <div className="flex gap-2 justify-center mt-3">
+        <button onClick={() => onConfirm(chosen)} disabled={chosen.length !== max} className={`flex-1 py-3 tsz-14 ${btn}`} style={btnPrimary}>
+          تأكيد ({chosen.length}/{max})
+        </button>
+        <button onClick={onCancel} className={`px-6 py-3 tsz-14 ${btn}`} style={btnGhost}>
+          إلغاء
+        </button>
+      </div>
+    </Sheet>
+  );
+}
+
+// Fanned hero for the pre-game screens: an action card and a hand card peeking from behind the
+// card back. Purely decorative.
+function HeroFan({ scale = 1 }) {
+  const s = scale;
+  return (
+    <div className="relative mx-auto" style={{ width: 250 * s, height: 190 * s }} aria-hidden="true">
+      <div className="absolute hilla-float" style={{ left: 18 * s, top: 34 * s, transform: "rotate(-15deg)", animationDelay: "-2s" }}>
+        <ActionCard actionType="stealTwo" size={104 * s} showDesc={false} />
+      </div>
+      <div className="absolute hilla-float" style={{ right: 18 * s, top: 34 * s, transform: "rotate(15deg)", animationDelay: "-4s" }}>
+        <ItemCard card={{ id: "hero", name: "النشل", region: "sharqi", rarity: "medium" }} size={104 * s} />
+      </div>
+      <div className="absolute left-1/2 hilla-float" style={{ top: 0, marginLeft: -62 * s }}>
+        <CardBack size={124 * s} tall style={{ boxShadow: "0 22px 40px -14px rgba(60,30,10,.6)" }} />
       </div>
     </div>
   );
 }
+
+function ScreenShell({ children, maxW = "max-w-md" }) {
+  return (
+    <div dir="rtl" className="hilla-root min-h-screen w-full flex items-center justify-center p-5" style={{ ...pageBg, color: INK }}>
+      <GlobalFont />
+      <RulesFab />
+      <div className={`w-full ${maxW} relative`} style={{ zIndex: 1 }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+const panelStyle = { background: CREAM, boxShadow: "0 18px 44px -20px rgba(60,30,10,.5)" };
+const inputStyle = { background: PAGE, color: INK, boxShadow: `inset 0 0 0 1.5px ${INK}14` };
 
 /* --------------------------------- LOCAL MODE --------------------------------- */
 
@@ -2877,91 +3726,90 @@ function LocalSetup({ onStart, onBack }) {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen w-full flex items-center justify-center p-6" style={{ ...pageBg, fontFamily: "Tajawal" }}>
-      <GlobalFont />
-      <RulesFab />
-      <div className="w-full max-w-md">
-        <div className="text-center mb-5">
-          <CardBackHero />
-          <p className="mt-3" style={{ color: MAROON_DK }}>
-            وضع "تمرير الجهاز" — كل اللاعبين على نفس الجهاز، وتقدر تضيف بوتات تلعب أوتوماتيكي
+    <ScreenShell>
+      <div className="text-center mb-4">
+        <HeroFan scale={0.72} />
+        <p className="tsz-13 mt-1" style={{ color: `${INK}99` }}>
+          كل اللاعبين على نفس الجهاز، وتقدر تضيف بوتات تلعب أوتوماتيك
+        </p>
+      </div>
+      <div className="hr-28 p-5 space-y-5" style={panelStyle}>
+        <div>
+          <label className="tsz-13 flex items-center gap-2 mb-2 font-bold" style={{ color: INK }}>
+            <Users className="w-4 h-4" style={{ color: BRAND }} /> عدد اللاعبين
+          </label>
+          <div className="flex gap-1.5 p-1 rounded-2xl" style={{ background: PAGE }}>
+            {[2, 3, 4, 5, 6].map((n) => (
+              <button
+                key={n}
+                onClick={() => {
+                  setNumPlayers(n);
+                  setPerPlayer(REC_COUNTS[n]);
+                }}
+                className="flex-1 py-2 rounded-xl font-bold tsz-14 transition"
+                style={numPlayers === n ? { background: BRAND, color: CREAM, boxShadow: "0 4px 10px -4px rgba(133,21,45,.6)" } : { color: `${INK}99` }}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: numPlayers }).map((_, i) => (
+            <div key={i} className="flex gap-2 hilla-fade">
+              <input
+                value={names[i]}
+                onChange={(e) => {
+                  const copy = [...names];
+                  copy[i] = e.target.value;
+                  setNames(copy);
+                }}
+                placeholder={`اسم اللاعب ${i + 1}`}
+                className="flex-1 min-w-0 rounded-xl px-3 py-2.5 tsz-13 focus:outline-none"
+                style={inputStyle}
+              />
+              <button
+                onClick={() => toggleBot(i)}
+                className="px-3 rounded-xl tsz-12 font-semibold whitespace-nowrap transition"
+                style={isBot[i] ? { background: INK, color: CREAM } : { color: INK, boxShadow: `inset 0 0 0 1.5px ${INK}26` }}
+                title="بوت يلعب بذكاء أوتوماتيكي"
+              >
+                {isBot[i] ? "🤖 بوت" : "🧍 إنسان"}
+              </button>
+            </div>
+          ))}
+          <p className="tsz-11" style={{ color: `${INK}77` }}>
+            🤖 البوتات تلعب بأقوى استراتيجية ممكنة: تحط أقصى عدد كروت مطابقة كل جولة، وتختار أذكى أكشن متاح.
           </p>
         </div>
-        <div className="rounded-2xl p-5 space-y-5 border-2" style={{ background: CREAM2, borderColor: GOLD }}>
-          <div>
-            <label className="text-sm flex items-center gap-2 mb-2 font-bold" style={{ color: MAROON }}>
-              <Users className="w-4 h-4" /> عدد اللاعبين
-            </label>
-            <div className="flex gap-2">
-              {[2, 3, 4, 5, 6].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => {
-                    setNumPlayers(n);
-                    setPerPlayer(REC_COUNTS[n]);
-                  }}
-                  className="flex-1 py-2 rounded-lg font-bold border-2"
-                  style={numPlayers === n ? { background: MAROON, color: CREAM, borderColor: MAROON } : { color: MAROON, borderColor: `${MAROON}55`, background: "transparent" }}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="space-y-2">
-            {Array.from({ length: numPlayers }).map((_, i) => (
-              <div key={i} className="flex gap-2">
-                <input
-                  value={names[i]}
-                  onChange={(e) => {
-                    const copy = [...names];
-                    copy[i] = e.target.value;
-                    setNames(copy);
-                  }}
-                  placeholder={`اسم اللاعب ${i + 1}`}
-                  className="flex-1 rounded-lg px-3 py-2 text-sm border-2 focus:outline-none"
-                  style={{ background: CREAM, color: INK, borderColor: `${MAROON}33` }}
-                />
-                <button
-                  onClick={() => toggleBot(i)}
-                  className="px-3 rounded-lg text-xs font-bold border-2 whitespace-nowrap"
-                  style={isBot[i] ? { background: MAROON, color: CREAM, borderColor: MAROON } : { color: MAROON, borderColor: `${MAROON}55`, background: "transparent" }}
-                  title="بوت يلعب بذكاء أوتوماتيكي"
-                >
-                  {isBot[i] ? "🤖 بوت" : "🧍 إنسان"}
-                </button>
-              </div>
-            ))}
-            <p className="text-[11px]" style={{ color: `${INK}66` }}>
-              🤖 البوتات تلعب بأقوى استراتيجية ممكنة: تحط أقصى عدد كروت مطابقة كل جولة، وتختار أذكى أكشن متاح.
-            </p>
-          </div>
-          <div>
-            <label className="text-sm mb-2 block font-bold" style={{ color: MAROON }}>
-              عدد الكروت لكل لاعب: <span style={{ color: GOLD }}>{perPlayer}</span>
-            </label>
-            <input type="range" min={10} max={20} value={perPlayer} onChange={(e) => setPerPlayer(Number(e.target.value))} className="w-full" style={{ accentColor: MAROON }} />
-          </div>
-          <button
-            onClick={() => {
-              const meta = Array.from({ length: numPlayers }).map((_, i) => ({
-                id: `p${i}`,
-                name: names[i]?.trim() || (isBot[i] ? `بوت ${i + 1}` : `لاعب ${i + 1}`),
-                isBot: !!isBot[i],
-              }));
-              onStart(createInitialGame(meta, perPlayer));
-            }}
-            className="w-full py-3 rounded-xl font-black text-lg hover:brightness-110 transition flex items-center justify-center gap-2"
-            style={{ background: MAROON, color: CREAM }}
-          >
-            <Sparkles className="w-5 h-5" style={{ color: GOLD }} /> ابدأوا اللعب
-          </button>
-          <button onClick={onBack} className="w-full text-xs" style={{ color: `${INK}77` }}>
-            رجوع
-          </button>
+        <div>
+          <label className="tsz-13 mb-2 flex items-center justify-between font-bold" style={{ color: INK }}>
+            عدد الكروت لكل لاعب
+            <span className="px-2.5 py-0.5 rounded-full tsz-13" style={{ background: GOLD, color: INK }}>
+              {perPlayer}
+            </span>
+          </label>
+          <input type="range" min={10} max={20} value={perPlayer} onChange={(e) => setPerPlayer(Number(e.target.value))} className="w-full" style={{ accentColor: BRAND }} />
         </div>
+        <button
+          onClick={() => {
+            const meta = Array.from({ length: numPlayers }).map((_, i) => ({
+              id: `p${i}`,
+              name: names[i]?.trim() || (isBot[i] ? `بوت ${i + 1}` : `لاعب ${i + 1}`),
+              isBot: !!isBot[i],
+            }));
+            onStart(createInitialGame(meta, perPlayer));
+          }}
+          className={`w-full py-3.5 tsz-17 flex items-center justify-center gap-2 ${btn}`}
+          style={btnPrimary}
+        >
+          <Sparkles className="w-5 h-5" style={{ color: GOLD }} /> ابدأوا اللعب
+        </button>
+        <button onClick={onBack} className="w-full tsz-12 font-semibold" style={{ color: `${INK}77` }}>
+          رجوع
+        </button>
       </div>
-    </div>
+    </ScreenShell>
   );
 }
 
@@ -2971,77 +3819,66 @@ function OnlineMenu({ myName, setMyName, onCreate, onJoin, onBack, error }) {
   const [joinCode, setJoinCode] = useState("");
   const [perPlayer, setPerPlayer] = useState(16);
   return (
-    <div dir="rtl" className="min-h-screen w-full flex items-center justify-center p-6" style={{ ...pageBg, fontFamily: "Tajawal" }}>
-      <GlobalFont />
-      <RulesFab />
-      <div className="w-full max-w-md">
-        <div className="text-center mb-5">
-          <CardBackHero />
-          <p className="mt-3 flex items-center justify-center gap-1.5" style={{ color: MAROON_DK }}>
-            <Wifi className="w-4 h-4" /> العب أونلاين — كل واحد بجهازه
-          </p>
-        </div>
-        <div className="rounded-2xl p-5 space-y-4 border-2" style={{ background: CREAM2, borderColor: GOLD }}>
-          <input
-            value={myName}
-            onChange={(e) => setMyName(e.target.value)}
-            placeholder="اسمك"
-            className="w-full rounded-lg px-3 py-2 text-sm border-2 focus:outline-none"
-            style={{ background: CREAM, color: INK, borderColor: `${MAROON}33` }}
-          />
+    <ScreenShell>
+      <div className="text-center mb-4">
+        <HeroFan scale={0.72} />
+        <p className="tsz-13 mt-1 flex items-center justify-center gap-1.5" style={{ color: `${INK}99` }}>
+          <Wifi className="w-4 h-4" /> العب أونلاين، كل واحد بجهازه
+        </p>
+      </div>
+      <div className="hr-28 p-5 space-y-4" style={panelStyle}>
+        <input
+          value={myName}
+          onChange={(e) => setMyName(e.target.value)}
+          placeholder="اسمك"
+          className="w-full rounded-xl px-3 py-2.5 tsz-14 focus:outline-none"
+          style={inputStyle}
+        />
 
-          <div className="border-t pt-4" style={{ borderColor: `${MAROON}22` }}>
-            <div className="text-sm font-bold mb-2" style={{ color: MAROON }}>
-              أنشئ غرفة جديدة
-            </div>
-            <label className="text-xs mb-1 block" style={{ color: `${INK}88` }}>
-              كروت لكل لاعب: <span style={{ color: GOLD }}>{perPlayer}</span>
-            </label>
-            <input type="range" min={10} max={20} value={perPlayer} onChange={(e) => setPerPlayer(Number(e.target.value))} className="w-full mb-3" style={{ accentColor: MAROON }} />
-            <button
-              onClick={() => onCreate(perPlayer)}
-              disabled={!myName.trim()}
-              className="w-full py-3 rounded-xl font-black disabled:opacity-40"
-              style={{ background: MAROON, color: CREAM }}
-            >
-              أنشئ غرفة
-            </button>
+        <div className="pt-3 border-t" style={{ borderColor: `${INK}12` }}>
+          <div className="tsz-14 font-bold mb-2" style={{ color: INK }}>
+            أنشئ غرفة جديدة
           </div>
-
-          <div className="border-t pt-4" style={{ borderColor: `${MAROON}22` }}>
-            <div className="text-sm font-bold mb-2" style={{ color: MAROON }}>
-              انضم لغرفة
-            </div>
-            <input
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              placeholder="كود الغرفة (مثال: A1B2)"
-              maxLength={4}
-              className="w-full rounded-lg px-3 py-2 text-sm border-2 mb-3 text-center tracking-widest font-black focus:outline-none"
-              style={{ background: CREAM, color: MAROON, borderColor: `${MAROON}33` }}
-            />
-            <button
-              onClick={() => onJoin(joinCode)}
-              disabled={!myName.trim() || joinCode.length !== 4}
-              className="w-full py-3 rounded-xl font-black disabled:opacity-40"
-              style={{ background: TEAL, color: CREAM }}
-            >
-              انضم
-            </button>
-          </div>
-
-          {error && (
-            <div className="text-xs font-bold text-center px-3 py-2 rounded-lg" style={{ background: `${MAROON}15`, color: MAROON }}>
-              {error}
-            </div>
-          )}
-
-          <button onClick={onBack} className="w-full text-xs" style={{ color: `${INK}77` }}>
-            رجوع
+          <label className="tsz-12 mb-1 flex items-center justify-between" style={{ color: `${INK}88` }}>
+            كروت لكل لاعب
+            <span className="px-2 rounded-full font-bold" style={{ background: GOLD, color: INK }}>
+              {perPlayer}
+            </span>
+          </label>
+          <input type="range" min={10} max={20} value={perPlayer} onChange={(e) => setPerPlayer(Number(e.target.value))} className="w-full mb-3" style={{ accentColor: BRAND }} />
+          <button onClick={() => onCreate(perPlayer)} disabled={!myName.trim()} className={`w-full py-3 tsz-15 ${btn}`} style={btnPrimary}>
+            أنشئ غرفة
           </button>
         </div>
+
+        <div className="pt-3 border-t" style={{ borderColor: `${INK}12` }}>
+          <div className="tsz-14 font-bold mb-2" style={{ color: INK }}>
+            انضم لغرفة
+          </div>
+          <input
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            placeholder="كود الغرفة (مثال: A1B2)"
+            maxLength={4}
+            className="w-full rounded-xl px-3 py-2.5 tsz-15 mb-3 text-center tracking-widest font-bold focus:outline-none"
+            style={{ ...inputStyle, color: BRAND }}
+          />
+          <button onClick={() => onJoin(joinCode)} disabled={!myName.trim() || joinCode.length !== 4} className={`w-full py-3 tsz-15 ${btn}`} style={{ background: INK, color: CREAM }}>
+            انضم
+          </button>
+        </div>
+
+        {error && (
+          <div className="tsz-12 font-semibold text-center px-3 py-2 rounded-xl" style={{ background: `${BRAND}14`, color: BRAND }}>
+            {error}
+          </div>
+        )}
+
+        <button onClick={onBack} className="w-full tsz-12 font-semibold" style={{ color: `${INK}77` }}>
+          رجوع
+        </button>
       </div>
-    </div>
+    </ScreenShell>
   );
 }
 
@@ -3058,99 +3895,100 @@ function OnlineLobby({ room, myId, onStart, onAddBot, onRemoveBot, onBack }) {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen w-full flex items-center justify-center p-6" style={{ ...pageBg, fontFamily: "Tajawal" }}>
-      <GlobalFont />
-      <RulesFab />
-      <div className="w-full max-w-md">
-        <div className="text-center mb-5">
-          <div className="text-2xl font-black mb-2" style={{ color: MAROON, fontFamily: "Aref Ruqaa" }}>
-            حُلّة
-          </div>
-          <div className="text-xs mb-1" style={{ color: `${INK}88` }}>
-            كود الغرفة — شاركه مع أصحابك
-          </div>
-          <button
-            onClick={copyCode}
-            className="mx-auto flex items-center gap-2 px-6 py-3 rounded-2xl border-4 text-3xl font-black tracking-[0.3em]"
-            style={{ borderColor: MAROON, color: MAROON, background: CREAM2 }}
-          >
-            {room.code}
-            {copied ? <Check className="w-5 h-5" style={{ color: TEAL }} /> : <Copy className="w-5 h-5 opacity-50" />}
-          </button>
-          <p className="text-[11px] mt-2" style={{ color: `${INK}66` }}>
-            كل صديق يفتح نفس رابط هذي المحادثة، يضغط "العب أونلاين ← انضم لغرفة" ويدخل الكود.
-          </p>
+    <ScreenShell>
+      <div className="text-center mb-5">
+        <Wordmark height={52} className="mb-3" />
+        <div className="tsz-12 mb-1.5" style={{ color: `${INK}88` }}>
+          كود الغرفة، شاركه مع أصحابك
         </div>
-
-        <div className="rounded-2xl p-5 space-y-3 border-2" style={{ background: CREAM2, borderColor: GOLD }}>
-          <div className="text-sm font-bold" style={{ color: MAROON }}>
-            اللاعبون ({room.lobby.length}/{room.maxPlayers})
-          </div>
-          {room.lobby.map((p) => (
-            <div key={p.id} className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: CREAM }}>
-              <span className="text-sm font-bold" style={{ color: INK }}>
-                {p.isBot ? "🤖 " : ""}
-                {p.name} {p.id === room.hostId && <span style={{ color: GOLD }}>(المضيف)</span>} {p.id === myId && <span style={{ color: TEAL }}>— أنت</span>}
-              </span>
-              {isHost && p.isBot && (
-                <button onClick={() => onRemoveBot(p.id)} className="text-xs font-bold px-2 py-1 rounded" style={{ color: MAROON, background: `${MAROON}15` }} title="أزل البوت">
-                  ✕
-                </button>
-              )}
-            </div>
-          ))}
-
-          {isHost && (
-            <button
-              onClick={onAddBot}
-              disabled={room.lobby.length >= room.maxPlayers}
-              className="w-full py-2 rounded-lg text-sm font-bold border-2 disabled:opacity-40"
-              style={{ color: MAROON, borderColor: `${MAROON}55`, background: "transparent" }}
-            >
-              🤖 أضف بوت
-            </button>
-          )}
-
-          {isHost ? (
-            <button
-              onClick={onStart}
-              disabled={room.lobby.length < 2}
-              className="w-full py-3 rounded-xl font-black disabled:opacity-40 flex items-center justify-center gap-2"
-              style={{ background: MAROON, color: CREAM }}
-            >
-              <Sparkles className="w-5 h-5" style={{ color: GOLD }} /> ابدأ اللعبة
-            </button>
-          ) : (
-            <div className="text-center text-xs py-2" style={{ color: `${INK}66` }}>
-              بانتظار المضيف يبدأ اللعبة...
-            </div>
-          )}
-          {isHost && room.lobby.length < 2 && (
-            <div className="text-[11px] text-center" style={{ color: `${INK}55` }}>
-              لازم لاعبين اثنين على الأقل.
-            </div>
-          )}
-
-          {/* #30 — manual refresh for when the polling/waiting screen hangs. Production's
-              session-reconnect returns the player to their room after reload. */}
-          <button
-            onClick={() => {
-              try {
-                window.location.reload();
-              } catch {}
-            }}
-            className="w-full text-xs flex items-center justify-center gap-1 py-1.5 rounded-lg border-2"
-            style={{ color: MAROON, borderColor: `${MAROON}44` }}
-          >
-            <RefreshCw className="w-3 h-3" /> تحديث الصفحة
-          </button>
-
-          <button onClick={onBack} className="w-full text-xs flex items-center justify-center gap-1" style={{ color: `${INK}77` }}>
-            <LogOut className="w-3 h-3" /> اخرج من الغرفة
-          </button>
-        </div>
+        <button
+          onClick={copyCode}
+          className="mx-auto flex items-center gap-3 pl-4 pr-6 py-3 hr-22 text-3xl font-bold htrack-3 transition hpress-98"
+          style={{ color: BRAND, background: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 14px 30px -16px rgba(60,30,10,.5)` }}
+        >
+          {room.code}
+          {copied ? <Check className="w-5 h-5" style={{ color: REGION_BY_ID.sharqi.color }} /> : <Copy className="w-5 h-5 opacity-50" />}
+        </button>
+        <p className="tsz-11 mt-2" style={{ color: `${INK}77` }}>
+          كل صديق يفتح نفس رابط هذي المحادثة، يضغط "العب أونلاين ← انضم لغرفة" ويدخل الكود.
+        </p>
       </div>
-    </div>
+
+      <div className="hr-28 p-5 space-y-2.5" style={panelStyle}>
+        <div className="tsz-14 font-bold" style={{ color: INK }}>
+          اللاعبون ({room.lobby.length}/{room.maxPlayers})
+        </div>
+        {room.lobby.map((p, i) => (
+          <div key={p.id} className="flex items-center gap-2.5 px-2 py-2 rounded-2xl hilla-fade" style={{ background: PAGE }}>
+            <RegionBadge region={REGION_ORDER[i % 4]} size={28} radius={8} />
+            <span className="tsz-13 font-semibold flex-1" style={{ color: INK }}>
+              {p.isBot ? "🤖 " : ""}
+              {p.name}
+            </span>
+            {p.id === room.hostId && (
+              <span className="tsz-11 font-semibold px-2 py-0.5 rounded-full" style={{ background: GOLD, color: INK }}>
+                المضيف
+              </span>
+            )}
+            {p.id === myId && (
+              <span className="tsz-11 font-semibold px-2 py-0.5 rounded-full" style={{ background: INK, color: CREAM }}>
+                أنت
+              </span>
+            )}
+            {isHost && p.isBot && (
+              <button onClick={() => onRemoveBot(p.id)} className="tsz-12 font-bold w-7 h-7 rounded-full flex items-center justify-center" style={{ color: BRAND, background: `${BRAND}14` }} title="أزل البوت">
+                ✕
+              </button>
+            )}
+          </div>
+        ))}
+
+        {isHost && (
+          <button
+            onClick={onAddBot}
+            disabled={room.lobby.length >= room.maxPlayers}
+            className={`w-full py-2.5 tsz-13 mt-1 ${btn}`}
+            style={btnGhost}
+          >
+            🤖 أضف بوت
+          </button>
+        )}
+        {isHost ? (
+          <button onClick={onStart} disabled={room.lobby.length < 2} className={`w-full py-3.5 tsz-15 flex items-center justify-center gap-2 mt-2 ${btn}`} style={btnPrimary}>
+            <Sparkles className="w-5 h-5" style={{ color: GOLD }} /> ابدأ اللعبة
+          </button>
+        ) : (
+          <div className="text-center tsz-12 py-2 flex items-center justify-center gap-2" style={{ color: `${INK}77` }}>
+            بانتظار المضيف يبدأ اللعبة
+            <span className="flex gap-0.5">
+              {[0, 1, 2].map((i) => (
+                <span key={i} className="w-1 h-1 rounded-full hilla-dot" style={{ background: GOLD_DK, animationDelay: `${i * 150}ms` }} />
+              ))}
+            </span>
+          </div>
+        )}
+        {isHost && room.lobby.length < 2 && (
+          <div className="tsz-11 text-center" style={{ color: `${INK}66` }}>
+            لازم لاعبين اثنين على الأقل.
+          </div>
+        )}
+
+        <button
+          onClick={() => {
+            try {
+              window.location.reload();
+            } catch {}
+          }}
+          className="w-full tsz-12 font-semibold flex items-center justify-center gap-1 pt-1"
+          style={{ color: `${INK}77` }}
+        >
+          <RefreshCw className="w-3 h-3" /> تحديث الصفحة
+        </button>
+        <button onClick={onBack} className="w-full tsz-12 font-semibold flex items-center justify-center gap-1" style={{ color: `${INK}77` }}>
+          <LogOut className="w-3 h-3" /> اخرج من الغرفة
+        </button>
+      </div>
+    </ScreenShell>
   );
 }
 
@@ -3456,12 +4294,14 @@ function OnlineFlow({ onBack }) {
     );
   }
   return (
-    <div dir="rtl" className="min-h-screen w-full flex items-center justify-center" style={{ ...pageBg, fontFamily: "Tajawal", color: MAROON }}>
+    <div dir="rtl" className="hilla-root min-h-screen w-full flex flex-col items-center justify-center gap-3" style={{ ...pageBg, color: INK }}>
       <GlobalFont />
-      جاري التحميل...
+      <Wordmark height={44} />
+      <span className="tsz-13" style={{ color: `${INK}88` }}>جاري التحميل…</span>
     </div>
   );
 }
+
 
 /* --------------------------------- APP ROOT --------------------------------- */
 
@@ -3475,7 +4315,7 @@ export default function HillaGame() {
 
   if (mode === "boot") {
     return (
-      <div dir="rtl" className="min-h-screen w-full flex items-center justify-center" style={{ ...pageBg, fontFamily: "Tajawal", color: MAROON }}>
+      <div dir="rtl" className="hilla-root min-h-screen w-full flex items-center justify-center" style={{ ...pageBg, color: MAROON }}>
         <GlobalFont />
         جاري التحميل...
       </div>
@@ -3484,38 +4324,38 @@ export default function HillaGame() {
 
   if (mode === "home") {
     return (
-      <div dir="rtl" className="min-h-screen w-full flex items-center justify-center p-6" style={{ ...pageBg, fontFamily: "Tajawal" }}>
+      <div dir="rtl" className="hilla-root min-h-screen w-full flex items-center justify-center p-6" style={{ ...pageBg, color: INK }}>
         <GlobalFont />
         <RulesFab />
-        <div className="w-full max-w-md text-center">
-          <CardBackHero />
-          <p className="mt-3 mb-6" style={{ color: MAROON_DK }}>
+          <div className="w-full max-w-md text-center relative" style={{ zIndex: 1 }}>
+          <CardBack size={160} tall className="mx-auto" style={{ boxShadow: "0 20px 40px -14px rgba(60,30,10,.55)" }} />
+          <p className="mt-4 mb-6 tsz-15" style={{ color: MAROON_DK }}>
             لعبة مطابقة الأزياء التقليدية السعودية
           </p>
           <div className="space-y-3">
             <button
               onClick={() => setMode("local")}
-              className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2"
-              style={{ background: MAROON, color: CREAM }}
+              className={`w-full py-4 tsz-17 flex items-center justify-center gap-2 ${btn}`}
+              style={{ background: BRAND, color: CREAM }}
             >
               <Home className="w-5 h-5" style={{ color: GOLD }} /> العب على نفس الجهاز
             </button>
             <button
               onClick={() => setMode("online")}
-              className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 border-2"
-              style={{ background: CREAM2, color: MAROON, borderColor: MAROON }}
+              className={`w-full py-4 tsz-17 flex items-center justify-center gap-2 border-2 ${btn}`}
+              style={{ background: CREAM, color: BRAND, borderColor: BRAND }}
             >
               <Wifi className="w-5 h-5" /> العب أونلاين (كود غرفة)
             </button>
           </div>
 
           <div className="mt-8 text-center">
-            <OrnateDivider color={GOLD} />
-            <p className="text-xs font-bold mt-1" style={{ color: MAROON }}>
+            <GoldRule className="my-1.5" />
+            <p className="tsz-12 font-bold mt-1" style={{ color: BRAND }}>
               صُممت بأيدي سعودية 🇸🇦
             </p>
-            <p className="text-[11px] mt-0.5" style={{ color: `${INK}77` }}>
-              طالبة جامعة الأميرة نورة — لمقرر Core Studio
+            <p className="tsz-11 mt-0.5" style={{ color: `${INK}77` }}>
+              طالبة جامعة الأميرة نورة، لمقرر Core Studio
             </p>
           </div>
         </div>
