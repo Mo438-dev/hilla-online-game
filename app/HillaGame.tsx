@@ -935,7 +935,7 @@ function RegionBadge({ region, size = 18, radius }) {
 // two motifs. Sizes are relative to the column width. The column shows a whole number of motifs,
 // connectors only between them — and for غربي, a gold star at both ends as well.
 const ORN_COL = {
-  najdi: { tile: 1, conn: 0.2699, caps: false }, // full (uncropped) diamond tile, 84×84
+  najdi: { tile: 1, conn: 0.2699, caps: false }, // full (uncropped) diamond tile, square
   sharqi: { tile: 0.9837, conn: 0, caps: false },
   janoubi: { tile: 1.206, conn: 0.168, caps: false },
   gharbi: { tile: 1.6667, conn: 0.2824, caps: true },
