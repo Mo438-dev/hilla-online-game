@@ -59,4 +59,5 @@ export const HILLA_ART: Record<string, string> = {
   "ornvM_gharbi": "/hilla-art/ornaments/ornvM_gharbi.webp",
   "ornvC_gharbi": "/hilla-art/ornaments/ornvC_gharbi.webp",
   "wordmark": "/hilla-art/wordmark.webp",
+  "saudi_made": "/hilla-art/saudi-made.webp",
 };

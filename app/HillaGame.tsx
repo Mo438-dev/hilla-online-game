@@ -3623,6 +3623,13 @@ function HowToPlay({ onClose, bigText }) {
             فيصعب تصريفه.
           </Section>
 
+          {/* Maker's stamp: «حُلّة | SAUDI MADE» — the wordmark and the Saudi Made mark read as one seal. */}
+          <div className="flex items-center justify-center gap-3 mt-1 mb-4" aria-label="حُلّة، صُنع في السعودية">
+            <Wordmark height={30} />
+            <span aria-hidden="true" style={{ width: 1, height: 30, background: GOLD }} />
+            <img src={ART.saudi_made} alt="Saudi Made" draggable={false} style={{ height: 26, width: "auto", display: "block" }} />
+          </div>
+
           <button onClick={onClose} className={`w-full py-3 tsz-14 ${btn}`} style={btnPrimary}>
             يلا نلعب
           </button>
