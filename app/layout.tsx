@@ -31,16 +31,8 @@ export const metadata: Metadata = {
     telephone: false
   },
   icons: {
-    icon: [
-      { url: '/pwa-icon?size=32', sizes: '32x32', type: 'image/png' },
-      { url: '/pwa-icon?size=192', sizes: '192x192', type: 'image/png' },
-      { url: '/pwa-icon?size=512', sizes: '512x512', type: 'image/png' }
-    ],
-    apple: [{ url: '/pwa-icon?size=180&apple=1', sizes: '180x180', type: 'image/png' }],
-    shortcut: [
-      { url: '/pwa-icon?size=192', sizes: '192x192', type: 'image/png' },
-      { url: '/pwa-icon?size=512&maskable=1', sizes: '512x512', type: 'image/png' }
-    ]
+    icon: [{ url: '/icons/e2/favicon-32.png', sizes: '32x32', type: 'image/png' }],
+    apple: [{ url: '/icons/e2/apple-touch-icon-180.png', sizes: '180x180', type: 'image/png' }]
   },
   other: {
     'mobile-web-app-capable': 'yes',

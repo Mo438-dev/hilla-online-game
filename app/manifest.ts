@@ -11,16 +11,17 @@ export default function manifest(): MetadataRoute.Manifest {
     display: 'standalone',
     orientation: 'portrait',
     background_color: '#F3E9D2',
-    theme_color: '#6B1F2A',
+    theme_color: '#85152D',
     lang: 'ar',
     dir: 'rtl',
     categories: ['games', 'entertainment'],
+    // #61 default app icon (e2). The player can pick another before installing; the client then
+    // points <link rel="manifest"> at /manifest-<key>.webmanifest (same content, other icons).
     icons: [
-      { src: '/pwa-icon?size=192', sizes: '192x192', type: 'image/png' },
-      { src: '/pwa-icon?size=512', sizes: '512x512', type: 'image/png' },
-      { src: '/pwa-icon?size=1024', sizes: '1024x1024', type: 'image/png' },
-      { src: '/pwa-icon?size=512&maskable=1', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-      { src: '/pwa-icon?size=180&apple=1', sizes: '180x180', type: 'image/png' }
+      { src: '/icons/e2/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { src: '/icons/e2/icon-512.png', sizes: '512x512', type: 'image/png' },
+      { src: '/icons/e2/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: '/icons/e2/apple-touch-icon-180.png', sizes: '180x180', type: 'image/png' }
     ]
   };
 }
