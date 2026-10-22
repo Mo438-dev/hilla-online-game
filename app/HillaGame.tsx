@@ -5124,15 +5124,15 @@ function LoadingSplash({ progress }) {
    so the choice has to be made before adding (to change it later: remove and re-add). Thumbnails
    only here; production serves the full icon set from /icons/<key>/. */
 const APP_ICONS = [
-  { key: "e2", src: "/icons/e2/apple-touch-icon-180.png" },
-  { key: "f", src: "/icons/f/apple-touch-icon-180.png" },
-  { key: "b", src: "/icons/b/apple-touch-icon-180.png" },
-  { key: "a2", src: "/icons/a2/apple-touch-icon-180.png" },
-  { key: "d2", src: "/icons/d2/apple-touch-icon-180.png" },
-  { key: "najdi", src: "/icons/najdi/apple-touch-icon-180.png" },
-  { key: "sharqi", src: "/icons/sharqi/apple-touch-icon-180.png" },
-  { key: "janoubi", src: "/icons/janoubi/apple-touch-icon-180.png" },
-  { key: "gharbi", src: "/icons/gharbi/apple-touch-icon-180.png" },
+  { key: "e2", src: "/icons/e2/icon-192.png" },
+  { key: "f", src: "/icons/f/icon-192.png" },
+  { key: "b", src: "/icons/b/icon-192.png" },
+  { key: "a2", src: "/icons/a2/icon-192.png" },
+  { key: "d2", src: "/icons/d2/icon-192.png" },
+  { key: "najdi", src: "/icons/najdi/icon-192.png" },
+  { key: "sharqi", src: "/icons/sharqi/icon-192.png" },
+  { key: "janoubi", src: "/icons/janoubi/icon-192.png" },
+  { key: "gharbi", src: "/icons/gharbi/icon-192.png" },
 ];
 const DEFAULT_APP_ICON = "e2";
 const APP_ICON_STORE = "hulla-app-icon";

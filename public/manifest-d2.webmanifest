@@ -27,7 +27,7 @@
       "type": "image/png"
     },
     {
-      "src": "/icons/d2/maskable-512.png",
+      "src": "/icons/d2/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

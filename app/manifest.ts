@@ -20,7 +20,7 @@ export default function manifest(): MetadataRoute.Manifest {
     icons: [
       { src: '/icons/e2/icon-192.png', sizes: '192x192', type: 'image/png' },
       { src: '/icons/e2/icon-512.png', sizes: '512x512', type: 'image/png' },
-      { src: '/icons/e2/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: '/icons/e2/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
       { src: '/icons/e2/apple-touch-icon-180.png', sizes: '180x180', type: 'image/png' }
     ]
   };
