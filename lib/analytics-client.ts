@@ -97,7 +97,7 @@ export function sendGameStarted(game: any, roomCode: string | null) {
     type: 'started',
     gameId: game.analyticsId,
     roomCode: roomCode || null,
-    rulesetVersion: RULESET_VERSION,
+    rulesetVersion: game.rulesetVersion ?? 'v2.1',
     players: (game.players || []).map((p: any) => ({ id: p.id, name: p.name, isBot: !!p.isBot })),
     firstCoord: game.currentCoord
       ? {

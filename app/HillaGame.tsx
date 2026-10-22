@@ -30,7 +30,9 @@ const RARITY_META = {
   medium: { label: "متوسط", color: "#E4A324", text: "#3A2608" },
   rare: { label: "نادر", color: "#A81E23", text: "#FCF3E2" },
 };
-const RARITY_COPIES = { common: 7, medium: 5, rare: 3 };
+// Deck v2.2: every item has the same number of copies. 32 items × 3 = 96 item cards + 14 actions = 110.
+// Rarity now only shapes how often an item appears on coordination cards (10 / 7 / 4).
+const ITEM_COPIES = 3;
 
 const REGIONS = [
   {
@@ -181,6 +183,13 @@ const ACTION_TYPES = [
 ];
 
 const REC_COUNTS = { 2: 20, 3: 17, 4: 15, 5: 12, 6: 10 };
+// v2.2: max cards per player by player count. With 5–6 players the draw pile starts small (15 / 2);
+// when it runs out, the played cards are shuffled into a new draw pile (drawFromPile).
+const HAND_MIN = 10;
+const HAND_MAX_BY_PLAYERS = { 2: 20, 3: 20, 4: 20, 5: 19, 6: 18 };
+function maxHandFor(players) {
+  return HAND_MAX_BY_PLAYERS[players] ?? 20;
+}
 
 const BOT_NAME_POOL = [
   "أنا مجرد بوت", "بوت أبو ناصر", "أبو الذكاء الاصطناعي", "لا تضغطني", "نسخة اقتصادية",
@@ -266,8 +275,7 @@ function buildItemDeck() {
   const deck = [];
   REGIONS.forEach((r) => {
     r.items.forEach((it) => {
-      const copies = RARITY_COPIES[it.rarity];
-      for (let k = 0; k < copies; k++) {
+      for (let k = 0; k < ITEM_COPIES; k++) {
         deck.push({ id: uid(), kind: "item", name: it.name, region: r.id, regionName: r.name, color: r.color, rarity: it.rarity });
       }
     });
@@ -294,7 +302,7 @@ function buildActionDeck() {
    region card can't let a player dump too much at once).
    Appearance targets per individual item across the whole deck: common 10, medium 7, rare 4.
    With the current 8 common / 20 medium / 4 rare roster that's ~236 total item appearances. */
-const RULESET_VERSION = "v2.1"; // keep in sync with lib/analytics-config.ts (analytics ruleset_version)
+const RULESET_VERSION = "v2.2"; // keep in sync with lib/analytics-config.ts (analytics ruleset_version)
 
 const COORD_RANDOM_CARDS = 30;
 const COORD_REGION_CARDS_PER_REGION = 5;
@@ -376,7 +384,7 @@ function createInitialGame(playersMeta, perPlayer) {
   const items = shuffle(buildItemDeck());
   const actions = shuffle(buildActionDeck());
   const full = shuffle([...items, ...actions]);
-  const cap = Math.min(perPlayer, Math.floor(full.length / playersMeta.length));
+  const cap = Math.min(perPlayer, maxHandFor(playersMeta.length), Math.floor(full.length / playersMeta.length));
   const players = playersMeta.map((pm) => ({ id: pm.id, name: pm.name, hand: [], isBot: !!pm.isBot, missedTurns: 0, inactive: false }));
   for (let i = 0; i < cap; i++) {
     players.forEach((p) => p.hand.push(full.pop()));
@@ -388,6 +396,7 @@ function createInitialGame(playersMeta, perPlayer) {
     // document so every client reports events under the same game_id. Has no
     // effect on gameplay.
     analyticsId: newAnalyticsGameId(),
+    rulesetVersion: RULESET_VERSION, // analytics tags the game with the rules it was dealt under
     players,
     drawPile: full,
     discardPile: [],
@@ -433,15 +442,20 @@ function drawFromPile(game, n) {
   let pile = [...game.drawPile];
   let disc = [...game.discardPile];
   const out = [];
+  let reshuffled = false;
   for (let i = 0; i < n; i++) {
     if (pile.length === 0) {
       if (disc.length === 0) break;
+      // draw pile ran out: shuffle the played cards into a new draw pile
       pile = shuffle(disc);
       disc = [];
+      reshuffled = true;
     }
     out.push(pile.pop());
   }
-  return { game: { ...game, drawPile: pile, discardPile: disc }, drawn: out };
+  let g = { ...game, drawPile: pile, discardPile: disc };
+  if (reshuffled) g = pushLog(g, "خلصت كومة السحب، انخلطت الكروت الملعوبة وصارت كومة سحب جديدة.");
+  return { game: g, drawn: out };
 }
 
 function removeFromHand(game, playerId, cardIds) {
@@ -1180,6 +1194,7 @@ const BOT_NAME_POOLS = {
 
 // Engine log lines (shared, Arabic) → viewer's language. Each rule is [regex, en(m), es(m)].
 const LOG_RULES = [
+  [/^خلصت كومة السحب، انخلطت الكروت الملعوبة وصارت كومة سحب جديدة\.$/, () => "The draw pile ran out: the played cards were shuffled into a new draw pile.", () => "Se acabó el mazo: las cartas jugadas se barajaron como mazo nuevo."],
   [/^بدأت اللعبة بـ (\d+) لاعبين، (\d+) كرت لكل لاعب\.$/, (m) => `Game started: ${m[1]} players, ${m[2]} cards each.`, (m) => `Empieza la partida: ${m[1]} jugadores, ${m[2]} cartas cada uno.`],
   [/^ثبّت الحَلّة: يبقى نفس كرت التنسيق لجولة إضافية\.$/, () => "Lock the Look: the same coordination card stays another round.", () => "Fija el look: la misma carta de coordinación se queda otra ronda."],
   [/^كرت تنسيق جديد: (.+)\.$/, (m, L) => `New coordination card: ${L.regionAr(m[1])}.`, (m, L) => `Nueva carta de coordinación: ${L.regionAr(m[1])}.`],
@@ -4431,7 +4446,7 @@ function LocalSetup({ onStart, onBack }) {
                 key={n}
                 onClick={() => {
                   setNumPlayers(n);
-                  setPerPlayer(REC_COUNTS[n]);
+                  setPerPlayer(Math.min(REC_COUNTS[n], maxHandFor(n)));
                 }}
                 className="flex-1 py-2 rounded-xl font-bold tsz-14 transition"
                 style={numPlayers === n ? { background: BRAND, color: CREAM, boxShadow: "0 4px 10px -4px rgba(133,21,45,.6)" } : { color: `${INK}99` }}
@@ -4476,7 +4491,7 @@ function LocalSetup({ onStart, onBack }) {
               {perPlayer}
             </span>
           </label>
-          <input type="range" min={10} max={20} value={perPlayer} onChange={(e) => setPerPlayer(Number(e.target.value))} className="w-full" style={{ accentColor: BRAND }} />
+          <input type="range" min={HAND_MIN} max={maxHandFor(numPlayers)} value={Math.min(perPlayer, maxHandFor(numPlayers))} onChange={(e) => setPerPlayer(Number(e.target.value))} className="w-full" style={{ accentColor: BRAND }} />
         </div>
         <button
           onClick={() => {
