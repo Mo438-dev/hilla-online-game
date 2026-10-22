@@ -150,6 +150,38 @@ export async function claimTurnTimeout(code: string, nextRoom: RoomDoc, expected
   return { ok: true as const, room: toRoomDoc(data as RoomRow) };
 }
 
+// #58 — a player passes on «لا ما تقدر» ("لا، ما راح أستخدمه"). Read-modify-write guarded by the
+// row version (updated_at) and the pending action's id, retried on a concurrent write. It only ever
+// adds the player to pendingAction.declinedIds, and refuses if that action has already resolved, so
+// a late pass can never resurrect or overwrite a resolution (unlike a blind full-room save).
+export async function declineBlock(code: string, playerId: string, pendingActionId: string) {
+  const supabase = getSupabaseAdmin();
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { data: row, error } = await supabase.from(ROOMS_TABLE).select('*').eq('code', code).maybeSingle();
+    if (error) throw error;
+    if (!row) return { ok: false as const, reason: 'not_found' as const };
+    const game = (row as RoomRow).game as any;
+    const pa = game?.pendingAction;
+    if (!pa || pa.id !== pendingActionId) return { ok: false as const, reason: 'stale' as const };
+    if (!Array.isArray(game.players) || !game.players.some((p: any) => p.id === playerId)) {
+      return { ok: false as const, reason: 'not_player' as const };
+    }
+    const declined: string[] = Array.isArray(pa.declinedIds) ? pa.declinedIds : [];
+    if (declined.includes(playerId)) return { ok: true as const, room: toRoomDoc(row as RoomRow) };
+    const nextGame = { ...game, pendingAction: { ...pa, declinedIds: [...declined, playerId] } };
+    const { data, error: upErr } = await supabase
+      .from(ROOMS_TABLE)
+      .update({ game: nextGame })
+      .eq('code', code)
+      .eq('updated_at', (row as RoomRow).updated_at)
+      .select()
+      .maybeSingle();
+    if (upErr) throw upErr;
+    if (data) return { ok: true as const, room: toRoomDoc(data as RoomRow) };
+  }
+  return { ok: false as const, reason: 'busy' as const };
+}
+
 export async function joinRoom(code: string, player: PlayerMeta) {
   const room = await getRoom(code);
   if (!room) return { error: 'not_found' as const };

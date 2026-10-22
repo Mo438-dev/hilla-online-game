@@ -236,8 +236,12 @@ function pickRandomBotNames(n) {
   return shuffle(BOT_NAME_POOL).slice(0, n);
 }
 
-const BLOCK_WINDOW_SEC = 10;
+const BLOCK_WINDOW_SEC = 15; // long enough to actually read the action and decide
 const BLOCK_WINDOW_MS = BLOCK_WINDOW_SEC * 1000;
+// When everyone who could block has passed, the action still stays on screen at least this long
+// (from the moment it appeared) so people can read what happened. Not applied when no human can
+// intervene at all (bots only) — that case already uses the short 2.5s window.
+const PASS_MIN_READ_MS = 4000;
 
 let _uid = 0;
 const uid = () => `c${Date.now().toString(36)}${(_uid++).toString(36)}`;
@@ -675,6 +679,28 @@ function rCancelWithBlock(game, blockerId) {
   return g1;
 }
 
+// A player who holds لا ما تقدر chooses not to use it on the current pending action. Pure and
+// additive: just records their id on the pending action (shared state, so every client knows).
+function rDeclineBlock(game, playerId) {
+  const pa = game.pendingAction;
+  if (!pa) return game;
+  const declined = pa.declinedIds || [];
+  if (declined.includes(playerId)) return game;
+  return { ...game, pendingAction: { ...pa, declinedIds: [...declined, playerId] } };
+}
+
+// True once every human who could still block (holds لا ما تقدر, isn't the actor) has passed —
+// at that point there's nothing left to wait for and the action can resolve right away.
+function allHumanBlockersDeclined(game) {
+  const pa = game.pendingAction;
+  if (!pa) return false;
+  const declined = pa.declinedIds || [];
+  const humans = game.players.filter(
+    (p) => p.id !== pa.actorId && !p.isBot && p.hand.some((c) => c.kind === "action" && c.actionType === "block")
+  );
+  return humans.length > 0 && humans.every((p) => declined.includes(p.id));
+}
+
 function rResolvePendingAction(game) {
   const pa = game.pendingAction;
   if (!pa) return game;
@@ -843,6 +869,467 @@ function botDecideTurn(game, botId) {
   return rPassTurn(g, botId);
 }
 
+/* ---------------------------------- I18N ----------------------------------
+   Display-only translation layer. Game state, engine and online sync stay in Arabic exactly as
+   before (item names, log lines, errors); everything is translated at render time, so each player
+   can pick their own language and nothing shared changes. Default is always Arabic. */
+
+const LANGS = [
+  { code: "ar", label: "العربية", dir: "rtl" },
+  { code: "en", label: "English", dir: "ltr" },
+  { code: "es", label: "Español", dir: "ltr" },
+];
+
+const I18N = {
+  ar: {},
+  en: {
+    // generic
+    you: "You", cancel: "Cancel", back: "Back", refresh: "Refresh page", language: "Language",
+    random: "Random", oneCardOnly: "One card only", severalNoRepeat: "Several cards · no repeats",
+    drawPile: "Draw", lastCard: "Last card", round: "Round {n}", menu: "Menu", reactions: "Reactions",
+    // home + setup
+    tagline: "A matching game of traditional Saudi dress",
+    playLocal: "Play on this device", playOnline: "Play online (room code)",
+    madeBy: "Designed by Saudi hands 🇸🇦", credit: "A Princess Nourah University student, for Core Studio",
+    errCreate: "Couldn't create the room, try again.", addBot: "🤖 Add a bot", removeBot: "Remove bot",
+    svThanks: "Thanks for the feedback! 💛", svTitle: "Your opinion matters (optional)", svSkip: "Skip",
+    svFun: "How fun was the game?", svClear: "Were the rules clear?", svAgain: "Would you play again?",
+    svYes: "Definitely 😍", svNo: "Nope 😅", svComment: "Comment (optional)", svSend: "Send",
+    localIntro: "Everyone plays on the same device, and you can add bots that play automatically",
+    numPlayers: "Players", playerNamePh: "Player {n} name", botTitle: "A bot that plays smart, automatically",
+    bot: "🤖 Bot", human: "🧍 Human",
+    botNote: "🤖 Bots play the strongest strategy possible: they place as many matching cards as they can each round and pick the smartest action available.",
+    cardsPerPlayer: "Cards per player", startPlaying: "Start playing", playerN: "Player {n}", botN: "Bot {n}",
+    // online
+    onlineIntro: "Play online, each on your own device", yourName: "Your name", createRoom: "Create a new room",
+    create: "Create room", joinRoom: "Join a room", roomCodePh: "Room code (e.g. A1B2)", join: "Join",
+    roomCodeShare: "Room code, share it with your friends",
+    lobbyHint: 'Each friend opens this same chat link, taps "Play online → Join a room" and enters the code.',
+    playersCount: "Players ({n}/{m})", host: "Host", startGame: "Start game", waitingHost: "Waiting for the host to start",
+    needTwo: "You need at least two players.", leaveRoom: "Leave room", loading: "Loading…", preparing: "Getting ready…",
+    errSave: "Couldn't save. Check your connection and try again.", errNoRoom: "We couldn't find that room. Check the code.",
+    errStarted: "The game in this room has already started.", errFull: "The room is full.",
+    // board
+    thinking: "🤖 {name} is thinking", thinkingDots: "🤖 {name} is thinking…",
+    inactiveNow: "😴 {name} is inactive right now", yourTurn: "Your turn, play before time runs out", turnOf: "{name}'s turn",
+    lockOn: "Lock the Look is on: same card for another round",
+    yourHand: "Your hand", handOf: "{name}'s hand", sortRegion: "Sort by region", clothing: "Clothing",
+    actionsHint: "Action: just one, before you place your clothing", usedThisTurn: " · used this turn",
+    noClothing: "You have no clothing cards.", pickMatching: "Pick cards that match",
+    playN1: "Play the card", playN2: "Play both cards", playN: "Play {n} cards", endTurn: "I'm done",
+    log: "Log", passTo: "Pass the device to", reveal: "Reveal your hand",
+    youWon: "You won!", wonName: "{name} won!", playAgain: "Play again",
+    // pending action
+    youUse: "You're using", usesX: "{name} is using", againstYou: "Against you!", against: "Against {name}",
+    canBlockYou: "You can use <b>No You Don't!</b> before the countdown ends.", autoResolve: "It goes through automatically after the countdown.",
+    anyoneBlock: "Anyone holding <b>No You Don't!</b> can use it now, otherwise it goes through after the countdown.",
+    useBlock: "Use No You Don't!", useBlockName: "{name}: use No You Don't!", passBlock: "No, I'll let it go",
+    noBlockCard: "{name} doesn't have a No You Don't! card.", blockOnlyReactive: "No You Don't! is only used as a reaction when someone plays an action.",
+    whoTarget: "On whom?", digTitle: "Search the Chest", digHint: "Pick one card to keep; the rest go back to the pile.",
+    digging: "{name} is searching the chest…",
+    giveTitle: "Give & Take", givePick2: "Pick two cards from your hand to give the other player.", givePick1: "Pick one card from your hand to give the other player.",
+    confirm: "Confirm ({a}/{b})",
+    spectator: "{actor} is using <b>{action}</b> against {target}", blocked: "{blocker} stopped {actor} with No You Don't!",
+    // menu
+    continue: "Keep playing", howToPlay: "How to play?", bigText: "Larger text", newGame: "New game", exit: "Exit",
+    // rules
+    rulesTitle: "How to play Hulla", rGoal: "Goal", rGoalT: "The first player to get rid of all their cards wins.",
+    rRegion: "Region coordination card", rRegionT: "Play any number of clothing cards, as long as they're from the card's region and among the items shown on it (no repeating the same item).",
+    rRandom: "Random coordination card", rRandomT: "Just one item at a time, from any region, as long as it's one of the items shown on the card.",
+    rActions: "Action cards", rActionsT: "One action card per round, played before you place your clothing (not after). No You Don't! is the exception: use it any time as a reaction.",
+    rRarity: "Rarity", rRarityT: "Every item has a rarity mark: common, uncommon or rare. Common items show up a lot on coordination cards and are easy to get rid of; rare ones show up rarely, so they're harder to unload.",
+    letsPlay: "Let's play",
+    // win stats
+    recap: "Game recap", shareRecap: "Hulla game recap 🃏", winner: "Winner", duration: "Game length", runnerUp: "Closest rival",
+    coordRounds: "Coordination rounds", cardsPlayed: "Cards played", raresPlayed: "Rare cards played", mostTargeted: "Most targeted by actions",
+    left1: "1 card left", left2: "2 cards left", leftN: "{n} cards left", times1: "once", times2: "twice", timesN: "{n} times",
+    copied: "Result copied", share: "Share result",
+    appIcon: "App icon", appIconHint: "Pick an icon, then add Hulla to your home screen. To change the icon later, remove the app and add it again.", done: "Done",
+    installTitle: "Add Hulla to your home screen", addToHome: "Add to home screen", later: "Not now",
+    iosHow: "On iPhone, in Safari:", iosStep1: "Tap the Share button (the square with an arrow).", iosStep2: "Choose “Add to Home Screen”.", iosStep3: "Tap “Add”.",
+    andHow: "In your browser:", andStep1: "Open the browser menu (⋮).", andStep2: "Choose “Install app” or “Add to Home screen”.",
+  },
+  es: {
+    you: "Tú", cancel: "Cancelar", back: "Volver", refresh: "Actualizar página", language: "Idioma",
+    random: "Aleatoria", oneCardOnly: "Solo una carta", severalNoRepeat: "Varias cartas · sin repetir",
+    drawPile: "Mazo", lastCard: "Última carta", round: "Ronda {n}", menu: "Menú", reactions: "Reacciones",
+    tagline: "Un juego de emparejar trajes tradicionales saudíes",
+    playLocal: "Jugar en este dispositivo", playOnline: "Jugar en línea (código de sala)",
+    madeBy: "Diseñado por manos saudíes 🇸🇦", credit: "Estudiante de la Universidad Princesa Nourah, para Core Studio",
+    errCreate: "No se pudo crear la sala, inténtalo de nuevo.", addBot: "🤖 Añadir un bot", removeBot: "Quitar bot",
+    svThanks: "¡Gracias por tu opinión! 💛", svTitle: "Tu opinión importa (opcional)", svSkip: "Omitir",
+    svFun: "¿Qué tan divertida fue la partida?", svClear: "¿Las reglas fueron claras?", svAgain: "¿Jugarías otra vez?",
+    svYes: "¡Claro! 😍", svNo: "No 😅", svComment: "Comentario (opcional)", svSend: "Enviar",
+    localIntro: "Todos juegan en el mismo dispositivo, y puedes añadir bots que juegan solos",
+    numPlayers: "Jugadores", playerNamePh: "Nombre del jugador {n}", botTitle: "Un bot que juega con inteligencia, solo",
+    bot: "🤖 Bot", human: "🧍 Humano",
+    botNote: "🤖 Los bots juegan con la mejor estrategia posible: colocan todas las cartas que pueden en cada ronda y eligen la acción más inteligente.",
+    cardsPerPlayer: "Cartas por jugador", startPlaying: "¡A jugar!", playerN: "Jugador {n}", botN: "Bot {n}",
+    onlineIntro: "Juega en línea, cada uno en su dispositivo", yourName: "Tu nombre", createRoom: "Crear una sala nueva",
+    create: "Crear sala", joinRoom: "Unirse a una sala", roomCodePh: "Código de sala (ej. A1B2)", join: "Unirse",
+    roomCodeShare: "Código de sala, compártelo con tus amigos",
+    lobbyHint: 'Cada amigo abre este mismo enlace del chat, pulsa "Jugar en línea → Unirse a una sala" e introduce el código.',
+    playersCount: "Jugadores ({n}/{m})", host: "Anfitrión", startGame: "Empezar partida", waitingHost: "Esperando a que el anfitrión empiece",
+    needTwo: "Se necesitan al menos dos jugadores.", leaveRoom: "Salir de la sala", loading: "Cargando…", preparing: "Preparando…",
+    errSave: "No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.", errNoRoom: "No encontramos esa sala. Revisa el código.",
+    errStarted: "La partida de esta sala ya empezó.", errFull: "La sala está llena.",
+    thinking: "🤖 {name} está pensando", thinkingDots: "🤖 {name} está pensando…",
+    inactiveNow: "😴 {name} está inactivo ahora", yourTurn: "Tu turno, juega antes de que se acabe el tiempo", turnOf: "Turno de {name}",
+    lockOn: "Fija el look activo: la misma carta otra ronda",
+    yourHand: "Tu mano", handOf: "Mano de {name}", sortRegion: "Ordenar por región", clothing: "Ropa",
+    actionsHint: "Acción: solo una, antes de colocar tu ropa", usedThisTurn: " · usada este turno",
+    noClothing: "No tienes cartas de ropa.", pickMatching: "Elige cartas que coincidan",
+    playN1: "Jugar la carta", playN2: "Jugar las dos cartas", playN: "Jugar {n} cartas", endTurn: "Terminé",
+    log: "Registro", passTo: "Pasa el dispositivo a", reveal: "Mostrar tu mano",
+    youWon: "¡Ganaste!", wonName: "¡Ganó {name}!", playAgain: "Jugar otra vez",
+    youUse: "Estás usando", usesX: "{name} está usando", againstYou: "¡Contra ti!", against: "Contra {name}",
+    canBlockYou: "Puedes usar <b>¡Ni hablar!</b> antes de que acabe la cuenta atrás.", autoResolve: "Se aplica sola al acabar la cuenta atrás.",
+    anyoneBlock: "Quien tenga <b>¡Ni hablar!</b> puede usarla ahora; si no, se aplica al acabar la cuenta atrás.",
+    useBlock: "Usar ¡Ni hablar!", useBlockName: "{name}: usar ¡Ni hablar!", passBlock: "No, lo dejo pasar",
+    noBlockCard: "{name} no tiene una carta ¡Ni hablar!", blockOnlyReactive: "¡Ni hablar! solo se usa como reacción cuando alguien juega una acción.",
+    whoTarget: "¿Contra quién?", digTitle: "Busca en el baúl", digHint: "Elige una carta para quedártela; el resto vuelve al mazo.",
+    digging: "{name} está buscando en el baúl…",
+    giveTitle: "Toma y daca", givePick2: "Elige dos cartas de tu mano para dárselas al otro jugador.", givePick1: "Elige una carta de tu mano para dársela al otro jugador.",
+    confirm: "Confirmar ({a}/{b})",
+    spectator: "{actor} usa <b>{action}</b> contra {target}", blocked: "¡{blocker} frenó a {actor} con ¡Ni hablar!",
+    continue: "Seguir jugando", howToPlay: "¿Cómo se juega?", bigText: "Texto más grande", newGame: "Partida nueva", exit: "Salir",
+    rulesTitle: "Cómo jugar a Hulla", rGoal: "Objetivo", rGoalT: "Gana el primer jugador que se quede sin cartas.",
+    rRegion: "Carta de coordinación de región", rRegionT: "Coloca cuantas cartas de ropa quieras, siempre que sean de la región de la carta y estén entre los objetos que muestra (sin repetir el mismo objeto).",
+    rRandom: "Carta de coordinación aleatoria", rRandomT: "Solo un objeto cada vez, de cualquier región, siempre que sea uno de los objetos de la carta.",
+    rActions: "Cartas de acción", rActionsT: "Una carta de acción por ronda, jugada antes de colocar tu ropa (no después). ¡Ni hablar! es la excepción: úsala cuando quieras como reacción.",
+    rRarity: "Rareza", rRarityT: "Cada objeto tiene una marca de rareza: común, poco común o raro. Los comunes salen mucho en las cartas de coordinación y son fáciles de soltar; los raros salen poco, así que cuesta más deshacerse de ellos.",
+    letsPlay: "¡A jugar!",
+    recap: "Resumen de la partida", shareRecap: "Resumen de Hulla 🃏", winner: "Ganador", duration: "Duración", runnerUp: "Rival más cercano",
+    coordRounds: "Rondas de coordinación", cardsPlayed: "Cartas jugadas", raresPlayed: "Cartas raras jugadas", mostTargeted: "Más atacado con acciones",
+    left1: "le queda 1 carta", left2: "le quedan 2 cartas", leftN: "le quedan {n} cartas", times1: "una vez", times2: "dos veces", timesN: "{n} veces",
+    copied: "Resultado copiado", share: "Compartir resultado",
+    appIcon: "Icono de la app", appIconHint: "Elige un icono y añade Hulla a tu pantalla de inicio. Para cambiar el icono después, quita la app y vuelve a añadirla.", done: "Listo",
+    installTitle: "Añade Hulla a tu pantalla de inicio", addToHome: "Añadir a la pantalla de inicio", later: "Ahora no",
+    iosHow: "En iPhone, desde Safari:", iosStep1: "Toca el botón Compartir (el cuadrado con una flecha).", iosStep2: "Elige «Añadir a pantalla de inicio».", iosStep3: "Toca «Añadir».",
+    andHow: "En tu navegador:", andStep1: "Abre el menú del navegador (⋮).", andStep2: "Elige «Instalar app» o «Añadir a pantalla de inicio».",
+  },
+};
+
+// Arabic source strings for the keys above (Arabic is the reference language).
+Object.assign(I18N.ar, {
+  you: "أنت", cancel: "إلغاء", back: "رجوع", refresh: "تحديث الصفحة", language: "اللغة",
+  random: "عشوائي", oneCardOnly: "كرت واحد بس", severalNoRepeat: "أكثر من كرت · بدون تكرار",
+  drawPile: "السحب", lastCard: "آخر كرت", round: "جولة {n}", menu: "القائمة", reactions: "التفاعلات",
+  tagline: "لعبة مطابقة الأزياء التقليدية السعودية",
+  playLocal: "العب على نفس الجهاز", playOnline: "العب أونلاين (كود غرفة)",
+  madeBy: "صُممت بأيدي سعودية 🇸🇦", credit: "طالبة جامعة الأميرة نورة، لمقرر Core Studio",
+  errCreate: "تعذر إنشاء الغرفة، حاول مجددًا.", addBot: "🤖 أضف بوت", removeBot: "أزل البوت",
+  svThanks: "شكرًا على رأيك! 💛", svTitle: "رأيك يهمنا (اختياري)", svSkip: "تخطي",
+  svFun: "كم كانت اللعبة ممتعة؟", svClear: "هل القوانين واضحة؟", svAgain: "تلعبها مرة ثانية؟",
+  svYes: "أكيد 😍", svNo: "لا 😅", svComment: "تعليق (اختياري)", svSend: "أرسل",
+  localIntro: "كل اللاعبين على نفس الجهاز، وتقدر تضيف بوتات تلعب أوتوماتيك",
+  numPlayers: "عدد اللاعبين", playerNamePh: "اسم اللاعب {n}", botTitle: "بوت يلعب بذكاء أوتوماتيكي",
+  bot: "🤖 بوت", human: "🧍 إنسان",
+  botNote: "🤖 البوتات تلعب بأقوى استراتيجية ممكنة: تحط أقصى عدد كروت مطابقة كل جولة، وتختار أذكى أكشن متاح.",
+  cardsPerPlayer: "عدد الكروت لكل لاعب", startPlaying: "ابدأوا اللعب", playerN: "لاعب {n}", botN: "بوت {n}",
+  onlineIntro: "العب أونلاين، كل واحد بجهازه", yourName: "اسمك", createRoom: "أنشئ غرفة جديدة",
+  create: "أنشئ غرفة", joinRoom: "انضم لغرفة", roomCodePh: "كود الغرفة (مثال: A1B2)", join: "انضم",
+  roomCodeShare: "كود الغرفة، شاركه مع أصحابك",
+  lobbyHint: 'كل صديق يفتح نفس رابط هذي المحادثة، يضغط "العب أونلاين ← انضم لغرفة" ويدخل الكود.',
+  playersCount: "اللاعبون ({n}/{m})", host: "المضيف", startGame: "ابدأ اللعبة", waitingHost: "بانتظار المضيف يبدأ اللعبة",
+  needTwo: "لازم لاعبين اثنين على الأقل.", leaveRoom: "اخرج من الغرفة", loading: "جاري التحميل…", preparing: "جاري التجهيز…",
+  errSave: "تعذر الحفظ، تأكد من الاتصال وحاول مجددًا.", errNoRoom: "ما لقينا هذي الغرفة، تأكد من الكود.",
+  errStarted: "اللعبة بدأت بالفعل بهذي الغرفة.", errFull: "الغرفة مليانة.",
+  thinking: "🤖 {name} يفكر", thinkingDots: "🤖 {name} يفكر…",
+  inactiveNow: "😴 {name} غير نشط الحين", yourTurn: "دورك، العب قبل ما ينتهي الوقت", turnOf: "دور {name} الحين",
+  lockOn: "ثبّت الحَلّة مفعّل: نفس الكرت جولة زيادة",
+  yourHand: "يدك", handOf: "يد {name}", sortRegion: "رتّب حسب المنطقة", clothing: "عناصر اللبس",
+  actionsHint: "أكشن: واحد بس، قبل ما تحط عناصرك", usedThisTurn: " · استخدمته هالدور",
+  noClothing: "ما عندك عناصر لبس.", pickMatching: "اختر كروت تطابق التنسيق",
+  playN1: "حط الكرت", playN2: "حط الكرتين", playN: "حط {n} كروت", playN11: "حط {n} كرت", endTurn: "خلصت دوري",
+  log: "السجل", passTo: "مرّر الجهاز إلى", reveal: "اكشف يدك",
+  youWon: "فزت!", wonName: "فاز {name}!", playAgain: "العب من جديد",
+  youUse: "أنت تستخدم", usesX: "{name} يستخدم", againstYou: "ضدك أنت!", against: "ضد {name}",
+  canBlockYou: "عندك فرصة تستخدم <b>لا ما تقدر</b> قبل ما تنتهي العدّة.", autoResolve: "بينفّذ تلقائيًا بعد العدّة.",
+  anyoneBlock: "أي لاعب عنده <b>لا ما تقدر</b> يقدر يستخدمه الحين، وإلا بينفّذ تلقائيًا بعد العدّة.",
+  useBlock: "استخدم لا ما تقدر", useBlockName: "{name}: استخدم لا ما تقدر", passBlock: "لا، ما راح أستخدمه",
+  noBlockCard: "{name} ما معه كرت لا ما تقدر.", blockOnlyReactive: "لا ما تقدر تستخدمه كردّ فعل لما أحد يلعب أكشن.",
+  whoTarget: "على مين؟", digTitle: "فتّش الصندوق", digHint: "اختر كرت واحد تحتفظ فيه، والباقي يرجع للسحب.",
+  digging: "{name} يفتّش الصندوق الحين…",
+  giveTitle: "عطني وأعطيك", givePick2: "اختر كرتين من يدك تعطيها للاعب الثاني.", givePick1: "اختر كرت واحد من يدك تعطيها للاعب الثاني.",
+  confirm: "تأكيد ({a}/{b})",
+  spectator: "{actor} يستخدم <b>{action}</b> ضد {target}", blocked: "{blocker} صدّ {actor} بـ لا ما تقدر!",
+  continue: "استمرار اللعب", howToPlay: "كيف ألعب؟", bigText: "تكبير النص", newGame: "لعبة جديدة", exit: "خروج",
+  rulesTitle: "وش قوانين حُلّة؟", rGoal: "الهدف", rGoalT: "أول لاعب يتخلص من كل كروته يفوز.",
+  rRegion: "كرت تنسيق منطقة", rRegionT: "تقدر تحط أي عدد من كروت العناصر بشرط تكون من نفس منطقة الكرت ومن العناصر المعروضة عليه (بدون تكرار نفس العنصر).",
+  rRandom: "كرت تنسيق عشوائي", rRandomT: "عنصر واحد بس بكل مرة، من أي منطقة، طالما اسمه من ضمن العناصر المعروضة على الكرت.",
+  rActions: "كروت الأكشن", rActionsT: "كرت أكشن واحد بس بكل جولة، ويُلعب قبل ما تحط عناصرك (مو بعدها). لا ما تقدر استثناء، تقدر تستخدمها أي وقت كردّ فعل.",
+  rRarity: "الندرة", rRarityT: "كل عنصر عليه علامة ندرة: شائع أو متوسط أو نادر. الشائع يطلع كثير بكروت التنسيق وسهل تتخلص منه، والنادر يطلع نادر فيصعب تصريفه.",
+  letsPlay: "يلا نلعب",
+  recap: "حصيلة اللعبة", shareRecap: "حصيلة لعبة حُلّة 🃏", winner: "الفائز", duration: "مدة اللعبة", runnerUp: "أقرب منافس",
+  coordRounds: "جولات التنسيق", cardsPlayed: "كروت انلعبت", raresPlayed: "الكروت النادرة المستخدمة", mostTargeted: "أكثر لاعب استُهدف بالأكشن",
+  left1: "بقي له كرت واحد", left2: "بقي له كرتين", leftN: "بقي له {n} كروت", leftN11: "بقي له {n} كرت",
+  times1: "مرة واحدة", times2: "مرتين", timesN: "{n} مرات",
+  copied: "تم نسخ النتيجة", share: "شارك النتيجة",
+  appIcon: "أيقونة التطبيق", appIconHint: "اختر الأيقونة، وبعدها أضف حُلّة لشاشتك الرئيسية. ولو تبي تغيّر الأيقونة بعدين، احذف التطبيق وأضفه من جديد.", done: "تم",
+  installTitle: "أضف حُلّة لشاشتك الرئيسية", addToHome: "أضف للشاشة الرئيسية", later: "مو الحين",
+  iosHow: "على الآيفون من سفاري:", iosStep1: "اضغط زر المشاركة (المربع اللي فيه سهم).", iosStep2: "اختر «إضافة إلى الشاشة الرئيسية».", iosStep3: "اضغط «إضافة».",
+  andHow: "من المتصفح:", andStep1: "افتح قائمة المتصفح (⋮).", andStep2: "اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».",
+});
+
+// Every word that means "you" — used where a seat's name is the default "أنت"/"You"/"Tú".
+const YOU_WORDS = new Set(["أنت", "You", "Tú"]);
+
+const REGION_NAMES = {
+  najdi: { ar: "نجدي", en: "Najdi", es: "Najdi" },
+  sharqi: { ar: "شرقي", en: "Eastern", es: "Oriental" },
+  janoubi: { ar: "جنوبي", en: "Southern", es: "Sureño" },
+  gharbi: { ar: "غربي", en: "Western", es: "Occidental" },
+};
+const REGION_BY_AR = Object.fromEntries(Object.entries(REGION_NAMES).map(([id, v]) => [v.ar, id]));
+
+const RARITY_NAMES = {
+  common: { ar: "شائع", en: "Common", es: "Común" },
+  medium: { ar: "متوسط", en: "Uncommon", es: "Poco común" },
+  rare: { ar: "نادر", en: "Rare", es: "Raro" },
+};
+
+const ACTION_NAMES = {
+  giveTake: {
+    en: ["Give & Take", "Give a player two cards and take two of theirs, unseen."],
+    es: ["Toma y daca", "Dale dos cartas a un jugador y toma dos suyas sin verlas."],
+  },
+  drawTwo: {
+    en: ["Take Two!", "A chosen player draws two cards from the pile."],
+    es: ["¡Roba dos!", "Un jugador elegido roba dos cartas del mazo."],
+  },
+  stealTwo: {
+    en: ["Help Me Out", "A chosen player takes two cards from your hand, unseen."],
+    es: ["¡Échame una mano!", "Un jugador elegido toma dos cartas de tu mano sin verlas."],
+  },
+  block: {
+    en: ["No You Don't!", "Cancels any action played against you or another player."],
+    es: ["¡Ni hablar!", "Anula cualquier acción usada contra ti o contra otro jugador."],
+  },
+  freeze: {
+    en: ["Lock the Look", "The current coordination card stays for one more round."],
+    es: ["Fija el look", "La carta de coordinación actual se queda una ronda más."],
+  },
+  dig: {
+    en: ["Search the Chest", "Draw 3 cards, keep one and put the rest back."],
+    es: ["Busca en el baúl", "Roba 3 cartas, quédate una y devuelve el resto."],
+  },
+};
+const ACTION_BY_AR = Object.fromEntries(ACTION_TYPES.map((a) => [a.name, a.id]));
+
+// Costume names: traditional names are transliterated (they're proper names); generic jewellery is
+// translated. Descriptions are full translations of the designer-approved Arabic text.
+const ITEM_I18N = {
+  "عقال": { en: ["Agal", "A black cord ring worn on top of the shemagh or ghutra to hold it in place."], es: ["Agal", "Cordón negro en forma de aro que se pone sobre el shemagh o la ghutra para sujetarlos."] },
+  "المخطم": { en: ["Mukhattam", "A wide Najdi women's dress, with embroidery and patterns spreading across the chest and body."], es: ["Mukhattam", "Vestido najdí de mujer, amplio, con bordados y motivos que se extienden por el pecho y el cuerpo."] },
+  "المخنق": { en: ["Mikhnaq", "A traditional necklace worn close around the neck, made of gold or beads."], es: ["Mikhnaq", "Collar tradicional que se lleva pegado al cuello, de oro o de cuentas."] },
+  "متفت": { en: ["Mitfit", "A wide Najdi women's dress with colourful hand-embroidered floral patterns."], es: ["Mitfit", "Vestido najdí de mujer, amplio, con bordados florales de colores hechos a mano."] },
+  "دراعة": { en: ["Darra'a", "A long, loose women's dress, embroidered, its fabric varying with the occasion."], es: ["Darra'a", "Vestido de mujer largo y holgado, bordado; la tela cambia según la ocasión."] },
+  "برقع حرب": { en: ["Harb Burqa", "A traditional face veil linked to the dress of Harb tribeswomen, covering the face and showing the eyes."], es: ["Burka de Harb", "Velo tradicional ligado a la vestimenta de las mujeres de la tribu Harb; cubre el rostro y deja ver los ojos."] },
+  "بشت": { en: ["Bisht", "A fine men's cloak worn over the thobe on formal occasions and Eid."], es: ["Bisht", "Capa masculina de gala que se lleva sobre el thobe en ocasiones formales y en el Eid."] },
+  "شماغ": { en: ["Shemagh", "A square men's headscarf, usually red and white, held in place with the agal."], es: ["Shemagh", "Pañuelo cuadrado de hombre, normalmente rojo y blanco, que se sujeta con el agal."] },
+  "ثوب مرودن": { en: ["Mirwadan Thobe", "A traditional men's thobe known for its long, wide sleeves."], es: ["Thobe mirwadan", "Thobe tradicional de hombre, conocido por sus mangas largas y anchas."] },
+  "قلادة": { en: ["Necklace", "A traditional necklace worn around the neck and over the chest, usually gold."], es: ["Collar", "Collar tradicional que cae sobre el pecho, normalmente de oro."] },
+  "برقع أسود": { en: ["Black Burqa", "A traditional black women's face veil that shows the eyes."], es: ["Burka negro", "Velo negro tradicional de mujer que deja ver los ojos."] },
+  "دقلة": { en: ["Daqla", "A long men's robe, open at the front, worn over the thobe."], es: ["Daqla", "Túnica masculina larga, abierta por delante, que se lleva sobre el thobe."] },
+  "مقصب": { en: ["Muqassab", "A luxurious men's agal decorated with gold thread."], es: ["Muqassab", "Agal masculino de lujo decorado con hilo de oro."] },
+  "هامة": { en: ["Hama", "A gold ornament fixed on top of the head, with chains or gold pieces hanging at the sides."], es: ["Hama", "Adorno de oro que se fija en lo alto de la cabeza, con cadenas o piezas que cuelgan a los lados."] },
+  "نفنوف": { en: ["Nafnoof", "A traditional Gulf women's dress, usually wide and decorated."], es: ["Nafnoof", "Vestido tradicional de mujer del Golfo, normalmente amplio y decorado."] },
+  "النشل": { en: ["Nashal", "A wide women's gown, often silk, embroidered with gold zari thread."], es: ["Nashal", "Túnica amplia de mujer, a menudo de seda, bordada con hilo dorado zari."] },
+  "خواتم": { en: ["Rings", "Traditional gold or silver rings worn as adornment."], es: ["Anillos", "Anillos tradicionales de oro o plata que se llevan como adorno."] },
+  "مريشة": { en: ["Muraysha", "A black women's shawl edged with coloured threads or tassels, worn over the head covering."], es: ["Muraysha", "Chal negro de mujer con flecos o hilos de colores en los bordes, que se pone sobre el pañuelo."] },
+  "جنبية": { en: ["Jambiya", "A traditional curved dagger worn in a belt around the waist."], es: ["Jambiya", "Daga tradicional curva que se lleva en un cinturón."] },
+  "خرص": { en: ["Khurs", "Traditional earrings or ear hoops, usually silver or gold."], es: ["Khurs", "Pendientes o aros tradicionales, normalmente de plata u oro."] },
+  "منديل برتقالي": { en: ["Orange Headscarf", "A traditional head covering in bright orange, usually worn under the shawl."], es: ["Pañuelo naranja", "Tocado tradicional de color naranja intenso, que se lleva bajo el chal."] },
+  "المجنب": { en: ["Mujannab", "A long women's dress with colourful embroidery along both sides and the chest."], es: ["Mujannab", "Vestido largo de mujer con bordados de colores a los lados y en el pecho."] },
+  "طفشة": { en: ["Tafsha", "A wide traditional hat woven from palm fronds, for shade from the sun."], es: ["Tafsha", "Sombrero tradicional ancho, tejido con hojas de palmera, para protegerse del sol."] },
+  "بيدي": { en: ["Baydi", "A heavy wool men's robe with colourful embroidery on the sleeves and pockets, famously made in Al-Baha."], es: ["Baydi", "Túnica masculina de lana gruesa con bordados de colores en mangas y bolsillos, famosa en Al-Baha."] },
+  "غوايش": { en: ["Bangles", "Traditional gold bracelets worn on the wrist or upper arm, often several together."], es: ["Brazaletes", "Pulseras de oro tradicionales para la muñeca o el brazo; a menudo se llevan varias."] },
+  "حلق": { en: ["Earrings", "Traditional gold earrings."], es: ["Pendientes", "Pendientes de oro tradicionales."] },
+  "بيرم ومسفع": { en: ["Bayram & Musfa", "Two traditional Hijazi women's head coverings: the musfa is wrapped around the head and the bayram worn on top."], es: ["Bayram y musfa", "Dos tocados tradicionales de la mujer hiyazí: el musfa se enrolla en la cabeza y el bayram va encima."] },
+  "برقع حجازي": { en: ["Hijazi Burqa", "A Hijazi women's face veil, sometimes decorated with embroidery or metal pieces."], es: ["Burka hiyazí", "Velo hiyazí de mujer, a veces decorado con bordados o piezas de metal."] },
+  "شاية": { en: ["Shaya", "A Hijazi men's outer coat worn over the thobe."], es: ["Shaya", "Abrigo masculino hiyazí que se lleva sobre el thobe."] },
+  "ثوب مبقر": { en: ["Mubaqqar Thobe", "A traditional Hijazi thobe with decorative panels and coloured fabric bands."], es: ["Thobe mubaqqar", "Thobe tradicional hiyazí con paneles decorativos y bandas de tela de colores."] },
+  "ثوب الزبون": { en: ["Zaboon Robe", "A long Hijazi women's robe, open at the front and embroidered, worn over clothes."], es: ["Bata zaboon", "Bata larga hiyazí de mujer, abierta por delante y bordada, que se lleva sobre la ropa."] },
+  "مرتعشة": { en: ["Murta'isha", "A large multi-row gold ornament with chains, covering part of the neck and chest."], es: ["Murta'isha", "Gran adorno de oro de varias filas con cadenas, que cubre parte del cuello y el pecho."] },
+};
+
+// Saudi phrases travel in shared state in Arabic; each viewer sees them in their language.
+const PHRASE_I18N = {
+  "كفو!": { en: "Legend!", es: "¡Crack!" },
+  "ظلم!": { en: "So unfair!", es: "¡Injusto!" },
+  "يا زينه": { en: "Gorgeous!", es: "¡Qué bonito!" },
+  "الله يعين": { en: "Good luck with that", es: "Que Dios te ayude" },
+  "ههههه": { en: "Hahaha", es: "Jajaja" },
+};
+
+const BOT_NAME_POOLS = {
+  en: [
+    "Just a Bot", "Budget Edition", "Server Intern", "Still Thinking", "Made of Code", "Old Firmware", "Battery 1%",
+    "Pixel Uncle", "Coded in a Hurry", "Don't Report Me", "Beta Version", "Works When It Feels Like It", "Summoned",
+    "Mere Algorithm", "Robot Lite", "Made in a Garage", "Lag Lord", "Zero-and-One", "Stuck Since Yesterday",
+    "Updating…", "Don't Expect Much", "Strongest Bot on the Block", "Bargain-Bin AI", "Mom Coded Me",
+  ],
+  es: [
+    "Solo un bot", "Edición económica", "Becario del servidor", "Sigo pensando", "Hecho de código", "Firmware viejo",
+    "Batería 1%", "Tío Píxel", "Programado a lo loco", "No me denuncies", "Versión beta", "Funciona cuando quiere",
+    "Invocado", "Mero algoritmo", "Robot ligero", "Hecho en un garaje", "Señor del lag", "Ceroyuno", "Colgado desde ayer",
+    "Actualizando…", "No esperes mucho", "El bot más fuerte del barrio", "IA de rebajas", "Me programó mi madre",
+  ],
+};
+
+// Engine log lines (shared, Arabic) → viewer's language. Each rule is [regex, en(m), es(m)].
+const LOG_RULES = [
+  [/^بدأت اللعبة بـ (\d+) لاعبين، (\d+) كرت لكل لاعب\.$/, (m) => `Game started: ${m[1]} players, ${m[2]} cards each.`, (m) => `Empieza la partida: ${m[1]} jugadores, ${m[2]} cartas cada uno.`],
+  [/^ثبّت الحَلّة: يبقى نفس كرت التنسيق لجولة إضافية\.$/, () => "Lock the Look: the same coordination card stays another round.", () => "Fija el look: la misma carta de coordinación se queda otra ronda."],
+  [/^كرت تنسيق جديد: (.+)\.$/, (m, L) => `New coordination card: ${L.regionAr(m[1])}.`, (m, L) => `Nueva carta de coordinación: ${L.regionAr(m[1])}.`],
+  [/^(.+) رجع نشط\.$/, (m) => `${m[1]} is back.`, (m) => `${m[1]} ha vuelto.`],
+  [/^(.+) أنهى دوره\.$/, (m) => `${m[1]} ended their turn.`, (m) => `${m[1]} terminó su turno.`],
+  // production's quiet last-move line for a turn with no play
+  [/^(.+) تخطّى دوره\.$/, (m) => `${m[1]} skipped their turn.`, (m) => `${m[1]} pasó su turno.`],
+  [/^(.+) صار غير نشط \(ما تفاعل مرتين متتاليتين\)\.$/, (m) => `${m[1]} is now inactive (missed two turns in a row).`, (m) => `${m[1]} está inactivo (no jugó dos turnos seguidos).`],
+  [/^(.+) غير نشط، تجاوز دوره تلقائيًا\.$/, (m) => `${m[1]} is inactive, turn skipped automatically.`, (m) => `${m[1]} está inactivo, turno saltado automáticamente.`],
+  [/^(.+) ما رد بالوقت، تم تخطي دوره\.$/, (m) => `${m[1]} ran out of time, turn skipped.`, (m) => `A ${m[1]} se le acabó el tiempo, turno saltado.`],
+  [/^(.+) وضع: (.+)\.$/, (m, L) => `${m[1]} played: ${L.itemList(m[2])}.`, (m, L) => `${m[1]} jugó: ${L.itemList(m[2])}.`],
+  [/^(.+) لعب ثبّت الحَلّة\.$/, (m, L) => `${m[1]} played ${L.action("freeze")}.`, (m, L) => `${m[1]} jugó ${L.action("freeze")}.`],
+  [/^(.+) فتّش الصندوق وأضاف "(.+)"\.$/, (m, L) => `${m[1]} searched the chest and kept "${L.item(m[2])}".`, (m, L) => `${m[1]} buscó en el baúl y se quedó "${L.item(m[2])}".`],
+  [/^(.+) أضاف "(.+)" من فتّش الصندوق\.$/, (m, L) => `${m[1]} kept "${L.item(m[2])}" from the chest.`, (m, L) => `${m[1]} se quedó "${L.item(m[2])}" del baúl.`],
+  [/^(.+) فتّش الصندوق\.$/, (m) => `${m[1]} searched the chest.`, (m) => `${m[1]} buscó en el baúl.`],
+  [/^(.+) استخدم لا ما تقدر! تم إلغاء (.+)\.$/, (m, L) => `${m[1]} used ${L.action("block")} and cancelled ${L.actionAr(m[2])}.`, (m, L) => `${m[1]} usó ${L.action("block")} y anuló ${L.actionAr(m[2])}.`],
+  [/^(.+) استخدم اقدع على (.+): سحب (\d+) كرت\.$/, (m, L) => `${m[1]} used ${L.action("drawTwo")} on ${m[2]}: drew ${m[3]} cards.`, (m, L) => `${m[1]} usó ${L.action("drawTwo")} contra ${m[2]}: robó ${m[3]} cartas.`],
+  [/^(.+) فزع من (.+) وأخذ (\d+) كرت\.$/, (m) => `${m[1]} helped ${m[2]} out and took ${m[3]} cards.`, (m) => `${m[1]} le echó una mano a ${m[2]} y tomó ${m[3]} cartas.`],
+  [/^(.+) بادل كروت مع (.+) \(عطني وأعطيك\)\.$/, (m, L) => `${m[1]} swapped cards with ${m[2]} (${L.action("giveTake")}).`, (m, L) => `${m[1]} intercambió cartas con ${m[2]} (${L.action("giveTake")}).`],
+];
+
+// Engine error strings (Arabic) → viewer's language.
+const ERROR_I18N = {
+  "كرت التنسيق العشوائي يسمح بعنصر واحد فقط في كل مرة.": {
+    en: "A random coordination card allows only one item at a time.", es: "Una carta de coordinación aleatoria solo permite un objeto cada vez.",
+  },
+  "هذا العنصر غير مطابق لكرت التنسيق.": { en: "This item doesn't match the coordination card.", es: "Este objeto no coincide con la carta de coordinación." },
+  "كل الكروت المختارة يجب أن تطابق منطقة وعناصر كرت التنسيق.": {
+    en: "All selected cards must match the coordination card's region and items.", es: "Todas las cartas elegidas deben coincidir con la región y los objetos de la carta.",
+  },
+  "لا يمكن تكرار نفس العنصر في نفس الجولة.": { en: "You can't repeat the same item in one play.", es: "No puedes repetir el mismo objeto en una jugada." },
+};
+
+// When the acting seat is the default "you" seat, rewrite the sentence in second person.
+const YOU_FIX = {
+  en: [
+    [/(^|[\s(])(?:أنت|Tú)(?=[\s:.,)!]|$)/g, "$1You"],
+    [/^You ended their turn\./, "You ended your turn."],
+    [/^You is back\./, "You're back."],
+    [/^You is now inactive/, "You're now inactive"],
+    [/^You is inactive/, "You're inactive"],
+  ],
+  es: [
+    [/(^|[\s(])(?:أنت|You)(?=[\s:.,)!]|$)/g, "$1Tú"],
+    [/^Tú terminó su turno\./, "Terminaste tu turno."],
+    [/^Tú ha vuelto\./, "Has vuelto."],
+    [/^Tú está inactivo/, "Estás inactivo"],
+    [/^A Tú se le acabó el tiempo/, "Se te acabó el tiempo"],
+    [/^Tú jugó:/, "Jugaste:"],
+    [/^Tú buscó en el baúl y se quedó/, "Buscaste en el baúl y te quedaste"],
+    [/^Tú buscó en el baúl/, "Buscaste en el baúl"],
+    [/^Tú se quedó/, "Te quedaste"],
+    [/^Tú usó/, "Usaste"],
+    [/^Tú le echó una mano a/, "Le echaste una mano a"],
+    [/^Tú intercambió/, "Intercambiaste"],
+    [/ contra Tú/g, " contra ti"],
+    [/ a Tú /g, " a ti "],
+    [/ con Tú /g, " contigo "],
+    [/^Tú jugó /, "Jugaste "],
+  ],
+};
+function fixYouGrammar(text, code) {
+  const rules = YOU_FIX[code];
+  if (!rules || !text) return text;
+  return rules.reduce((acc, [re, to]) => acc.replace(re, to), text);
+}
+
+function makeI18n(code) {
+  const lang = LANGS.find((l) => l.code === code) || LANGS[0];
+  const dict = I18N[lang.code] || I18N.ar;
+  const fill = (str, params) => (params ? str.replace(/\{(\w+)\}/g, (_, k) => (params[k] ?? "")) : str);
+  const t = (key, params) => fill(dict[key] ?? I18N.ar[key] ?? key, params);
+  const ar = lang.code === "ar";
+  const L = {
+    code: lang.code,
+    dir: lang.dir,
+    isAr: ar,
+    item: (name) => (ar ? name : ITEM_I18N[name]?.[lang.code]?.[0] || name),
+    itemDesc: (name) => (ar ? ITEM_DESC[name] : ITEM_I18N[name]?.[lang.code]?.[1] || ITEM_DESC[name]),
+    itemList: (s) => (ar ? s : s.split("، ").map((n) => L.item(n)).join(", ")),
+    region: (id) => REGION_NAMES[id]?.[lang.code] || REGION_NAMES[id]?.ar || "",
+    regionAr: (arName) => (arName === "عشوائي" ? t("random") : REGION_BY_AR[arName] ? L.region(REGION_BY_AR[arName]) : arName),
+    rarity: (r) => RARITY_NAMES[r]?.[lang.code] || RARITY_NAMES[r]?.ar || "",
+    action: (id) => (ar ? actionMeta(id)?.name : ACTION_NAMES[id]?.[lang.code]?.[0]) || actionMeta(id)?.name || id,
+    actionDesc: (id) => (ar ? actionMeta(id)?.desc : ACTION_NAMES[id]?.[lang.code]?.[1]) || actionMeta(id)?.desc || "",
+    actionAr: (arName) => (ACTION_BY_AR[arName] ? L.action(ACTION_BY_AR[arName]) : arName),
+    phrase: (p) => (ar ? p : PHRASE_I18N[p]?.[lang.code] || p),
+    error: (e) => (ar || !e ? e : ERROR_I18N[e]?.[lang.code] || e),
+    log: (line) => {
+      if (ar || !line) return line;
+      let out = line;
+      for (const [re, en, es] of LOG_RULES) {
+        const m = line.match(re);
+        if (m) {
+          out = (lang.code === "en" ? en : es)(m, L);
+          break;
+        }
+      }
+      return fixYouGrammar(out, lang.code);
+    },
+    // a viewer-facing name: the default "you" seat name shows in the current language
+    name: (n) => (YOU_WORDS.has(n) ? t("you") : n),
+    cardsLeft: (n) => (n === 1 ? t("left1") : n === 2 ? t("left2") : ar && n > 10 ? t("leftN11", { n }) : t("leftN", { n })),
+    times: (n) => (n === 1 ? t("times1") : n === 2 ? t("times2") : t("timesN", { n })),
+    playCards: (n) => (n === 1 ? t("playN1") : n === 2 ? t("playN2") : ar && n > 10 ? t("playN11", { n }) : t("playN", { n })),
+    botNames: (n) => (ar ? pickRandomBotNames(n) : shuffle(BOT_NAME_POOLS[lang.code] || BOT_NAME_POOL).slice(0, n)),
+  };
+  // Renders a string that may contain <b>…</b> as React nodes (bold in the brand colour).
+  const tb = (key, params, boldStyle) =>
+    t(key, params)
+      .split(/(<b>.*?<\/b>)/)
+      .map((part, i) =>
+        part.startsWith("<b>") ? (
+          <b key={i} className="font-bold" style={boldStyle}>
+            {part.slice(3, -4)}
+          </b>
+        ) : (
+          <React.Fragment key={i}>{part}</React.Fragment>
+        )
+      );
+  return { t, tb, L };
+}
+
+const I18nContext = React.createContext({ ...makeI18n("ar"), setLang: null });
+const useI18n = () => React.useContext(I18nContext);
+
+function LangSwitch({ compact }) {
+  const { L, setLang } = useI18n();
+  return <LanguagePicker value={L.code} onChange={(c) => setLang && setLang(c)} compact={compact} />;
+}
+
+// Small segmented language switch (home screen + in-game menu).
+function LanguagePicker({ value, onChange, compact = false }) {
+  return (
+    <div dir="rtl" className="inline-flex p-1 rounded-full gap-0.5" style={{ background: compact ? `${INK}0b` : CREAM, boxShadow: compact ? "none" : "0 2px 8px -2px rgba(60,30,10,.3)" }}>
+      {LANGS.map((l) => (
+        <button
+          key={l.code}
+          type="button"
+          onClick={() => onChange(l.code)}
+          className="rounded-full font-semibold tsz-12 transition"
+          style={{ padding: compact ? "4px 10px" : "6px 12px", ...(value === l.code ? { background: BRAND, color: CREAM } : { color: `${INK}aa` }) }}
+        >
+          {l.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /* --------------------------------- UI BITS --------------------------------- */
 
 const REGION_BY_ID = Object.fromEntries(REGIONS.map((r) => [r.id, r]));
@@ -906,13 +1393,22 @@ function Wordmark({ height = 40, color = BRAND, className = "", style }) {
     WebkitMaskPosition: "center",
     maskPosition: "center",
   };
+  // Registered trademark: ® at the end of the word in Arabic reading order (the left side), sitting
+  // just above the dots of the ة rather than at the image's edge. Coordinates come from the glyph
+  // bounds in the 360×313 wordmark art. Same colour as the logo.
+  const w = height * (360 / 313);
+  const r = Math.max(9, Math.round(height * 0.26));
   return (
-    <span
-      role="img"
-      aria-label="حُلّة"
-      className={`inline-block ${className}`}
-      style={{ height, width: height * (360 / 313), backgroundColor: color, ...mask, ...style }}
-    />
+    <span className={`relative inline-block ${className}`} style={{ height, width: w, verticalAlign: "middle", ...style }}>
+      <span role="img" aria-label="حُلّة®" className="absolute inset-0" style={{ backgroundColor: color, ...mask }} />
+      <span
+        aria-hidden="true"
+        className="absolute font-semibold leading-none"
+        style={{ top: height * (112 / 313) - r * 0.95, left: w * (12 / 360), fontSize: r, color, fontFamily: "IBM Plex Sans Arabic, system-ui, sans-serif" }}
+      >
+        ®
+      </span>
+    </span>
   );
 }
 
@@ -973,15 +1469,21 @@ function OrnamentColumn({ region, width = 14, flip = false }) {
       <div className="absolute left-0" style={{ top: "50%", marginTop: -total / 2, width, height: total, transform: flip ? "scaleX(-1)" : undefined }}>
         {/* one image per motif (not a repeating background) so fractional sizes never drift and
             the last motif is never shaved off */}
-        {Array.from({ length: count }).map((_, i) => (
-          <img
-            key={`m${i}`}
-            src={ART[`ornvM_${region}`]}
-            alt=""
-            draggable={false}
-            style={{ position: "absolute", left: 0, top: off + i * tileH, width, height: tileH, maxWidth: "none" }}
-          />
-        ))}
+        {Array.from({ length: count }).map((_, i) => {
+          // A motif can be a cut-out shape (spec.motif) slightly larger than its slot, so its tips
+          // can meet the neighbours' without being sliced; it's centred on the slot.
+          const mW = spec.motif ? width * spec.motif.w : width;
+          const mH = spec.motif ? width * spec.motif.h : tileH;
+          return (
+            <img
+              key={`m${i}`}
+              src={ART[`ornvM_${region}`]}
+              alt=""
+              draggable={false}
+              style={{ position: "absolute", left: (width - mW) / 2, top: off + i * tileH + (tileH - mH) / 2, width: mW, height: mH, maxWidth: "none" }}
+            />
+          );
+        })}
         {joints.map((i) => (
           <img
             key={i}
@@ -1043,6 +1545,7 @@ const HAND_FRAME_PATH =
   "M9.8 4.6 H71 a3 3 0 0 1 3 3 V11.5 A14 14 0 0 0 88 25.5 H92.1 a3 3 0 0 1 3 3 V90 a5 5 0 0 1 -5 5 H29 a3 3 0 0 1 -3 -3 V88.5 A14 14 0 0 0 12 74.5 H7.8 a3 3 0 0 1 -3 -3 V9.6 a5 5 0 0 1 5 -5 Z";
 
 function ItemCard({ card, selected, onClick, size = 92, disabled, showDesc, className = "", style }) {
+  const { t, tb, L } = useI18n();
   const region = regionOf(card.region);
   const color = region?.color || BRAND;
   const rarity = RARITY_META[card.rarity] || RARITY_META.common;
@@ -1050,7 +1553,7 @@ function ItemCard({ card, selected, onClick, size = 92, disabled, showDesc, clas
   const big = showDesc ?? size >= 160;
   const pillText = size >= 104;
   return (
-    <CardShell size={size} selected={selected} onClick={onClick} disabled={disabled} bg={color} title={card.name} className={className} style={style}>
+    <CardShell size={size} selected={selected} onClick={onClick} disabled={disabled} bg={color} title={L.item(card.name)} className={className} style={style}>
       <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full" aria-hidden="true">
         <path d={HAND_FRAME_PATH} fill={CREAM} />
       </svg>
@@ -1067,11 +1570,11 @@ function ItemCard({ card, selected, onClick, size = 92, disabled, showDesc, clas
           fontSize: fs(size * 0.056),
         }}
       >
-        {pillText ? rarity.label : ""}
+        {pillText ? L.rarity(card.rarity) : ""}
       </span>
       <div className="absolute flex items-center justify-center" style={{ left: "16%", right: "16%", top: big ? "18%" : "17%", height: big ? "40%" : "47%" }}>
         {art ? (
-          <img src={art} alt={card.name} draggable={false} className="max-w-full max-h-full object-contain" style={{ filter: "drop-shadow(0 2px 2px rgba(60,30,10,.18))" }} />
+          <img src={art} alt={L.item(card.name)} draggable={false} className="max-w-full max-h-full object-contain" style={{ filter: "drop-shadow(0 2px 2px rgba(60,30,10,.18))" }} />
         ) : (
           <div className="opacity-80 flex flex-col items-center gap-1">
             <RegionBadge region={card.region} size={size * 0.3} radius={size * 0.06} />
@@ -1082,14 +1585,14 @@ function ItemCard({ card, selected, onClick, size = 92, disabled, showDesc, clas
         className="absolute font-bold leading-tight"
         style={{ left: "14%", right: "10%", top: big ? "60%" : "66.5%", color: INK, fontSize: fs(size * (big ? 0.082 : 0.118)) }}
       >
-        {card.name}
+        {L.item(card.name)}
       </div>
       {big && ITEM_DESC[card.name] && (
         <div
           className="absolute serif-text leading-snug"
           style={{ left: "21%", right: "8%", top: "70%", color: `${INK}cc`, fontSize: fs(size * 0.056), textAlign: "center" }}
         >
-          {ITEM_DESC[card.name]}
+          {L.itemDesc(card.name)}
         </div>
       )}
     </CardShell>
@@ -1111,23 +1614,26 @@ const ACTION_LAYOUT = {
 };
 
 function ActionCard({ card, actionType, size = 92, selected, onClick, disabled, showDesc, className = "", style }) {
+  const { t, tb, L } = useI18n();
   const type = actionType || card?.actionType;
   const meta = actionMeta(type);
-  const lay = ACTION_LAYOUT[type] || ACTION_LAYOUT.freeze;
+  const baseLay = ACTION_LAYOUT[type] || ACTION_LAYOUT.freeze;
+  // Latin titles are longer and wrap, so give the narrow help-me-out box a bit more room.
+  const lay = !L.isAr && type === "stealTwo" ? { ...baseLay, box: { ...baseLay.box, top: "60%", width: "62%" } } : baseLay;
   // Only the title sits on the art; the description is shown as text beside the card where needed,
   // so it never runs over the illustration.
   const big = showDesc ?? false;
   return (
-    <CardShell size={size} selected={selected} onClick={onClick} disabled={disabled} bg={ACTION_BG[type] || CREAM} title={meta.desc} className={className} style={style}>
+    <CardShell size={size} selected={selected} onClick={onClick} disabled={disabled} bg={ACTION_BG[type] || CREAM} title={L.actionDesc(type)} className={className} style={style}>
       {/* the art carries its own rounded corners; oversize it a touch so the card's corners clip it cleanly */}
       <img src={ART[`act_${type}`]} alt="" draggable={false} className="absolute" style={{ left: "-4%", top: "-4%", width: "108%", height: "108%", maxWidth: "none" }} />
       <div className="absolute" style={{ ...lay.box, textAlign: lay.align, color: lay.color }}>
-        <div className="font-bold hlead-105 whitespace-nowrap" style={{ fontSize: fs(size * (big ? 0.1 : 0.118)) }}>
-          {meta.name}
+        <div className={`font-bold hlead-105 ${L.isAr ? "whitespace-nowrap" : ""}`} style={{ fontSize: fs(size * (big ? 0.1 : L.isAr ? 0.118 : 0.108)) }}>
+          {L.action(type)}
         </div>
         {big && (
           <div className="mt-1 leading-snug font-medium" style={{ fontSize: fs(size * 0.058), opacity: 0.92 }}>
-            {meta.desc}
+            {L.actionDesc(type)}
           </div>
         )}
       </div>
@@ -1166,6 +1672,7 @@ function CardBack({ size = 60, tall = false, style, className = "" }) {
 // illustrations line up underneath (no names — tap a piece to see what it is). Random cards use
 // the beige frame with a few gold sparkles.
 function CoordCard({ card, width = 340, animate = true }) {
+  const { t, tb, L } = useI18n();
   const isRandom = card.type === "random";
   const region = isRandom ? null : card.region;
   const frame = isRandom ? BEIGE : regionOf(region)?.color || BRAND;
@@ -1178,8 +1685,8 @@ function CoordCard({ card, width = 340, animate = true }) {
 
   useEffect(() => {
     if (openTip === null) return;
-    const t = setTimeout(() => setOpenTip(null), 2500);
-    return () => clearTimeout(t);
+    const tm = setTimeout(() => setOpenTip(null), 2500);
+    return () => clearTimeout(tm);
   }, [openTip]);
 
   const strip = Math.round(15 * k);
@@ -1198,14 +1705,14 @@ function CoordCard({ card, width = 340, animate = true }) {
     >
       <div dir="ltr" className="relative flex" style={{ background: CREAM, borderRadius: 13 * k, padding: `${9 * k}px ${8 * k}px`, gap: 8 * k }}>
         {!isRandom && <OrnamentColumn region={region} width={strip} />}
-        <div dir="rtl" className="flex-1 min-w-0 flex flex-col">
+        <div dir={L.dir} className="flex-1 min-w-0 flex flex-col">
           <GoldRule>
             <span className="display-font font-bold leading-none px-1" style={{ color: titleColor, fontSize: fs(23 * k) }}>
-              {isRandom ? "عشوائي" : card.regionName}
+              {isRandom ? t("random") : L.region(card.region)}
             </span>
           </GoldRule>
           <div className="text-center font-medium" style={{ color: `${INK}88`, fontSize: fs(9.5 * k), marginTop: 2 * k }}>
-            {isRandom ? "كرت واحد بس" : "أكثر من كرت · بدون تكرار"}
+            {isRandom ? t("oneCardOnly") : t("severalNoRepeat")}
           </div>
           <div className="flex flex-wrap justify-center items-end" style={{ marginTop: 8 * k, rowGap: 8 * k }}>
             {items.map((it, i) => {
@@ -1225,7 +1732,7 @@ function CoordCard({ card, width = 340, animate = true }) {
                       className="absolute left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full font-bold whitespace-nowrap shadow-lg z-10 pointer-events-none hilla-tip"
                       style={{ top: -10 * k, background: INK, color: CREAM, fontSize: fs(11 * k) }}
                     >
-                      {it}
+                      {L.item(it)}
                     </span>
                   )}
                   {art ? (
@@ -1259,23 +1766,24 @@ function CoordCard({ card, width = 340, animate = true }) {
 // out of view — so you can still see what to match while picking from your hand. Tap it to jump
 // back up to the full card.
 function StickyCoordBar({ card, onJump, timer }) {
+  const { t, tb, L } = useI18n();
   const isRandom = card.type === "random";
   const color = isRandom ? BEIGE : regionOf(card.region)?.color || BRAND;
   const items = isRandom ? sortItemNamesByRegion(card.items) : card.items;
   return (
-    <div className="fixed left-0 right-0 px-3 hilla-sticky" style={{ top: 8, zIndex: 40 }}>
+    <div className="fixed left-0 right-0 px-3 hilla-sticky" style={{ top: "max(8px, calc(env(safe-area-inset-top) + 4px))", zIndex: 40 }}>
       <button
         type="button"
         onClick={onJump}
-        dir="rtl"
-        className="mx-auto max-w-2xl w-full flex items-center gap-2.5 hr-20 pr-1.5 pl-2.5 py-1.5 text-right"
+        dir={L.dir}
+        className="mx-auto max-w-2xl w-full flex items-center gap-2.5 hr-20 px-2 py-1.5 hstart"
         style={{ background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}, 0 12px 26px -12px rgba(60,30,10,.55)` }}
       >
         <span
           className="flex-shrink-0 flex items-center justify-center hr-20 display-font font-bold leading-none px-3"
           style={{ background: color, color: isRandom ? BRAND : CREAM, height: 44, fontSize: fs(19) }}
         >
-          {isRandom ? "عشوائي" : card.regionName}
+          {isRandom ? t("random") : L.region(card.region)}
         </span>
         <span className="flex-1 min-w-0 flex items-center justify-around gap-1">
           {items.map((it, i) =>
@@ -1291,6 +1799,7 @@ function StickyCoordBar({ card, onJump, timer }) {
 }
 
 function DrawPile({ size = 56 }) {
+  const { t, tb, L } = useI18n();
   return (
     <div className="flex flex-col items-center gap-1.5">
       <div className="relative" style={{ width: size + 6, height: size + 6 }}>
@@ -1309,7 +1818,7 @@ function DrawPile({ size = 56 }) {
         ))}
       </div>
       <span className="font-semibold" style={{ color: `${INK}77`, fontSize: fs(10) }}>
-        السحب
+        {t("drawPile")}
       </span>
     </div>
   );
@@ -1326,6 +1835,7 @@ const tiltOf = (id) => {
 // does the oldest one (at the bottom, already covered) disappear — nothing ever pops out of view.
 const DISCARD_STACK = 3;
 function DiscardPile({ card, size = 56 }) {
+  const { t, tb, L } = useI18n();
   const [layers, setLayers] = useState(() => (card ? [card] : []));
   useEffect(() => {
     if (!card) {
@@ -1333,8 +1843,8 @@ function DiscardPile({ card, size = 56 }) {
       return;
     }
     setLayers((l) => (l.length && l[l.length - 1].id === card.id ? l : [...l.slice(-DISCARD_STACK), card]));
-    const t = setTimeout(() => setLayers((l) => l.slice(-DISCARD_STACK)), 520);
-    return () => clearTimeout(t);
+    const tm = setTimeout(() => setLayers((l) => l.slice(-DISCARD_STACK)), 520);
+    return () => clearTimeout(tm);
   }, [card?.id]);
   return (
     <div className="flex flex-col items-center gap-1.5">
@@ -1358,7 +1868,7 @@ function DiscardPile({ card, size = 56 }) {
         })}
       </div>
       <span className="font-semibold" style={{ color: `${INK}77`, fontSize: fs(10) }}>
-        آخر كرت
+        {t("lastCard")}
       </span>
     </div>
   );
@@ -1368,6 +1878,7 @@ function DiscardPile({ card, size = 56 }) {
 // is centred, and the active seat gets a soft cream tile with a gold ring (no lift, so nothing
 // gets clipped by the scrolling row).
 function SeatPod({ player, active, isMe, nearWin, thinking }) {
+  const { t, tb, L } = useI18n();
   const n = player.hand.length;
   const backs = Math.min(5, n);
   // Wider, flatter fan as the count grows so five cards still read as a full hand.
@@ -1411,14 +1922,14 @@ function SeatPod({ player, active, isMe, nearWin, thinking }) {
       </div>
       <div className="mt-1.5 font-semibold leading-snug whitespace-nowrap" style={{ color: active ? INK : `${INK}99`, fontSize: fs(11.5) }}>
         {player.isBot ? "🤖 " : player.inactive ? "😴 " : nearWin ? "🔥 " : ""}
-        {player.name}
-        {isMe && player.name !== "أنت" && (
+        {L.name(player.name)}
+        {isMe && !YOU_WORDS.has(player.name) && (
           <span className="font-medium" style={{ color: GOLD_DK }}>
-            {" "}(أنت)
+            {" "}({t("you")})
           </span>
         )}
         {thinking && (
-          <span className="inline-flex gap-0.5 mr-1 align-middle">
+          <span className="inline-flex gap-0.5 hms-1 align-middle">
             {[0, 1, 2].map((i) => (
               <span key={i} className="w-1 h-1 rounded-full hilla-dot" style={{ background: GOLD_DK, animationDelay: `${i * 150}ms` }} />
             ))}
@@ -1426,6 +1937,24 @@ function SeatPod({ player, active, isMe, nearWin, thinking }) {
         )}
       </div>
     </div>
+  );
+}
+
+// Lobby avatar: a round chip with the player's first letter (🤖 for bots), tinted in rotating
+// brand colours so each seat is easy to tell apart. Replaces the region badges, which read as
+// decoration rather than "this is a person".
+const AVATAR_TINTS = [BRAND, "#366135", "#121A42", "#5C3A1C", GOLD_DK, INK];
+function PlayerAvatar({ name, isBot, index = 0, size = 34 }) {
+  const ch = (name || "").trim().replace(/^[^\p{L}\p{N}]+/u, "").charAt(0) || "؟";
+  const bg = AVATAR_TINTS[index % AVATAR_TINTS.length];
+  return (
+    <span
+      aria-hidden="true"
+      className="flex-shrink-0 rounded-full flex items-center justify-center font-bold leading-none"
+      style={{ width: size, height: size, background: isBot ? `${INK}12` : bg, color: CREAM, fontSize: isBot ? size * 0.5 : size * 0.46, boxShadow: isBot ? "none" : `0 0 0 2px ${CREAM}, 0 0 0 3px ${bg}40` }}
+    >
+      {isBot ? "🤖" : ch.toUpperCase()}
+    </span>
   );
 }
 
@@ -1465,6 +1994,10 @@ const GlobalFont = () => (
     .hbtn:disabled { opacity: .38; cursor: default; }
     .hz-55 { z-index: 55; } .hz-58 { z-index: 58; } .hz-60 { z-index: 60; } .hz-65 { z-index: 65; } .hz-70 { z-index: 70; }
     .hz-9998 { z-index: 9998; } .hz-9999 { z-index: 9999; } .hz-10000 { z-index: 10000; }
+    .hstart { text-align: start; } .hend { text-align: end; }
+    .hms-1 { margin-inline-start: .25rem; }
+    .hpad-se { padding-inline-start: .5rem; padding-inline-end: 1rem; }
+    .hpad-e3 { padding-inline-end: .75rem; }
     .display-font { font-family: var(--font-markazi), "Markazi Text", serif; letter-spacing: 0; }
     .serif-text { font-family: var(--font-markazi), "Markazi Text", serif; }
     .hilla-root button { -webkit-tap-highlight-color: transparent; }
@@ -1547,6 +2080,8 @@ const GlobalFont = () => (
       from { opacity: 0; transform: translate3d(-10px, 10px, 0) scale(.6); }
       to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
     }
+    .hilla-rays { animation: hilla-rays 40s linear infinite; will-change: transform; }
+    @keyframes hilla-rays { to { transform: rotate(360deg); } }
     .hilla-sticky { animation: hilla-sticky .32s cubic-bezier(.2,.9,.3,1.1) backwards; }
     @keyframes hilla-sticky { from { opacity: 0; transform: translateY(-120%); } to { opacity: 1; transform: none; } }
     .hilla-seatbubble { animation: hilla-seatbubble 5s ease-out forwards; transform-origin: 50% 100%; }
@@ -1572,7 +2107,7 @@ const GlobalFont = () => (
       100% { opacity: 0; transform: translate3d(-50%, -6px, 0); }
     }
     @media (prefers-reduced-motion: reduce) {
-      .hilla-deal, .hilla-coord-in, .hilla-drop, .hilla-pop, .hilla-fade, .hilla-float, .hilla-myturn { animation: none !important; }
+      .hilla-deal, .hilla-coord-in, .hilla-drop, .hilla-pop, .hilla-fade, .hilla-float, .hilla-myturn, .hilla-rays { animation: none !important; }
       .hilla-card { transition: none; }
     }
     .tsz-7 { font-size: calc(7px * var(--tsz, 1)); }
@@ -1654,6 +2189,7 @@ function Confetti() {
 
 // F2 — end-of-game fun stats, computed from game.stats/turnSerial. Display-only.
 function WinStats({ game, myId, isOnline }) {
+  const { t, tb, L } = useI18n();
   const [copied, setCopied] = useState(false);
   const targeted = game.stats?.targetedByPlayerId || {};
   const topTargeted = Object.entries(targeted).sort((a, b) => b[1] - a[1])[0];
@@ -1662,9 +2198,10 @@ function WinStats({ game, myId, isOnline }) {
   const runnerUp = game.players.filter((p) => p.id !== game.winner).sort((a, b) => a.hand.length - b.hand.length)[0];
 
   // Name each seat from the reader's point of view, so "أنت" reads naturally.
-  const who = (p) => (p ? (isOnline ? (p.id === myId ? "أنت" : p.name) : p.isBot ? p.name : "أنت") : "");
-  const cardsLeft = (n) => (n === 1 ? "بقي له كرت واحد" : n === 2 ? "بقي له كرتين" : n <= 10 ? `بقي له ${n} كروت` : `بقي له ${n} كرت`);
-  const times = (n) => (n === 1 ? "مرة واحدة" : n === 2 ? "مرتين" : `${n} مرات`);
+  const who = (p) => (p ? (isOnline ? (p.id === myId ? t("you") : p.name) : p.isBot ? p.name : t("you")) : "");
+  const cardsLeft = L.cardsLeft;
+  const times = L.times;
+  const sep = L.isAr ? "، " : ", ";
 
   const durationMs = game.endedAtMs && game.startedAtMs ? game.endedAtMs - game.startedAtMs : null;
   const durationText = (() => {
@@ -1676,17 +2213,17 @@ function WinStats({ game, myId, isOnline }) {
   })();
 
   const rows = [
-    { l: "الفائز", v: `${who(winner)} 🎉`, hero: true },
-    durationText ? { l: "مدة اللعبة", v: durationText, hero: true } : null,
-    runnerUp ? { l: "أقرب منافس", v: `${who(runnerUp)}، ${cardsLeft(runnerUp.hand.length)}` } : null,
-    { l: "جولات التنسيق", v: `${game.coordRounds ?? 0}` },
-    { l: "كروت انلعبت", v: `${game.stats?.itemsPlayed || 0}` },
-    { l: "الكروت النادرة المستخدمة", v: `${game.stats?.rareItemsPlayed || 0}` },
-    topTargeted ? { l: "أكثر لاعب استُهدف بالأكشن", v: `${lookupName(topTargeted[0])}، ${times(topTargeted[1])}` } : null,
+    { l: t("winner"), v: `${who(winner)} 🎉`, hero: true },
+    durationText ? { l: t("duration"), v: durationText, hero: true } : null,
+    runnerUp ? { l: t("runnerUp"), v: `${who(runnerUp)}${sep}${cardsLeft(runnerUp.hand.length)}` } : null,
+    { l: t("coordRounds"), v: `${game.coordRounds ?? 0}` },
+    { l: t("cardsPlayed"), v: `${game.stats?.itemsPlayed || 0}` },
+    { l: t("raresPlayed"), v: `${game.stats?.rareItemsPlayed || 0}` },
+    topTargeted ? { l: t("mostTargeted"), v: `${L.name(lookupName(topTargeted[0]))}${sep}${times(topTargeted[1])}` } : null,
   ].filter(Boolean);
 
   function share() {
-    const lines = ["حصيلة لعبة حُلّة 🃏", ...rows.map((r) => `${r.l}: ${r.v}`)].join("\n");
+    const lines = [t("shareRecap"), ...rows.map((r) => `${r.l}: ${r.v}`)].join("\n");
     try {
       if (navigator.share) {
         navigator.share({ text: lines });
@@ -1699,10 +2236,10 @@ function WinStats({ game, myId, isOnline }) {
   }
 
   return (
-    <div className="mt-6 mx-auto max-w-xs hr-26 overflow-hidden text-right hilla-pop" style={{ background: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 18px 40px -16px rgba(60,30,10,.45)` }}>
+    <div className="mt-6 mx-auto max-w-xs hr-26 overflow-hidden hstart hilla-pop" style={{ background: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 18px 40px -16px rgba(60,30,10,.45)` }}>
       <div className="px-4 pb-4 pt-4">
         <div className="display-font font-bold mb-1 text-center tsz-20" style={{ color: BRAND }}>
-          حصيلة اللعبة
+          {t("recap")}
         </div>
         {rows.map((r, i) => (
           <div
@@ -1713,14 +2250,14 @@ function WinStats({ game, myId, isOnline }) {
             <span className={r.hero ? "tsz-13 font-semibold" : "tsz-12"} style={{ color: r.hero ? BRAND : `${INK}99` }}>
               {r.l}
             </span>
-            <span className={`font-bold text-left ${r.hero ? "tsz-15" : "tsz-13"}`} style={{ color: r.hero ? BRAND : INK }}>
+            <span className={`font-bold hend ${r.hero ? "tsz-15" : "tsz-13"}`} style={{ color: r.hero ? BRAND : INK }}>
               {r.v}
             </span>
           </div>
         ))}
         <button onClick={share} className={`w-full mt-3 py-2.5 tsz-13 flex items-center justify-center gap-1.5 ${btn}`} style={btnPrimary}>
           {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-          {copied ? "تم نسخ النتيجة" : "شارك النتيجة"}
+          {copied ? t("copied") : t("share")}
         </button>
       </div>
     </div>
@@ -1731,16 +2268,17 @@ function WinStats({ game, myId, isOnline }) {
 // intervene (not the target, holds no لا ما تقدر). Gold line drains in real time — the negative
 // animation-delay syncs it to startedAt, so polling re-renders never restart it.
 function ReactionStrip({ pa, players, windowMs }) {
+  const { t, tb, L } = useI18n();
   if (!pa) return null;
   const target = players.find((p) => p.id === pa.targetId);
   const startedAt = typeof pa.startedAt === "number" ? pa.startedAt : Date.now();
   const elapsed = Math.max(0, Math.min(windowMs, Date.now() - startedAt));
   return (
-    <div className="fixed left-0 right-0 hz-60 pointer-events-none px-3" dir="rtl" style={{ top: "calc(env(safe-area-inset-top, 0px) + 0.5rem)" }}>
-      <div className="mx-auto max-w-md rounded-2xl overflow-hidden shadow-lg flex items-center gap-2 pl-3 hilla-pop" style={{ background: `${INK}ee` }}>
+    <div className="fixed left-0 right-0 hz-60 pointer-events-none px-3" dir={L.dir} style={{ top: "calc(env(safe-area-inset-top, 0px) + 0.5rem)" }}>
+      <div className="mx-auto max-w-md rounded-2xl overflow-hidden shadow-lg flex items-center gap-2 hpad-e3 hilla-pop" style={{ background: `${INK}ee` }}>
         <ActionThumb type={pa.actionType} size={40} radius={0} />
         <div className="flex-1 py-1.5 tsz-12 font-semibold" style={{ color: CREAM }}>
-          {pa.actorName} يستخدم <b style={{ color: GOLD }}>{actionMeta(pa.actionType).name}</b> ضد {target?.name}
+          {tb("spectator", { actor: pa.actorName, action: L.action(pa.actionType), target: target?.name }, { color: GOLD })}
         </div>
       </div>
       <div className="mx-auto max-w-md px-3">
@@ -1755,22 +2293,23 @@ function ReactionStrip({ pa, players, windowMs }) {
 // F10 — cultural hint card: appears near the bottom after the player places an item, teaching
 // what the piece actually is. Limited to the first few plays per game so it never nags.
 function EduToast({ data }) {
+  const { t, tb, L } = useI18n();
   if (!data) return null;
   const info = ITEM_INFO[data.name];
   return (
     <div
-      dir="rtl"
+      dir={L.dir}
       className="fixed left-1/2 hz-58 w-80 hmaxw-92 rounded-2xl shadow-xl pointer-events-none p-2.5 flex items-center gap-3"
       style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)", background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}, 0 16px 30px -12px rgba(60,30,10,.5)`, animation: "hilla-edu 5s ease-out forwards" }}
     >
       {info && <ItemCard card={{ id: "edu", name: data.name, region: info.region, rarity: info.rarity }} size={64} />}
-      <div className="flex-1 min-w-0 text-right">
+      <div className="flex-1 min-w-0 hstart">
         <div className="tsz-13 font-bold" style={{ color: info?.color || BRAND }}>
-          {data.name}
-          {info && <span className="font-medium tsz-11 mr-1" style={{ color: `${INK}77` }}>· {info.regionName}</span>}
+          {L.item(data.name)}
+          {info && <span className="font-medium tsz-11 hms-1" style={{ color: `${INK}77` }}>· {L.region(info.region)}</span>}
         </div>
         <div className="serif-text tsz-15 leading-snug" style={{ color: INK }}>
-          {data.text}
+          {L.itemDesc(data.name) || data.text}
         </div>
       </div>
     </div>
@@ -1855,6 +2394,7 @@ const PHRASES = ["كفو!", "ظلم!", "يا زينه", "الله يعين", "ه
 // blocks play. `trigger` is the shared-state reactionEvent; each new id spawns one burst, and
 // bursts stack rather than interrupting each other. Purely visual — never read by game logic.
 function ReactionFX({ trigger, myId, isOnline }) {
+  const { t, tb, L } = useI18n();
   const layerRef = useRef(null);
   const [tag, setTag] = useState(null);
   const [bubbles, setBubbles] = useState([]);
@@ -1870,15 +2410,15 @@ function ReactionFX({ trigger, myId, isOnline }) {
       const b = {
         id: trigger.id,
         text: trigger.emoji,
-        by: mine ? "أنت" : trigger.byName,
+        by: mine ? t("you") : trigger.byName,
         small: !!trigger.single,
         dx: Math.round(-70 + Math.random() * 140),
         top: 28 + Math.random() * 14,
         tilt: (-4 + Math.random() * 8).toFixed(1),
       };
       setBubbles((list) => [...list.slice(-3), b]);
-      const t = setTimeout(() => setBubbles((list) => list.filter((x) => x.id !== b.id)), 2500);
-      return () => clearTimeout(t);
+      const tm = setTimeout(() => setBubbles((list) => list.filter((x) => x.id !== b.id)), 2500);
+      return () => clearTimeout(tm);
     }
 
     const layer = layerRef.current;
@@ -1940,9 +2480,9 @@ function ReactionFX({ trigger, myId, isOnline }) {
 
     // Who sent it — shown briefly so it's clear, then fades on its own.
     const mine = isOnline ? trigger.byId === myId : true;
-    setTag({ id: trigger.id, text: `${emoji} ${mine ? "أنت" : trigger.byName}` });
-    const t = setTimeout(() => setTag(null), 2600);
-    return () => clearTimeout(t);
+    setTag({ id: trigger.id, text: `${emoji} ${mine ? t("you") : trigger.byName}` });
+    const tm = setTimeout(() => setTag(null), 2600);
+    return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trigger?.id]);
 
@@ -1969,7 +2509,7 @@ function ReactionFX({ trigger, myId, isOnline }) {
                 {b.by}
               </div>
               <div className="display-font font-bold leading-none whitespace-nowrap" style={{ color: BRAND, fontSize: b.small ? 26 : 36 }}>
-                {b.text}
+                {L.phrase(b.text)}
               </div>
               <span
                 className="absolute left-1/2"
@@ -2003,6 +2543,7 @@ function ReactionFX({ trigger, myId, isOnline }) {
 const SEAT_REACT_MS = 5000;
 
 function SeatBubble({ anchor, text }) {
+  const { t, tb, L } = useI18n();
   const [pos, setPos] = useState(null);
   useEffect(() => {
     if (!anchor) return;
@@ -2036,7 +2577,7 @@ function SeatBubble({ anchor, text }) {
           }}
         >
           <span className={isPhrase ? "font-bold tsz-13" : "text-xl leading-snug"} style={{ color: BRAND }}>
-            {text}
+            {L.phrase(text)}
           </span>
           <span
             className="absolute left-1/2"
@@ -2051,6 +2592,7 @@ function SeatBubble({ anchor, text }) {
 // Floating reaction button, pinned bottom-left of the viewport. Single tap opens a small picker:
 // Saudi phrases stacked as pills, with the emoji in one row underneath, right above the button.
 function ReactionButton({ onReact }) {
+  const { t, tb, L } = useI18n();
   const [open, setOpen] = useState(false);
   const pick = (v) => {
     onReact(v);
@@ -2074,13 +2616,13 @@ function ReactionButton({ onReact }) {
             boxShadow: "0 2px 6px rgba(0,0,0,.16)",
             opacity: open ? 1 : 0.82,
           }}
-          title="التفاعلات"
+          title={t("reactions")}
         >
           {open ? <X className="w-5 h-5" /> : <Smile className="w-5 h-5" />}
         </button>
         {open && (
           <div
-            dir="rtl"
+            dir={L.dir}
             className="hr-22 p-2.5"
             style={{
               width: 236,
@@ -2091,14 +2633,14 @@ function ReactionButton({ onReact }) {
             }}
           >
             <div className="flex flex-wrap gap-1.5 justify-center">
-              {PHRASES.map((t) => (
+              {PHRASES.map((ph) => (
                 <button
-                  key={t}
-                  onClick={() => pick(t)}
+                  key={ph}
+                  onClick={() => pick(ph)}
                   className="rounded-full font-bold tsz-13 active:scale-95 transition-transform whitespace-nowrap"
                   style={{ padding: "5px 12px", background: `${BRAND}0f`, color: BRAND }}
                 >
-                  {t}
+                  {L.phrase(ph)}
                 </button>
               ))}
             </div>
@@ -2119,15 +2661,16 @@ function ReactionButton({ onReact }) {
 
 
 function BlockFlashToast({ data }) {
+  const { t, tb, L } = useI18n();
   if (!data) return null;
   return (
     <div
-      className="fixed left-1/2 hz-65 pr-2 pl-4 py-2 rounded-2xl tsz-13 font-bold pointer-events-none shadow-2xl flex items-center gap-2.5 whitespace-nowrap"
+      className="fixed left-1/2 hz-65 hpad-se py-2 rounded-2xl tsz-13 font-bold pointer-events-none shadow-2xl flex items-center gap-2.5 whitespace-nowrap"
       style={{ top: "calc(env(safe-area-inset-top, 0px) + 4rem)", background: "#961E21", color: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 18px 34px -12px rgba(0,0,0,.5)`, animation: "hilla-block-flash 4s ease-out forwards" }}
     >
       <ActionThumb type="block" size={40} radius={10} />
       <span>
-        {data.blockerName} صدّ {data.actorName} بـ لا ما تقدر!
+        {t("blocked", { blocker: data.blockerName, actor: data.actorName })}
       </span>
     </div>
   );
@@ -2232,6 +2775,7 @@ function pickPriorityMoveToast(entries, currentGame, prevGame, shownTurnToastKey
 // Optional post-game survey (V2 analytics). Shown only on the winner screen,
 // fully skippable, fire-and-forget — can never interrupt or break gameplay.
 function PostGameSurvey({ game, myId, isOnline }) {
+  const { t } = useI18n();
   const [fun, setFun] = useState(0);
   const [clarity, setClarity] = useState(0);
   const [again, setAgain] = useState(null);
@@ -2244,7 +2788,7 @@ function PostGameSurvey({ game, myId, isOnline }) {
   if (sent)
     return (
       <div className="mt-6 mx-auto max-w-sm rounded-2xl border-2 p-4 text-center font-bold" style={{ background: CREAM2, borderColor: GOLD, color: MAROON }}>
-        شكرًا على رأيك! 💛
+        {t("svThanks")}
       </div>
     );
   const Stars = ({ value, onPick }) => (
@@ -2260,22 +2804,22 @@ function PostGameSurvey({ game, myId, isOnline }) {
     <div className="mt-6 mx-auto max-w-sm rounded-2xl border-2 p-4 text-center" style={{ background: CREAM2, borderColor: GOLD }}>
       <div className="flex justify-between items-center mb-2">
         <div className="font-black" style={{ color: MAROON }}>
-          رأيك يهمنا (اختياري)
+          {t("svTitle")}
         </div>
         <button onClick={() => setHidden(true)} className="text-xs" style={{ color: `${INK}66` }}>
-          تخطي
+          {t("svSkip")}
         </button>
       </div>
       <div className="text-xs mb-1" style={{ color: `${INK}88` }}>
-        كم كانت اللعبة ممتعة؟
+        {t("svFun")}
       </div>
       <Stars value={fun} onPick={setFun} />
       <div className="text-xs mb-1 mt-2" style={{ color: `${INK}88` }}>
-        هل القوانين واضحة؟
+        {t("svClear")}
       </div>
       <Stars value={clarity} onPick={setClarity} />
       <div className="text-xs mb-1 mt-2" style={{ color: `${INK}88` }}>
-        تلعبها مرة ثانية؟
+        {t("svAgain")}
       </div>
       <div className="flex gap-2 justify-center mb-2">
         <button
@@ -2283,20 +2827,20 @@ function PostGameSurvey({ game, myId, isOnline }) {
           className="px-3 py-1 rounded-lg border-2 text-sm font-bold"
           style={again === true ? { background: TEAL, color: CREAM, borderColor: TEAL } : { color: TEAL, borderColor: `${TEAL}66` }}
         >
-          أكيد 😍
+          {t("svYes")}
         </button>
         <button
           onClick={() => setAgain(again === false ? null : false)}
           className="px-3 py-1 rounded-lg border-2 text-sm font-bold"
           style={again === false ? { background: MAROON, color: CREAM, borderColor: MAROON } : { color: MAROON, borderColor: `${MAROON}66` }}
         >
-          لا 😅
+          {t("svNo")}
         </button>
       </div>
       <textarea
         value={comment}
         onChange={(e) => setComment(e.target.value.slice(0, 280))}
-        placeholder="تعليق (اختياري)"
+        placeholder={t("svComment")}
         rows={2}
         className="w-full rounded-lg px-2 py-1 text-xs border-2 focus:outline-none mb-2"
         style={{ background: CREAM, color: INK, borderColor: `${MAROON}33` }}
@@ -2318,13 +2862,14 @@ function PostGameSurvey({ game, myId, isOnline }) {
         className="px-5 py-2 rounded-lg font-bold disabled:opacity-30"
         style={{ background: MAROON, color: CREAM }}
       >
-        أرسل
+        {t("svSend")}
       </button>
     </div>
   );
 }
 
-function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onClaimTimeout, dispatch, onExit, onGoHome }) {
+function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onClaimTimeout, onDeclineBlock, dispatch, onExit, onGoHome }) {
+  const { t, tb, L } = useI18n();
   const [selected, setSelected] = useState([]);
   const [needTarget, setNeedTarget] = useState(null);
   const [giveStep, setGiveStep] = useState(null);
@@ -2341,6 +2886,94 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   const [showRules, setShowRules] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const seatRefs = useRef({});
+  // Seat row follows the turn: when it overflows (many players), it glides to whoever's turn it is.
+  // If the player is touching / dragging / flicking it, we leave it alone; once they let go and the
+  // row settles, it glides back to the active seat if that seat isn't fully on screen.
+  const seatRowRef = useRef(null);
+  const seatTouchRef = useRef(false);
+  const seatIdleTimerRef = useRef(null);
+  const seatProgrammaticUntilRef = useRef(0);
+  const seatUserScrollAtRef = useRef(0);
+  const activeSeatId = game.players[game.currentPlayerIndex]?.id;
+
+  const centerActiveSeat = useCallback(
+    (onlyIfHidden) => {
+      const row = seatRowRef.current;
+      const el = seatRefs.current[activeSeatId];
+      if (!row || !el || row.scrollWidth <= row.clientWidth + 1) return;
+      const r = row.getBoundingClientRect();
+      const e = el.getBoundingClientRect();
+      const fullyVisible = e.left >= r.left + 4 && e.right <= r.right - 4;
+      if (onlyIfHidden && fullyVisible) return;
+      const delta = e.left + e.width / 2 - (r.left + r.width / 2);
+      if (Math.abs(delta) < 2) return;
+      seatProgrammaticUntilRef.current = Date.now() + 700;
+      try {
+        row.scrollBy({ left: delta, behavior: "smooth" });
+      } catch {
+        row.scrollLeft += delta;
+      }
+    },
+    [activeSeatId]
+  );
+
+  // New turn → glide to the active seat (unless the player is holding the row right now).
+
+
+  const scheduleSeatReturn = useCallback(() => {
+    clearTimeout(seatIdleTimerRef.current);
+    seatIdleTimerRef.current = setTimeout(() => {
+      if (seatTouchRef.current) return;
+      if (Date.now() - (seatUserScrollAtRef.current || 0) < 700) return scheduleSeatReturn(); // still gliding
+      centerActiveSeat(true);
+    }, 900);
+  }, [centerActiveSeat]);
+  useEffect(() => {
+    if (seatTouchRef.current || Date.now() - (seatUserScrollAtRef.current || 0) < 900) {
+      scheduleSeatReturn();
+      return;
+    }
+    const t0 = setTimeout(() => centerActiveSeat(false), 60);
+    return () => clearTimeout(t0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSeatId, centerActiveSeat]);
+  useEffect(() => () => clearTimeout(seatIdleTimerRef.current), []);
+
+  // Touch: the finger is "down" from touchstart until touchend/touchcancel. We deliberately ignore
+  // pointercancel here — mobile browsers fire it the moment native panning takes over, while the
+  // finger is still on the glass, which used to make the row fight the user.
+  const seatRowHandlers = {
+    onPointerDown: (e) => {
+      if (e.pointerType !== "mouse") return;
+      seatTouchRef.current = true;
+      clearTimeout(seatIdleTimerRef.current);
+    },
+    onPointerUp: (e) => {
+      if (e.pointerType !== "mouse") return;
+      seatTouchRef.current = false;
+      scheduleSeatReturn();
+    },
+    onTouchStart: () => {
+      seatTouchRef.current = true;
+      clearTimeout(seatIdleTimerRef.current);
+    },
+    onTouchEnd: (e) => {
+      if (e.touches && e.touches.length > 0) return; // another finger still down
+      seatTouchRef.current = false;
+      scheduleSeatReturn();
+    },
+    onTouchCancel: () => {
+      seatTouchRef.current = false;
+      scheduleSeatReturn();
+    },
+    // flicks / wheel / momentum: each user scroll event pushes the return back
+    onScroll: () => {
+      if (Date.now() < seatProgrammaticUntilRef.current) return;
+      seatUserScrollAtRef.current = Date.now();
+      clearTimeout(seatIdleTimerRef.current);
+      if (!seatTouchRef.current) scheduleSeatReturn();
+    },
+  };
   const coordRef = useRef(null);
   const [coordHidden, setCoordHidden] = useState(false);
   useEffect(() => {
@@ -2360,11 +2993,11 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     if (!ev || ev.id === seenReactRef.current) return;
     seenReactRef.current = ev.id;
     setSeatReacts((m) => ({ ...m, [ev.byId]: { id: ev.id, text: ev.emoji } }));
-    const t = setTimeout(
+    const tm = setTimeout(
       () => setSeatReacts((m) => (m[ev.byId]?.id === ev.id ? Object.fromEntries(Object.entries(m).filter(([k]) => k !== ev.byId)) : m)),
       SEAT_REACT_MS
     );
-    return () => clearTimeout(t);
+    return () => clearTimeout(tm);
   }, [game.reactionEvent?.id]);
   const cardSize = useCardSize();
   const vw = useViewportWidth();
@@ -2463,7 +3096,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   function botTurnEvents(prev, next, bot) {
     const gid = prev.analyticsId;
     if (!gid) return [];
-    const t = prev.turnSerial ?? 0;
+    const turnN = prev.turnSerial ?? 0;
     const prevBot = prev.players.find((p) => p.id === bot.id);
     const nextBot = next.players.find((p) => p.id === bot.id);
     if (!prevBot || !nextBot) return [];
@@ -2473,14 +3106,14 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     const playedActions = removed.filter((c) => c.kind === "action");
     const events = [
       mkEvent(prev, "bot_move", bot, {
-        event_id: `${gid}-t${t}-bot-${bot.id}`,
+        event_id: `${gid}-t${turnN}-bot-${bot.id}`,
         cards_played_count: playedItems.length,
       }),
     ];
     if (playedItems.length > 0) {
       events.push(
         mkEvent(prev, "items_played", bot, {
-          event_id: `${gid}-t${t}-items-${bot.id}`,
+          event_id: `${gid}-t${turnN}-items-${bot.id}`,
           cards_played_count: playedItems.length,
           items: playedItems.map((c) => ({ name: c.name, region: c.region, rarity: c.rarity, cid: c.id })),
         })
@@ -2491,7 +3124,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
       const target = pa && pa.actorId === bot.id ? next.players.find((p) => p.id === pa.targetId) : null;
       events.push(
         mkEvent(prev, "action_played", bot, {
-          event_id: `${gid}-t${t}-action-${bot.id}-${c.actionType}`,
+          event_id: `${gid}-t${turnN}-action-${bot.id}-${c.actionType}`,
           action_type: c.actionType,
           payload: target ? { target_player_id: target.id, target_is_bot: !!target.isBot } : null,
         })
@@ -2500,7 +3133,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     if (playedItems.length === 0 && playedActions.length === 0) {
       events.push(
         mkEvent(prev, "turn_skipped", bot, {
-          event_id: `${gid}-t${t}-skip-${bot.id}`,
+          event_id: `${gid}-t${turnN}-skip-${bot.id}`,
           skip_reason: "bot_no_valid_move",
         })
       );
@@ -2602,8 +3235,8 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
 
   useEffect(() => {
     if (!errMsg) return;
-    const t = setTimeout(() => setErrMsg(""), 3000);
-    return () => clearTimeout(t);
+    const tm = setTimeout(() => setErrMsg(""), 3000);
+    return () => clearTimeout(tm);
   }, [errMsg]);
 
   useEffect(() => {
@@ -2618,10 +3251,10 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   }, [bigText]);
 
   useEffect(() => {
-    const t = game.turnSerial ?? 0;
+    const turnN = game.turnSerial ?? 0;
     const humanTurn = isOnline ? isMyTurn : current && !current.isBot;
-    if (humanTurn && lastHapticTurnRef.current !== t && !game.winner) {
-      lastHapticTurnRef.current = t;
+    if (humanTurn && lastHapticTurnRef.current !== turnN && !game.winner) {
+      lastHapticTurnRef.current = turnN;
       haptic();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2636,8 +3269,8 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     haptic();
     const startedAt = typeof pa.startedAt === "number" ? pa.startedAt : Date.now();
     const warnIn = Math.max(0, pendingWindowMs(game) - 3000 - (Date.now() - startedAt));
-    const t = setTimeout(haptic, warnIn);
-    return () => clearTimeout(t);
+    const tm = setTimeout(haptic, warnIn);
+    return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game.pendingAction?.id]);
 
@@ -2658,14 +3291,14 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     if (!cur || !cur.isBot) return;
     const key = `${game.turnSerial ?? 0}:${cur.id}`;
     if (lastBotTurnRef.current === key) return;
-    const t = setTimeout(() => {
+    const tm = setTimeout(() => {
       if (lastBotTurnRef.current === key) return;
       lastBotTurnRef.current = key;
       const next = botDecideTurn(game, cur.id);
       track(botTurnEvents(game, next, cur));
       dispatch(next);
     }, 900);
-    return () => clearTimeout(t);
+    return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game, botExecutor]);
 
@@ -2683,7 +3316,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     const windowMs = cur.inactive ? INACTIVE_SKIP_MS : TURN_TIMEOUT_MS;
     const remaining = Math.max(0, windowMs - (Date.now() - startedAt));
     const wasInactive = cur.inactive;
-    const t = setTimeout(() => {
+    const tm = setTimeout(() => {
       const next = rTurnTimeout(game, cur.id);
       if (next === game) return; // stale-timer guard rejected it — nothing happened
       track([
@@ -2696,7 +3329,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
       ]);
       dispatch(next);
     }, remaining);
-    return () => clearTimeout(t);
+    return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline, game.turnSerial, game.turnStartedAt, game.pendingAction, game.digOptions, game.players[game.currentPlayerIndex]?.inactive]);
 
@@ -2717,7 +3350,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     const remaining = Math.max(0, windowMs - (Date.now() - game.turnStartedAt));
     const wasInactive = cur.inactive;
     const fingerprint = `${game.turnSerial}:${game.currentPlayerIndex}:${game.turnStartedAt}:${roomUpdatedAt}`;
-    const t = setTimeout(async () => {
+    const tm = setTimeout(async () => {
       if (claimedTimeoutRef.current === fingerprint) return;
       claimedTimeoutRef.current = fingerprint;
       const next = rTurnTimeout(game, cur.id);
@@ -2740,7 +3373,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
         ]);
       }
     }, remaining);
-    return () => clearTimeout(t);
+    return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline, roomUpdatedAt, game.turnSerial, game.turnStartedAt, game.pendingAction, game.digOptions, game.players[game.currentPlayerIndex]?.inactive]);
 
@@ -2772,7 +3405,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     const targetHasBlock = targetBot && targetBot.hand.some((c) => c.kind === "action" && c.actionType === "block");
 
     if (harmfulToTarget && targetHasBlock && botExecutor) {
-      const t = setTimeout(
+      const tm = setTimeout(
         () =>
           settlePendingAction(
             () => rCancelWithBlock(game, targetBot.id),
@@ -2786,15 +3419,19 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
           ),
         700
       );
-      return () => clearTimeout(t);
+      return () => clearTimeout(tm);
     }
 
     const isResolver = !isOnline || (actor?.isBot ? !!isHost : pa.actorId === myId);
     if (!isResolver) return;
     const startedAt = typeof pa.startedAt === "number" ? pa.startedAt : Date.now();
-    const remaining = Math.max(0, pendingWindowMs(game) - (Date.now() - startedAt));
-    const t = setTimeout(() => settlePendingAction(() => rResolvePendingAction(game)), remaining);
-    return () => clearTimeout(t);
+    const elapsed = Date.now() - startedAt;
+    // #58: once every human who could block has passed, resolve early (after a short read).
+    const remaining = allHumanBlockersDeclined(game)
+      ? Math.max(250, PASS_MIN_READ_MS - elapsed)
+      : Math.max(0, pendingWindowMs(game) - elapsed);
+    const tm = setTimeout(() => settlePendingAction(() => rResolvePendingAction(game)), remaining);
+    return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game, isOnline, isHost, botExecutor]);
 
@@ -2883,7 +3520,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     if (!card) return;
     // لا ما تقدر is purely reactive — it's used from the incoming-action window, never as a turn action.
     if (card.actionType === "block") {
-      setErrMsg("لا ما تقدر تستخدمه كردّ فعل لما أحد يلعب أكشن.");
+      setErrMsg(t("blockOnlyReactive"));
       return;
     }
     if (card.actionType === "freeze") {
@@ -2945,7 +3582,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     const blocker = game.players.find((p) => p.id === blockerId);
     const hasBlock = blocker && blocker.hand.some((c) => c.kind === "action" && c.actionType === "block");
     if (!hasBlock) {
-      setErrMsg(`${blocker?.name || ""} ما معه كرت لا ما تقدر.`);
+      setErrMsg(t("noBlockCard", { name: blocker?.name || "" }));
       return;
     }
     const pa = game.pendingAction;
@@ -2974,6 +3611,28 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     );
   }, [game.pendingAction, game.players]);
 
+  // Who sees the full pending-action sheet: the target, or anyone who can still block — unless
+  // they've already chosen "لا، ما راح أستخدمه", in which case they drop to the spectator strip.
+  const showPendingSheet = (() => {
+    const pa = game.pendingAction;
+    if (!pa) return false;
+    const paTarget = game.players.find((p) => p.id === pa.targetId);
+    const iAmTarget = isOnline ? paTarget?.id === myId : paTarget && !paTarget.isBot;
+    const iCanBlock = isOnline ? eligibleBlockers.some((p) => p.id === myId) : eligibleBlockers.some((p) => !p.isBot);
+    const iPassed = isOnline ? (pa.declinedIds || []).includes(myId) : allHumanBlockersDeclined(game);
+    return (iAmTarget || iCanBlock) && !iPassed;
+  })();
+
+  function declineBlock() {
+    if (isOnline) {
+      if (game.pendingAction) onDeclineBlock?.(game.pendingAction.id);
+      return;
+    }
+    // one shared device: passing means nobody here wants to use it
+    const g = eligibleBlockers.filter((p) => !p.isBot).reduce((acc, p) => rDeclineBlock(acc, p.id), game);
+    dispatch(g);
+  }
+
   const winnerPlayer = game.winner ? game.players.find((p) => p.id === game.winner) : null;
   const topDiscard = game.discardPile.length ? game.discardPile[game.discardPile.length - 1] : null;
   const multiHumanLocal = !isOnline && humans.length > 1;
@@ -2988,7 +3647,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     if (itemCards.length === 0) {
       return (
         <div className="tsz-13 py-6 w-full text-center" style={{ color: `${INK}55` }}>
-          ما عندك عناصر لبس.
+          {t("noClothing")}
         </div>
       );
     }
@@ -3018,7 +3677,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     if (current.isBot) {
       return (
         <div className="flex items-center gap-2 tsz-13 font-semibold" style={{ color: `${INK}88` }}>
-          🤖 {current.name} يفكر
+          {t("thinking", { name: current.name })}
           <span className="flex gap-0.5">
             {[0, 1, 2].map((i) => (
               <span key={i} className="w-1.5 h-1.5 rounded-full hilla-dot" style={{ background: GOLD_DK, animationDelay: `${i * 150}ms` }} />
@@ -3039,8 +3698,8 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
             className=""
           />
         )}
-        <div className="tsz-14 font-bold text-right" style={{ color: isMyTurn ? BRAND : `${INK}88` }}>
-          {current.inactive ? `😴 ${current.name} غير نشط الحين` : isMyTurn ? "دورك، العب قبل ما ينتهي الوقت" : `دور ${current.name} الحين`}
+        <div className="tsz-14 font-bold hstart" style={{ color: isMyTurn ? BRAND : `${INK}88` }}>
+          {current.inactive ? t("inactiveNow", { name: L.name(current.name) }) : isMyTurn ? t("yourTurn") : t("turnOf", { name: L.name(current.name) })}
         </div>
       </div>
     );
@@ -3048,10 +3707,11 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
 
   return (
     <div
-      dir="rtl"
-      className="hilla-root min-h-screen w-full px-3 pt-3 pb-24"
+      dir={L.dir}
+      className="hilla-root min-h-screen w-full px-3 pb-24"
       style={{
         ...pageBg,
+        paddingTop: "max(12px, calc(env(safe-area-inset-top) + 6px))",
         color: INK,
         paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)",
         "--tsz": bigText ? 1.18 : 1,
@@ -3068,14 +3728,14 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
           <div className="flex items-center gap-2">
             {!winnerPlayer && (
               <span className="tsz-11 font-semibold px-2.5 py-1 rounded-full" style={{ background: `${INK}0d`, color: `${INK}88` }}>
-                جولة {game.coordRounds ?? 1}
+                {t("round", { n: game.coordRounds ?? 1 })}
               </span>
             )}
             <button
               onClick={() => setMenuOpen((v) => !v)}
               className="w-10 h-10 rounded-full flex items-center justify-center transition active:scale-95"
               style={menuOpen ? { background: INK, color: CREAM } : { background: CREAM, color: INK, boxShadow: "0 2px 8px -2px rgba(60,30,10,.3)" }}
-              title="القائمة"
+              title={t("menu")}
             >
               <Menu className="w-4 h-4" />
             </button>
@@ -3099,18 +3759,18 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
               <CardBack size={120} tall style={{ boxShadow: "0 20px 40px -14px rgba(60,30,10,.6)" }} />
             </div>
             <div className="display-font font-bold leading-none" style={{ color: BRAND, fontSize: fs(46) }}>
-              {(isOnline ? winnerPlayer.id === myId : soloHuman ? winnerPlayer.id === soloHuman.id : false) ? "فزت!" : `فاز ${winnerPlayer.name}!`}
+              {(isOnline ? winnerPlayer.id === myId : soloHuman ? winnerPlayer.id === soloHuman.id : false) ? t("youWon") : t("wonName", { name: L.name(winnerPlayer.name) })}
             </div>
             <WinStats game={game} myId={myId} isOnline={isOnline} />
             <button onClick={onExit} className={`mt-5 px-8 py-3 tsz-15 ${btn}`} style={btnPrimary}>
-              العب من جديد
+              {t("playAgain")}
             </button>
             <PostGameSurvey game={game} myId={myId} isOnline={isOnline} />
           </div>
         ) : (
           <>
             {/* seats */}
-            <div className="hilla-hand flex overflow-x-auto -mx-3 px-4 pt-2 pb-5 -mb-2">
+            <div ref={seatRowRef} {...seatRowHandlers} className="hilla-hand flex overflow-x-auto -mx-3 px-4 pt-2 pb-5 -mb-2">
               <div className="flex gap-1.5 mx-auto">
               {game.players.map((p, i) => (
                 <div key={p.id} ref={(el) => (seatRefs.current[p.id] = el)}>
@@ -3162,11 +3822,11 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
               />
             )}
             {game.lockCoord && (
-              <div className="mt-3 mx-auto w-fit flex items-center gap-2 pl-3 rounded-full tsz-12 font-semibold hilla-pop" style={{ background: CREAM, color: INK, boxShadow: `0 0 0 1px ${GOLD}` }}>
+              <div className="mt-3 mx-auto w-fit flex items-center gap-2 hpad-e3 rounded-full tsz-12 font-semibold hilla-pop" style={{ background: CREAM, color: INK, boxShadow: `0 0 0 1px ${GOLD}` }}>
                 <span className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: GOLD }}>
                   <Repeat2 className="w-3.5 h-3.5" style={{ color: INK }} />
                 </span>
-                ثبّت الحَلّة مفعّل: نفس الكرت جولة زيادة
+                {t("lockOn")}
               </div>
             )}
             {wide ? (
@@ -3181,30 +3841,15 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
             <div className="h-5 mt-1 flex justify-center overflow-hidden px-4">
               {!game.winner && moveToast?.text && (
                 <span key={moveToast.id} className="hilla-lastmove tsz-12 truncate" style={{ color: `${INK}88` }}>
-                  {moveToast.text}
+                  {L.log(moveToast.text)}
                 </span>
               )}
             </div>
 
-            {(() => {
-              const pa = game.pendingAction;
-              if (!pa) return null;
-              const paTarget = game.players.find((p) => p.id === pa.targetId);
-              const iAmTarget = isOnline ? paTarget?.id === myId : paTarget && !paTarget.isBot;
-              const iCanBlock = isOnline ? eligibleBlockers.some((p) => p.id === myId) : eligibleBlockers.some((p) => !p.isBot);
-              if (!iAmTarget && !iCanBlock) {
-                return <ReactionStrip key={pa.id} pa={pa} players={game.players} windowMs={pendingWindowMs(game)} />;
-              }
-              return null;
-            })()}
-            {game.pendingAction &&
-              (() => {
-                const pa = game.pendingAction;
-                const paTarget = game.players.find((p) => p.id === pa.targetId);
-                const iAmTarget = isOnline ? paTarget?.id === myId : paTarget && !paTarget.isBot;
-                const iCanBlock = isOnline ? eligibleBlockers.some((p) => p.id === myId) : eligibleBlockers.some((p) => !p.isBot);
-                return iAmTarget || iCanBlock;
-              })() && (
+            {game.pendingAction && !showPendingSheet && (
+              <ReactionStrip key={game.pendingAction.id} pa={game.pendingAction} players={game.players} windowMs={pendingWindowMs(game)} />
+            )}
+            {game.pendingAction && showPendingSheet && (
                 <Sheet>
                   {(() => {
                     const pa = game.pendingAction;
@@ -3222,15 +3867,15 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                         </div>
                         <div className="mb-1" style={{ color: INK }}>
                           <div className="font-semibold tsz-14">
-                            {actorIsMe ? "أنت تستخدم" : `${pa.actorName} يستخدم`} <b style={{ color: BRAND }}>{actionMeta(pa.actionType).name}</b>
+                            {actorIsMe ? t("youUse") : t("usesX", { name: pa.actorName })} <b style={{ color: BRAND }}>{L.action(pa.actionType)}</b>
                           </div>
                           {targetIsMe ? (
                             <div className="display-font font-bold mt-0.5 tsz-20" style={{ color: BRAND }}>
-                              ضدك أنت!
+                              {t("againstYou")}
                             </div>
                           ) : (
                             <div className="tsz-13 mt-1" style={{ color: `${INK}99` }}>
-                              ضد {targetPlayer?.name}
+                              {t("against", { name: L.name(targetPlayer?.name) })}
                             </div>
                           )}
                         </div>
@@ -3238,14 +3883,14 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                           {isOnline ? (
                             eligibleBlockers.some((p) => p.id === myId) ? (
                               <>
-                                عندك فرصة تستخدم <b className="font-bold" style={{ color: BRAND }}>لا ما تقدر</b> قبل ما تنتهي العدّة.
+                                {tb("canBlockYou", null, { color: BRAND })}
                               </>
                             ) : (
-                              "بينفّذ تلقائيًا بعد العدّة."
+                              t("autoResolve")
                             )
                           ) : (
                             <>
-                              أي لاعب عنده <b className="font-bold" style={{ color: BRAND }}>لا ما تقدر</b> يقدر يستخدمه الحين، وإلا بينفّذ تلقائيًا بعد العدّة.
+                              {tb("anyoneBlock", null, { color: BRAND })}
                             </>
                           )}
                         </div>
@@ -3254,17 +3899,22 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                             <button
                               key={p.id}
                               onClick={() => cancelWithBlock(p.id)}
-                              className={`w-full py-2 pr-2 pl-4 tsz-14 flex items-center gap-3 ${btn}`}
+                              className={`w-full py-2 hpad-se tsz-14 flex items-center gap-3 ${btn}`}
                               style={{ background: "#961E21", color: CREAM, boxShadow: "0 8px 18px -8px rgba(150,30,33,.7)" }}
                             >
                               <ActionThumb type="block" size={36} radius={9} />
-                              <span className="flex-1 text-center">{isOnline || soloHuman ? "استخدم لا ما تقدر" : `${p.name}: استخدم لا ما تقدر`}</span>
+                              <span className="flex-1 text-center">{isOnline || soloHuman ? t("useBlock") : t("useBlockName", { name: p.name })}</span>
                             </button>
                           ))}
+                          {(isOnline ? eligibleBlockers.some((p) => p.id === myId) : eligibleBlockers.some((p) => !p.isBot)) && (
+                            <button onClick={declineBlock} className={`w-full py-2.5 tsz-14 ${btn}`} style={btnGhost}>
+                              {t("passBlock")}
+                            </button>
+                          )}
                         </div>
                         {errMsg && (
                           <div className="tsz-12 font-semibold px-3 py-1.5 rounded-xl mt-2" style={{ background: `${BRAND}14`, color: BRAND }}>
-                            {errMsg}
+                            {L.error(errMsg)}
                           </div>
                         )}
                       </>
@@ -3279,10 +3929,10 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                   <ActionCard card={needTarget} size={170} />
                 </div>
                 <div className="tsz-13 mb-3 -mt-1" style={{ color: `${INK}99` }}>
-                  {actionMeta(needTarget.actionType).desc}
+                  {L.actionDesc(needTarget.actionType)}
                 </div>
                 <div className="font-bold tsz-15 mb-3" style={{ color: INK }}>
-                  على مين؟
+                  {t("whoTarget")}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {game.players
@@ -3294,7 +3944,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                         className={`py-2.5 px-2 tsz-13 flex items-center justify-center gap-1.5 ${btn}`}
                         style={{ background: PAGE, color: INK, boxShadow: `inset 0 0 0 1.5px ${INK}1a` }}
                       >
-                        <span className="truncate">{p.isBot ? "🤖 " : ""}{p.name}</span>
+                        <span className="truncate">{p.isBot ? "🤖 " : ""}{L.name(p.name)}</span>
                         <span className="tsz-11 font-semibold px-1.5 rounded-full" style={{ background: p.hand.length <= 3 ? GOLD : `${INK}12` }}>
                           {p.hand.length}
                         </span>
@@ -3302,7 +3952,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                     ))}
                 </div>
                 <button onClick={() => setNeedTarget(null)} className="mt-4 tsz-12 font-semibold" style={{ color: `${INK}77` }}>
-                  إلغاء
+                  {t("cancel")}
                 </button>
               </Sheet>
             )}
@@ -3312,10 +3962,10 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
             {game.digOptions && (!isOnline || game.digOptions.playerId === myId) && (
               <Sheet maxW={440}>
                 <div className="display-font font-bold tsz-20 mb-1" style={{ color: BRAND }}>
-                  فتّش الصندوق
+                  {t("digTitle")}
                 </div>
                 <div className="tsz-13 mb-4" style={{ color: `${INK}88` }}>
-                  اختر كرت واحد تحتفظ فيه، والباقي يرجع للسحب.
+                  {t("digHint")}
                 </div>
                 <div className="flex justify-center gap-2.5 pt-3">
                   {game.digOptions.cards.map((c, i) => (
@@ -3328,7 +3978,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
             )}
             {game.digOptions && isOnline && game.digOptions.playerId !== myId && (
               <div className="text-center tsz-13 mb-2" style={{ color: `${INK}77` }}>
-                {game.players.find((p) => p.id === game.digOptions.playerId)?.name} يفتّش الصندوق الحين…
+                {t("digging", { name: game.players.find((p) => p.id === game.digOptions.playerId)?.name })}
               </div>
             )}
 
@@ -3336,7 +3986,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
             {showThinkingPanel ? (
               <div className="mt-5 hr-28 py-12 text-center" style={{ background: `${CREAM}aa` }}>
                 <div className="tsz-15 font-bold mb-2" style={{ color: INK }}>
-                  🤖 {current.name} يفكر…
+                  {t("thinkingDots", { name: current.name })}
                 </div>
                 <div className="flex justify-center gap-1.5">
                   {[0, 1, 2].map((i) => (
@@ -3350,13 +4000,13 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                   <CardBack size={84} tall style={{ boxShadow: "0 14px 28px -12px rgba(60,30,10,.6)" }} />
                 </div>
                 <div className="tsz-13 font-semibold mb-1" style={{ color: `${INK}88` }}>
-                  مرّر الجهاز إلى
+                  {t("passTo")}
                 </div>
                 <div className="display-font font-bold mb-5" style={{ color: BRAND, fontSize: fs(38) }}>
                   {current.name}
                 </div>
                 <button onClick={() => setRevealed(true)} className={`px-7 py-3 tsz-15 ${btn}`} style={btnPrimary}>
-                  اكشف يدك
+                  {t("reveal")}
                 </button>
               </div>
             ) : (
@@ -3366,7 +4016,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
               >
                 <div className="flex items-center justify-between px-1">
                   <div className="tsz-13 font-bold flex items-center gap-1.5" style={{ color: INK }}>
-                    {isOnline || soloHuman ? "يدك" : `يد ${viewer.name}`}
+                    {isOnline || soloHuman ? t("yourHand") : t("handOf", { name: viewer.name })}
                     <span className="tsz-11 font-semibold px-1.5 rounded-full" style={{ background: `${INK}0f`, color: `${INK}88` }}>
                       {viewer.hand.length}
                     </span>
@@ -3376,20 +4026,20 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                     className="tsz-11 font-semibold px-3 py-1.5 rounded-full transition"
                     style={sortByRegion ? { background: INK, color: CREAM } : { background: `${INK}0b`, color: `${INK}aa` }}
                   >
-                    رتّب حسب المنطقة
+                    {t("sortRegion")}
                   </button>
                 </div>
 
                 <div className="tsz-11 font-semibold mt-2 px-1" style={{ color: `${INK}77` }}>
-                  عناصر اللبس
+                  {t("clothing")}
                 </div>
                 <div className="hilla-hand flex gap-2 overflow-x-auto -mx-3 px-3 pb-4 -mb-1">{renderItems()}</div>
 
                 {actionCards.length > 0 && (
                   <>
                     <div className="tsz-11 font-semibold mt-1 px-1" style={{ color: `${INK}77` }}>
-                      أكشن: واحد بس، قبل ما تحط عناصرك
-                      {game.actionUsedThisTurn && isMyTurn && <span style={{ color: GOLD_DK }}> · استخدمته هالدور</span>}
+                      {t("actionsHint")}
+                      {game.actionUsedThisTurn && isMyTurn && <span style={{ color: GOLD_DK }}>{t("usedThisTurn")}</span>}
                     </div>
                     <div className="hilla-hand flex gap-2 overflow-x-auto -mx-3 px-3 pb-4 -mb-2">
                       {actionCards.map((c, i) => (
@@ -3403,7 +4053,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
 
                 {errMsg && !game.pendingAction && (
                   <div className="tsz-12 font-semibold mb-2 px-3 py-1.5 rounded-xl hilla-pop" style={{ background: `${BRAND}14`, color: BRAND }}>
-                    {errMsg}
+                    {L.error(errMsg)}
                   </div>
                 )}
 
@@ -3414,10 +4064,10 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                     className={`flex-1 py-3 tsz-14 ${btn}`}
                     style={btnPrimary}
                   >
-                    {selected.length === 0 ? "اختر كروت تطابق التنسيق" : `حط ${cardsWord(selected.length)}`}
+                    {selected.length === 0 ? t("pickMatching") : L.playCards(selected.length)}
                   </button>
                   <button onClick={endMyTurn} disabled={!handActive} className={`px-5 py-3 tsz-14 ${btn}`} style={btnGhost}>
-                    خلصت دوري
+                    {t("endTurn")}
                   </button>
                 </div>
               </section>
@@ -3428,13 +4078,13 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
               className="mt-4 mx-auto flex items-center gap-1.5 tsz-11 font-semibold px-3 py-1.5 rounded-full"
               style={{ color: `${INK}88`, background: `${INK}0a` }}
             >
-              السجل {logOpen ? "▴" : "▾"}
+              {t("log")} {logOpen ? "▴" : "▾"}
             </button>
             {logOpen && (
               <div className="mt-2 rounded-2xl p-3 max-h-40 overflow-y-auto hilla-pop" style={{ background: `${CREAM}cc` }}>
                 {game.log.map((l, i) => (
                   <div key={i} className="tsz-11 mb-1" style={{ color: `${INK}88` }}>
-                    {l}
+                    {L.log(l)}
                   </div>
                 ))}
               </div>
@@ -3448,33 +4098,33 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
           <div className="fixed inset-0 hz-9998 backdrop-blur-sm bg-black/10" onClick={() => setMenuOpen(false)} />
           <div
             className="fixed hz-9999 w-52 rounded-2xl shadow-xl overflow-hidden hilla-pop"
-            style={{ top: "calc(env(safe-area-inset-top, 0px) + 3.75rem)", left: "1rem", background: CREAM, boxShadow: "0 18px 40px -12px rgba(0,0,0,.35)" }}
+            style={{ top: "calc(env(safe-area-inset-top, 0px) + 3.75rem)", ...(L.dir === "rtl" ? { left: "1rem" } : { right: "1rem" }), background: CREAM, boxShadow: "0 18px 40px -12px rgba(0,0,0,.35)" }}
           >
             <button
               onClick={() => setMenuOpen(false)}
-              className="w-full text-right px-4 py-3 tsz-13 font-bold flex items-center gap-2"
+              className="w-full hstart px-4 py-3 tsz-13 font-bold flex items-center gap-2"
               style={{ color: CREAM, background: OLD_TEAL }}
             >
-              <Check className="w-4 h-4" /> استمرار اللعب
+              <Check className="w-4 h-4" /> {t("continue")}
             </button>
             <button
               onClick={() => {
                 setMenuOpen(false);
                 setShowRules(true);
               }}
-              className="w-full text-right px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
+              className="w-full hstart px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
               style={{ color: INK, borderColor: `${INK}12` }}
             >
-              <HelpCircle className="w-4 h-4" style={{ color: BRAND }} /> كيف ألعب؟
+              <HelpCircle className="w-4 h-4" style={{ color: BRAND }} /> {t("howToPlay")}
             </button>
             <button
               onClick={() => {
                 setBigText((v) => !v);
               }}
-              className="w-full text-right px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
+              className="w-full hstart px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
               style={{ color: INK, background: bigText ? `${GOLD}33` : "transparent", borderColor: `${INK}12` }}
             >
-              <Type className="w-4 h-4" style={{ color: BRAND }} /> تكبير النص {bigText ? "✓" : ""}
+              <Type className="w-4 h-4" style={{ color: BRAND }} /> {t("bigText")} {bigText ? "✓" : ""}
             </button>
             <button
               onClick={() => {
@@ -3482,25 +4132,25 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                   window.location.reload();
                 } catch {}
               }}
-              className="w-full text-right px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
+              className="w-full hstart px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
               style={{ color: INK, borderColor: `${INK}12` }}
             >
-              <RefreshCw className="w-4 h-4" style={{ color: BRAND }} /> تحديث الصفحة
+              <RefreshCw className="w-4 h-4" style={{ color: BRAND }} /> {t("refresh")}
             </button>
             <button
               onClick={onExit}
-              className="w-full text-right px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
+              className="w-full hstart px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
               style={{ color: INK, borderColor: `${INK}12` }}
             >
-              <RotateCcw className="w-4 h-4" style={{ color: BRAND }} /> لعبة جديدة
+              <RotateCcw className="w-4 h-4" style={{ color: BRAND }} /> {t("newGame")}
             </button>
             {onGoHome && (
               <button
                 onClick={onGoHome}
-                className="w-full text-right px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
+                className="w-full hstart px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
                 style={{ color: BRAND, borderColor: `${INK}12` }}
               >
-                <LogOut className="w-4 h-4" /> خروج
+                <LogOut className="w-4 h-4" /> {t("exit")}
               </button>
             )}
           </div>
@@ -3519,9 +4169,7 @@ function RulesFab() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <div className="fixed z-[100]" style={{ top: "calc(env(safe-area-inset-top, 0px) + 0.75rem)", insetInlineStart: "0.75rem" }}>
-        <HelpButton onClick={() => setOpen(true)} />
-      </div>
+      <HelpButton onClick={() => setOpen(true)} />
       {open && <HowToPlay onClose={() => setOpen(false)} bigText={false} />}
     </>
   );
@@ -3529,10 +4177,11 @@ function RulesFab() {
 
 // #28 — help affordance + rules modal.
 function HelpButton({ onClick, className = "" }) {
+  const { t, tb, L } = useI18n();
   return (
     <button
       onClick={onClick}
-      title="كيف ألعب؟"
+      title={t("howToPlay")}
       className={`w-10 h-10 rounded-full flex items-center justify-center transition active:scale-95 ${className}`}
       style={{ color: INK, background: CREAM, boxShadow: "0 2px 8px -2px rgba(60,30,10,.3)" }}
     >
@@ -3545,6 +4194,7 @@ function HelpButton({ onClick, className = "" }) {
 // so descriptions can never drift from the actual card definitions. Rendered at z-[10000] (above
 // the in-game menu). bigText scales the text via the shared --tsz mechanism (#21).
 function HowToPlay({ onClose, bigText }) {
+  const { t, tb, L } = useI18n();
   const Section = ({ title, children }) => (
     <div className="mb-3">
       <div className="tsz-13 font-bold mb-1" style={{ color: BRAND }}>
@@ -3557,7 +4207,7 @@ function HowToPlay({ onClose, bigText }) {
   );
   return (
     <div
-      dir="rtl"
+      dir={L.dir}
       className="hilla-root fixed inset-0 hz-10000 flex items-center justify-center hilla-fade"
       style={{
         background: "rgba(35,31,32,0.55)",
@@ -3575,56 +4225,58 @@ function HowToPlay({ onClose, bigText }) {
       >
         <div className="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0" style={{ background: CREAM }}>
           <div className="display-font tsz-20 font-bold" style={{ color: BRAND }}>
-            وش قوانين حُلّة؟
+            {t("rulesTitle")}
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ color: INK, background: `${INK}0d` }} title="إغلاق">
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ color: INK, background: `${INK}0d` }} title="×">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-4 pt-2 overflow-y-auto" style={{ background: CREAM }}>
-          <Section title="الهدف">أول لاعب يتخلص من كل كروته يفوز.</Section>
-          <Section title="كرت تنسيق منطقة">
-            تقدر تحط أي عدد من كروت العناصر بشرط تكون من نفس منطقة الكرت ومن العناصر المعروضة عليه (بدون تكرار نفس العنصر).
-          </Section>
+          <Section title={t("rGoal")}>{t("rGoalT")}</Section>
 
-          <Section title="كرت تنسيق عشوائي">
-            عنصر واحد بس بكل مرة، من أي منطقة، طالما اسمه من ضمن العناصر المعروضة على الكرت.
-          </Section>
+          <Section title={t("rRegion")}>{t("rRegionT")}</Section>
 
-          <Section title="كروت الأكشن">
-            كرت أكشن واحد بس بكل جولة، ويُلعب قبل ما تحط عناصرك (مو بعدها). لا ما تقدر استثناء، تقدر تستخدمها أي وقت
-            كردّ فعل.
-          </Section>
+          <Section title={t("rRandom")}>{t("rRandomT")}</Section>
+
+          <Section title={t("rActions")}>{t("rActionsT")}</Section>
+
           <div className="space-y-1.5 mb-3">
             {ACTION_TYPES.map((a) => (
-              <div key={a.id} className="rounded-2xl p-1.5 pl-3 flex items-center gap-2.5" style={{ background: `${INK}08` }}>
+              <div key={a.id} className="rounded-2xl p-1.5 hpad-e3 flex items-center gap-2.5" style={{ background: `${INK}08` }}>
                 <ActionThumb type={a.id} size={44} radius={12} />
                 <div className="min-w-0">
                   <div className="font-bold tsz-12" style={{ color: INK }}>
-                    {a.name}
+                    {L.action(a.id)}
                   </div>
                   <div className="tsz-11 mt-0.5" style={{ color: `${INK}aa` }}>
-                    {a.desc}
+                    {L.actionDesc(a.id)}
                   </div>
                 </div>
               </div>
             ))}
           </div>
-          <Section title="الندرة">
+
+          <Section title={t("rRarity")}>
             <span className="flex gap-1.5 my-1">
               {["common", "medium", "rare"].map((r) => (
                 <span key={r} className="px-2.5 py-0.5 rounded-full tsz-11 font-semibold" style={{ background: RARITY_META[r].color, color: RARITY_META[r].text }}>
-                  {RARITY_META[r].label}
+                  {L.rarity(r)}
                 </span>
               ))}
             </span>
-            كل عنصر عليه علامة ندرة: شائع أو متوسط أو نادر. الشائع يطلع كثير بكروت التنسيق وسهل تتخلص منه، والنادر يطلع نادر
-            فيصعب تصريفه.
+            {t("rRarityT")}
           </Section>
 
+          {/* حُلّة | SAUDI MADE lockup */}
+          <div className="flex items-center justify-center gap-4 mt-5 mb-5">
+            <Wordmark height={46} />
+            <span aria-hidden="true" style={{ width: 1.5, height: 40, background: GOLD, borderRadius: 1 }} />
+            <img src={ART.saudi_made} alt="Saudi Made" draggable={false} style={{ height: 40, width: "auto", display: "block" }} />
+          </div>
+
           <button onClick={onClose} className={`w-full py-3 tsz-14 ${btn}`} style={btnPrimary}>
-            يلا نلعب
+            {t("letsPlay")}
           </button>
           {/* Maker's stamp: «حُلّة | SAUDI MADE» — the wordmark and the Saudi Made mark read as one seal. */}
           <div className="flex items-center justify-center gap-3 mt-4 mb-1" aria-label="حُلّة، صُنع في السعودية">
@@ -3639,6 +4291,7 @@ function HowToPlay({ onClose, bigText }) {
 }
 
 function GivePicker({ viewer, onConfirm, onCancel }) {
+  const { t, tb, L } = useI18n();
   const [chosen, setChosen] = useState([]);
   const items = viewer.hand;
   const max = Math.min(2, items.length);
@@ -3649,12 +4302,12 @@ function GivePicker({ viewer, onConfirm, onCancel }) {
     <Sheet maxW={520}>
       <div className="flex items-center justify-center gap-3 mb-3">
         <ActionThumb type="giveTake" size={56} radius={16} />
-        <div className="text-right">
+        <div className="hstart">
           <div className="display-font font-bold tsz-20 leading-none" style={{ color: BRAND }}>
-            عطني وأعطيك
+            {t("giveTitle")}
           </div>
           <div className="tsz-12 mt-1" style={{ color: `${INK}88` }}>
-            اختر {max === 2 ? "كرتين" : "كرت واحد"} من يدك تعطيها للاعب الثاني.
+            {max === 2 ? t("givePick2") : t("givePick1")}
           </div>
         </div>
       </div>
@@ -3665,10 +4318,10 @@ function GivePicker({ viewer, onConfirm, onCancel }) {
       </div>
       <div className="flex gap-2 justify-center mt-3">
         <button onClick={() => onConfirm(chosen)} disabled={chosen.length !== max} className={`flex-1 py-3 tsz-14 ${btn}`} style={btnPrimary}>
-          تأكيد ({chosen.length}/{max})
+          {t("confirm", { a: chosen.length, b: max })}
         </button>
         <button onClick={onCancel} className={`px-6 py-3 tsz-14 ${btn}`} style={btnGhost}>
-          إلغاء
+          {t("cancel")}
         </button>
       </div>
     </Sheet>
@@ -3694,11 +4347,38 @@ function HeroFan({ scale = 1 }) {
   );
 }
 
-function ScreenShell({ children, maxW = "max-w-md" }) {
+// Top bar for the pre-game screens: pinned to the top of the page (not floating with the centred
+// content), with breathing room and the iPhone notch / Dynamic Island taken into account.
+// Always laid out right-to-left whatever the language, so the language switch and "?" never jump
+// sides while someone is trying languages out.
+function TopBar({ start, end }) {
   return (
-    <div dir="rtl" className="hilla-root min-h-screen w-full flex items-center justify-center p-5" style={{ ...pageBg, color: INK }}>
+    <div
+      dir="rtl"
+      className="absolute left-0 right-0 top-0 flex items-center justify-between gap-3"
+      style={{
+        zIndex: 2,
+        paddingTop: "max(16px, calc(env(safe-area-inset-top) + 8px))",
+        paddingLeft: "max(16px, calc(env(safe-area-inset-left) + 8px))",
+        paddingRight: "max(16px, calc(env(safe-area-inset-right) + 8px))",
+      }}
+    >
+      <div className="min-w-0">{start}</div>
+      <div className="flex-shrink-0">{end}</div>
+    </div>
+  );
+}
+
+function ScreenShell({ children, maxW = "max-w-md" }) {
+  const { t, tb, L } = useI18n();
+  return (
+    <div
+      dir={L.dir}
+      className="hilla-root relative min-h-screen w-full flex items-center justify-center px-5"
+      style={{ ...pageBg, color: INK, paddingTop: "calc(max(16px, env(safe-area-inset-top)) + 64px)", paddingBottom: "calc(max(16px, env(safe-area-inset-bottom)) + 20px)" }}
+    >
       <GlobalFont />
-      <RulesFab />
+      <TopBar end={<RulesFab />} />
       <div className={`w-full ${maxW} relative`} style={{ zIndex: 1 }}>
         {children}
       </div>
@@ -3712,8 +4392,9 @@ const inputStyle = { background: PAGE, color: INK, boxShadow: `inset 0 0 0 1.5px
 /* --------------------------------- LOCAL MODE --------------------------------- */
 
 function LocalSetup({ onStart, onBack }) {
+  const { t, tb, L } = useI18n();
   const [numPlayers, setNumPlayers] = useState(3);
-  const [defaultNames] = useState(() => ["المضيف", ...pickRandomBotNames(5)]);
+  const [defaultNames] = useState(() => [L.isAr ? "المضيف" : t("you"), ...L.botNames(5)]);
   const [names, setNames] = useState(defaultNames);
   const [isBot, setIsBot] = useState([false, true, true, true, true, true]);
   const [perPlayer, setPerPlayer] = useState(REC_COUNTS[3]);
@@ -3723,10 +4404,10 @@ function LocalSetup({ onStart, onBack }) {
     copy[i] = !copy[i];
     setIsBot(copy);
     // give a sensible default name when flipping a slot, unless the user already typed something custom
-    const wasDefault = names[i] === defaultNames[i] || names[i] === `لاعب ${i + 1}`;
+    const wasDefault = names[i] === defaultNames[i] || names[i] === t("playerN", { n: i + 1 });
     if (wasDefault) {
       const copyNames = [...names];
-      copyNames[i] = copy[i] ? defaultNames[i] : i === 0 ? "المضيف" : `لاعب ${i + 1}`;
+      copyNames[i] = copy[i] ? defaultNames[i] : i === 0 ? (L.isAr ? "المضيف" : t("you")) : t("playerN", { n: i + 1 });
       setNames(copyNames);
     }
   }
@@ -3736,13 +4417,13 @@ function LocalSetup({ onStart, onBack }) {
       <div className="text-center mb-4">
         <HeroFan scale={0.72} />
         <p className="tsz-13 mt-1" style={{ color: `${INK}99` }}>
-          كل اللاعبين على نفس الجهاز، وتقدر تضيف بوتات تلعب أوتوماتيك
+          {t("localIntro")}
         </p>
       </div>
       <div className="hr-28 p-5 space-y-5" style={panelStyle}>
         <div>
           <label className="tsz-13 flex items-center gap-2 mb-2 font-bold" style={{ color: INK }}>
-            <Users className="w-4 h-4" style={{ color: BRAND }} /> عدد اللاعبين
+            <Users className="w-4 h-4" style={{ color: BRAND }} /> {t("numPlayers")}
           </label>
           <div className="flex gap-1.5 p-1 rounded-2xl" style={{ background: PAGE }}>
             {[2, 3, 4, 5, 6].map((n) => (
@@ -3770,7 +4451,7 @@ function LocalSetup({ onStart, onBack }) {
                   copy[i] = e.target.value;
                   setNames(copy);
                 }}
-                placeholder={`اسم اللاعب ${i + 1}`}
+                placeholder={t("playerNamePh", { n: i + 1 })}
                 className="flex-1 min-w-0 rounded-xl px-3 py-2.5 tsz-13 focus:outline-none"
                 style={inputStyle}
               />
@@ -3778,19 +4459,19 @@ function LocalSetup({ onStart, onBack }) {
                 onClick={() => toggleBot(i)}
                 className="px-3 rounded-xl tsz-12 font-semibold whitespace-nowrap transition"
                 style={isBot[i] ? { background: INK, color: CREAM } : { color: INK, boxShadow: `inset 0 0 0 1.5px ${INK}26` }}
-                title="بوت يلعب بذكاء أوتوماتيكي"
+                title={t("botTitle")}
               >
-                {isBot[i] ? "🤖 بوت" : "🧍 إنسان"}
+                {isBot[i] ? t("bot") : t("human")}
               </button>
             </div>
           ))}
           <p className="tsz-11" style={{ color: `${INK}77` }}>
-            🤖 البوتات تلعب بأقوى استراتيجية ممكنة: تحط أقصى عدد كروت مطابقة كل جولة، وتختار أذكى أكشن متاح.
+            {t("botNote")}
           </p>
         </div>
         <div>
           <label className="tsz-13 mb-2 flex items-center justify-between font-bold" style={{ color: INK }}>
-            عدد الكروت لكل لاعب
+            {t("cardsPerPlayer")}
             <span className="px-2.5 py-0.5 rounded-full tsz-13" style={{ background: GOLD, color: INK }}>
               {perPlayer}
             </span>
@@ -3801,7 +4482,7 @@ function LocalSetup({ onStart, onBack }) {
           onClick={() => {
             const meta = Array.from({ length: numPlayers }).map((_, i) => ({
               id: `p${i}`,
-              name: names[i]?.trim() || (isBot[i] ? `بوت ${i + 1}` : `لاعب ${i + 1}`),
+              name: names[i]?.trim() || (isBot[i] ? t("botN", { n: i + 1 }) : t("playerN", { n: i + 1 })),
               isBot: !!isBot[i],
             }));
             onStart(createInitialGame(meta, perPlayer));
@@ -3809,10 +4490,10 @@ function LocalSetup({ onStart, onBack }) {
           className={`w-full py-3.5 tsz-17 flex items-center justify-center gap-2 ${btn}`}
           style={btnPrimary}
         >
-          <Sparkles className="w-5 h-5" style={{ color: GOLD }} /> ابدأوا اللعب
+          <Sparkles className="w-5 h-5" style={{ color: GOLD }} /> {t("startPlaying")}
         </button>
         <button onClick={onBack} className="w-full tsz-12 font-semibold" style={{ color: `${INK}77` }}>
-          رجوع
+          {t("back")}
         </button>
       </div>
     </ScreenShell>
@@ -3822,6 +4503,7 @@ function LocalSetup({ onStart, onBack }) {
 /* --------------------------------- ONLINE MODE --------------------------------- */
 
 function OnlineMenu({ myName, setMyName, onCreate, onJoin, onBack, error }) {
+  const { t, tb, L } = useI18n();
   const [joinCode, setJoinCode] = useState("");
   const [perPlayer, setPerPlayer] = useState(16);
   return (
@@ -3829,48 +4511,48 @@ function OnlineMenu({ myName, setMyName, onCreate, onJoin, onBack, error }) {
       <div className="text-center mb-4">
         <HeroFan scale={0.72} />
         <p className="tsz-13 mt-1 flex items-center justify-center gap-1.5" style={{ color: `${INK}99` }}>
-          <Wifi className="w-4 h-4" /> العب أونلاين، كل واحد بجهازه
+          <Wifi className="w-4 h-4" /> {t("onlineIntro")}
         </p>
       </div>
       <div className="hr-28 p-5 space-y-4" style={panelStyle}>
         <input
           value={myName}
           onChange={(e) => setMyName(e.target.value)}
-          placeholder="اسمك"
+          placeholder={t("yourName")}
           className="w-full rounded-xl px-3 py-2.5 tsz-14 focus:outline-none"
           style={inputStyle}
         />
 
         <div className="pt-3 border-t" style={{ borderColor: `${INK}12` }}>
           <div className="tsz-14 font-bold mb-2" style={{ color: INK }}>
-            أنشئ غرفة جديدة
+            {t("createRoom")}
           </div>
           <label className="tsz-12 mb-1 flex items-center justify-between" style={{ color: `${INK}88` }}>
-            كروت لكل لاعب
+            {t("cardsPerPlayer")}
             <span className="px-2 rounded-full font-bold" style={{ background: GOLD, color: INK }}>
               {perPlayer}
             </span>
           </label>
           <input type="range" min={10} max={20} value={perPlayer} onChange={(e) => setPerPlayer(Number(e.target.value))} className="w-full mb-3" style={{ accentColor: BRAND }} />
           <button onClick={() => onCreate(perPlayer)} disabled={!myName.trim()} className={`w-full py-3 tsz-15 ${btn}`} style={btnPrimary}>
-            أنشئ غرفة
+            {t("create")}
           </button>
         </div>
 
         <div className="pt-3 border-t" style={{ borderColor: `${INK}12` }}>
           <div className="tsz-14 font-bold mb-2" style={{ color: INK }}>
-            انضم لغرفة
+            {t("joinRoom")}
           </div>
           <input
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            placeholder="كود الغرفة (مثال: A1B2)"
+            placeholder={t("roomCodePh")}
             maxLength={4}
             className="w-full rounded-xl px-3 py-2.5 tsz-15 mb-3 text-center tracking-widest font-bold focus:outline-none"
             style={{ ...inputStyle, color: BRAND }}
           />
           <button onClick={() => onJoin(joinCode)} disabled={!myName.trim() || joinCode.length !== 4} className={`w-full py-3 tsz-15 ${btn}`} style={{ background: INK, color: CREAM }}>
-            انضم
+            {t("join")}
           </button>
         </div>
 
@@ -3881,7 +4563,7 @@ function OnlineMenu({ myName, setMyName, onCreate, onJoin, onBack, error }) {
         )}
 
         <button onClick={onBack} className="w-full tsz-12 font-semibold" style={{ color: `${INK}77` }}>
-          رجوع
+          {t("back")}
         </button>
       </div>
     </ScreenShell>
@@ -3889,6 +4571,7 @@ function OnlineMenu({ myName, setMyName, onCreate, onJoin, onBack, error }) {
 }
 
 function OnlineLobby({ room, myId, onStart, onAddBot, onRemoveBot, onBack }) {
+  const { t, tb, L } = useI18n();
   const [copied, setCopied] = useState(false);
   const isHost = room.hostId === myId;
 
@@ -3905,7 +4588,7 @@ function OnlineLobby({ room, myId, onStart, onAddBot, onRemoveBot, onBack }) {
       <div className="text-center mb-5">
         <Wordmark height={52} className="mb-3" />
         <div className="tsz-12 mb-1.5" style={{ color: `${INK}88` }}>
-          كود الغرفة، شاركه مع أصحابك
+          {t("roomCodeShare")}
         </div>
         <button
           onClick={copyCode}
@@ -3916,33 +4599,32 @@ function OnlineLobby({ room, myId, onStart, onAddBot, onRemoveBot, onBack }) {
           {copied ? <Check className="w-5 h-5" style={{ color: REGION_BY_ID.sharqi.color }} /> : <Copy className="w-5 h-5 opacity-50" />}
         </button>
         <p className="tsz-11 mt-2" style={{ color: `${INK}77` }}>
-          كل صديق يفتح نفس رابط هذي المحادثة، يضغط "العب أونلاين ← انضم لغرفة" ويدخل الكود.
+          {t("lobbyHint")}
         </p>
       </div>
 
       <div className="hr-28 p-5 space-y-2.5" style={panelStyle}>
         <div className="tsz-14 font-bold" style={{ color: INK }}>
-          اللاعبون ({room.lobby.length}/{room.maxPlayers})
+          {t("playersCount", { n: room.lobby.length, m: room.maxPlayers })}
         </div>
         {room.lobby.map((p, i) => (
           <div key={p.id} className="flex items-center gap-2.5 px-2 py-2 rounded-2xl hilla-fade" style={{ background: PAGE }}>
-            <RegionBadge region={REGION_ORDER[i % 4]} size={28} radius={8} />
+            <PlayerAvatar name={p.name} isBot={p.isBot} index={i} />
             <span className="tsz-13 font-semibold flex-1" style={{ color: INK }}>
-              {p.isBot ? "🤖 " : ""}
               {p.name}
             </span>
             {p.id === room.hostId && (
               <span className="tsz-11 font-semibold px-2 py-0.5 rounded-full" style={{ background: GOLD, color: INK }}>
-                المضيف
+                {t("host")}
               </span>
             )}
             {p.id === myId && (
               <span className="tsz-11 font-semibold px-2 py-0.5 rounded-full" style={{ background: INK, color: CREAM }}>
-                أنت
+                {t("you")}
               </span>
             )}
             {isHost && p.isBot && (
-              <button onClick={() => onRemoveBot(p.id)} className="tsz-12 font-bold w-7 h-7 rounded-full flex items-center justify-center" style={{ color: BRAND, background: `${BRAND}14` }} title="أزل البوت">
+              <button onClick={() => onRemoveBot(p.id)} className="tsz-12 font-bold w-7 h-7 rounded-full flex items-center justify-center" style={{ color: BRAND, background: `${BRAND}14` }} title={t("removeBot")}>
                 ✕
               </button>
             )}
@@ -3956,16 +4638,16 @@ function OnlineLobby({ room, myId, onStart, onAddBot, onRemoveBot, onBack }) {
             className={`w-full py-2.5 tsz-13 mt-1 ${btn}`}
             style={btnGhost}
           >
-            🤖 أضف بوت
+            {t("addBot")}
           </button>
         )}
         {isHost ? (
           <button onClick={onStart} disabled={room.lobby.length < 2} className={`w-full py-3.5 tsz-15 flex items-center justify-center gap-2 mt-2 ${btn}`} style={btnPrimary}>
-            <Sparkles className="w-5 h-5" style={{ color: GOLD }} /> ابدأ اللعبة
+            <Sparkles className="w-5 h-5" style={{ color: GOLD }} /> {t("startGame")}
           </button>
         ) : (
           <div className="text-center tsz-12 py-2 flex items-center justify-center gap-2" style={{ color: `${INK}77` }}>
-            بانتظار المضيف يبدأ اللعبة
+            {t("waitingHost")}
             <span className="flex gap-0.5">
               {[0, 1, 2].map((i) => (
                 <span key={i} className="w-1 h-1 rounded-full hilla-dot" style={{ background: GOLD_DK, animationDelay: `${i * 150}ms` }} />
@@ -3975,7 +4657,7 @@ function OnlineLobby({ room, myId, onStart, onAddBot, onRemoveBot, onBack }) {
         )}
         {isHost && room.lobby.length < 2 && (
           <div className="tsz-11 text-center" style={{ color: `${INK}66` }}>
-            لازم لاعبين اثنين على الأقل.
+            {t("needTwo")}
           </div>
         )}
 
@@ -3988,10 +4670,10 @@ function OnlineLobby({ room, myId, onStart, onAddBot, onRemoveBot, onBack }) {
           className="w-full tsz-12 font-semibold flex items-center justify-center gap-1 pt-1"
           style={{ color: `${INK}77` }}
         >
-          <RefreshCw className="w-3 h-3" /> تحديث الصفحة
+          <RefreshCw className="w-3 h-3" /> {t("refresh")}
         </button>
         <button onClick={onBack} className="w-full tsz-12 font-semibold flex items-center justify-center gap-1" style={{ color: `${INK}77` }}>
-          <LogOut className="w-3 h-3" /> اخرج من الغرفة
+          <LogOut className="w-3 h-3" /> {t("leaveRoom")}
         </button>
       </div>
     </ScreenShell>
@@ -3999,6 +4681,7 @@ function OnlineLobby({ room, myId, onStart, onAddBot, onRemoveBot, onBack }) {
 }
 
 function OnlineFlow({ onBack }) {
+  const { t, tb, L } = useI18n();
   const [savedSession] = useState(() => readOnlineSession());
   const [myId] = useState(() => savedSession?.myId || uid());
   const [myName, setMyName] = useState(() => savedSession?.myName || "");
@@ -4087,7 +4770,7 @@ function OnlineFlow({ onBack }) {
       adoptRoom(updated);
     } catch (e) {
       pendingOptimisticRoomRef.current = null;
-      setError("تعذر الحفظ، تأكد من الاتصال وحاول مجددًا.");
+      setError(t("errSave"));
     }
   }
 
@@ -4095,6 +4778,23 @@ function OnlineFlow({ onBack }) {
   // we never pre-apply. On a win we adopt the returned room (its newer updatedAt makes the poll
   // guard drop any in-flight stale poll — no flicker). On a loss (409) we do nothing; polling
   // brings whatever actually happened. Returns true only if this client's claim won.
+  // #58 online pass on «لا ما تقدر»: guarded server write (adds only this player to declinedIds and
+  // refuses if the action already resolved). On success adopt the returned room; otherwise polling
+  // brings the current state.
+  async function declineBlockOnline(code, pendingActionId) {
+    try {
+      const res = await fetch(`/api/rooms/${code}/decline-block`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId: myId, pendingActionId }),
+      });
+      if (!res.ok) return;
+      const updated = await res.json();
+      if (activeRoomCodeRef.current !== code) return;
+      adoptRoom(updated);
+    } catch (e) {}
+  }
+
   async function claimTimeout(code, nextGame, expected) {
     try {
       const res = await fetch(`/api/rooms/${code}/timeout`, {
@@ -4192,11 +4892,11 @@ function OnlineFlow({ onBack }) {
         setOnlinePhase("lobby");
         return;
       } catch (e) {
-        setError("تعذر إنشاء الغرفة، حاول مجددًا.");
+        setError(t("errCreate"));
         return;
       }
     }
-    setError("تعذر إنشاء الغرفة، حاول مجددًا.");
+    setError(t("errCreate"));
   }
 
   async function joinRoom(codeRaw) {
@@ -4209,15 +4909,15 @@ function OnlineFlow({ onBack }) {
         body: JSON.stringify({ player: { id: myId, name: myName.trim() } }),
       });
       if (res.status === 404) {
-        setError("ما لقينا هذي الغرفة، تأكد من الكود.");
+        setError(t("errNoRoom"));
         return;
       }
       if (res.status === 409) {
-        setError("اللعبة بدأت بالفعل بهذي الغرفة.");
+        setError(t("errStarted"));
         return;
       }
       if (res.status === 410) {
-        setError("الغرفة مليانة.");
+        setError(t("errFull"));
         return;
       }
       if (!res.ok) throw new Error("join_failed");
@@ -4227,7 +4927,7 @@ function OnlineFlow({ onBack }) {
       adoptRoom(doc);
       setOnlinePhase("lobby");
     } catch (e) {
-      setError("ما لقينا هذي الغرفة، تأكد من الكود.");
+      setError(t("errNoRoom"));
     }
   }
 
@@ -4293,6 +4993,7 @@ function OnlineFlow({ onBack }) {
         roomCode={roomCode}
         roomUpdatedAt={room.updatedAt}
         onClaimTimeout={(nextGame, expected) => claimTimeout(roomCode, nextGame, expected)}
+        onDeclineBlock={(paId) => declineBlockOnline(roomCode, paId)}
         dispatch={dispatchGame}
         onExit={exitToMenu}
         onGoHome={exitToHome}
@@ -4300,20 +5001,291 @@ function OnlineFlow({ onBack }) {
     );
   }
   return (
-    <div dir="rtl" className="hilla-root min-h-screen w-full flex flex-col items-center justify-center gap-3" style={{ ...pageBg, color: INK }}>
+    <div dir={L.dir} className="hilla-root min-h-screen w-full flex flex-col items-center justify-center gap-3" style={{ ...pageBg, color: INK }}>
       <GlobalFont />
       <Wordmark height={44} />
-      <span className="tsz-13" style={{ color: `${INK}88` }}>جاري التحميل…</span>
+      <span className="tsz-13" style={{ color: `${INK}88` }}>{t("loading")}</span>
     </div>
   );
 }
 
 
+/* --------------------------------- ASSET PRELOAD ---------------------------------
+   Everything the game will ever draw is fetched and decoded up front, behind a short splash, so no
+   card ever appears blank and then "pops" its drawing in. The decoded Image objects are kept in
+   PRELOADED for the life of the page so the browser keeps them warm in memory. Fonts are awaited
+   too (so text never swaps style after the game opens). Hard cap: PRELOAD_MAX_MS — on a very slow
+   connection the game opens anyway rather than hanging. */
+const PRELOAD_MAX_MS = 6000;
+const PRELOAD_MIN_MS = 1200;
+const PRELOADED = [];
+let preloadPromise = null;
+
+function preloadAllAssets(onProgress) {
+  if (preloadPromise) return preloadPromise;
+  const urls = Array.from(new Set(Object.values(ART)));
+  const fontSpecs = [
+    '400 16px "IBM Plex Sans Arabic"',
+    '500 16px "IBM Plex Sans Arabic"',
+    '600 16px "IBM Plex Sans Arabic"',
+    '700 16px "IBM Plex Sans Arabic"',
+    '400 16px "Markazi Text"',
+    '700 16px "Markazi Text"',
+  ];
+  const total = urls.length + 1;
+  let done = 0;
+  const tick = () => {
+    done += 1;
+    try {
+      onProgress && onProgress(Math.min(1, done / total));
+    } catch {}
+  };
+  const imageJobs = urls.map(
+    (src) =>
+      new Promise((resolve) => {
+        try {
+          const img = new Image();
+          img.decoding = "async";
+          let settled = false;
+          // Done on whichever comes first: load/error, or decode. Some engines (embedded webviews)
+          // never settle decode() for an off-DOM image, which would otherwise hold the splash to
+          // its 6s cap; decode is still requested so the image is warm where it does work.
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            tick();
+            resolve();
+          };
+          img.onload = finish;
+          img.onerror = finish;
+          img.src = src;
+          PRELOADED.push(img);
+          if (img.decode) img.decode().then(finish, () => {});
+        } catch {
+          tick();
+          resolve();
+        }
+      })
+  );
+  const fontJob = (async () => {
+    try {
+      if (typeof document !== "undefined" && document.fonts) {
+        await Promise.all(fontSpecs.map((f) => document.fonts.load(f, "حُلّة").catch(() => null)));
+        await document.fonts.ready;
+      }
+    } catch {}
+    tick();
+  })();
+  const all = Promise.all([...imageJobs, fontJob]);
+  const cap = new Promise((resolve) => setTimeout(resolve, PRELOAD_MAX_MS));
+  preloadPromise = Promise.race([all, cap]);
+  return preloadPromise;
+}
+
+// Splash: the card-back sunburst fills the screen and turns slowly behind a cream plaque holding the
+// wordmark and progress — the same "back of the card" look you see before every hand.
+function LoadingSplash({ progress }) {
+  const { t, tb, L } = useI18n();
+  return (
+    <div dir={L.dir} className="hilla-root fixed inset-0 overflow-hidden flex items-center justify-center" style={{ background: CREAM, color: INK }}>
+      <GlobalFont />
+      <div
+        aria-hidden="true"
+        className="absolute hilla-rays"
+        style={{
+          width: "200vmax",
+          height: "200vmax",
+          left: "50%",
+          top: "50%",
+          marginLeft: "-100vmax",
+          marginTop: "-100vmax",
+          backgroundImage: `repeating-conic-gradient(from 0deg, ${BRAND} 0deg 7.5deg, ${CREAM} 7.5deg 15deg)`,
+        }}
+      />
+      <div
+        className="relative flex flex-col items-center gap-4 px-9 pt-7 pb-6 hilla-pop"
+        style={{ background: BEIGE, borderRadius: 26, boxShadow: `0 0 0 3px ${CREAM}, 0 0 0 5px ${BRAND}, 0 24px 50px -14px rgba(0,0,0,.45)` }}
+      >
+        <Wordmark height={64} color={INK} />
+        <div className="w-36 h-1.5 rounded-full overflow-hidden" style={{ background: `${INK}1f` }}>
+          <div className="h-full rounded-full" style={{ width: `${Math.round(progress * 100)}%`, background: BRAND, transition: "width .2s ease-out" }} />
+        </div>
+        <span className="tsz-12 font-semibold" style={{ color: `${INK}99` }}>
+          {t("preparing")}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------- APP ICON CHOICE ---------------------------------
+   The player picks the home-screen icon. In the browser we swap the page's favicon and
+   apple-touch-icon links; iOS and Android read those when the game is added to the home screen,
+   so the choice has to be made before adding (to change it later: remove and re-add). Thumbnails
+   only here; production serves the full icon set from /icons/<key>/. */
+const APP_ICONS = [
+  { key: "e2", src: "/icons/e2/apple-touch-icon-180.png" },
+  { key: "f", src: "/icons/f/apple-touch-icon-180.png" },
+  { key: "b", src: "/icons/b/apple-touch-icon-180.png" },
+  { key: "a2", src: "/icons/a2/apple-touch-icon-180.png" },
+  { key: "d2", src: "/icons/d2/apple-touch-icon-180.png" },
+  { key: "najdi", src: "/icons/najdi/apple-touch-icon-180.png" },
+  { key: "sharqi", src: "/icons/sharqi/apple-touch-icon-180.png" },
+  { key: "janoubi", src: "/icons/janoubi/apple-touch-icon-180.png" },
+  { key: "gharbi", src: "/icons/gharbi/apple-touch-icon-180.png" },
+];
+const DEFAULT_APP_ICON = "e2";
+const APP_ICON_STORE = "hulla-app-icon";
+
+function applyAppIcon(key) {
+  const icon = APP_ICONS.find((i) => i.key === key) || APP_ICONS[0];
+  try {
+    const set = (rel, sizes) => {
+      let el = document.head.querySelector(`link[rel="${rel}"]${sizes ? `[sizes="${sizes}"]` : ""}`);
+      if (!el) {
+        el = document.createElement("link");
+        el.rel = rel;
+        if (sizes) el.setAttribute("sizes", sizes);
+        document.head.appendChild(el);
+      }
+      return el;
+    };
+    set("icon").href = `/icons/${icon.key}/favicon-32.png`;
+    set("apple-touch-icon").href = `/icons/${icon.key}/apple-touch-icon-180.png`;
+    // Chrome/Android read the manifest at install time: point it at this icon's manifest copy.
+    set("manifest").href = `/manifest-${icon.key}.webmanifest`;
+  } catch {}
+}
+
+function loadAppIcon() {
+  try {
+    const k = window.localStorage.getItem(APP_ICON_STORE);
+    if (k && APP_ICONS.some((i) => i.key === k)) return k;
+  } catch {}
+  return DEFAULT_APP_ICON;
+}
+
+// Install helpers. Chrome/Edge/Android fire `beforeinstallprompt` when the site is installable; we
+// keep that event and replay it from our own button. iOS has no programmatic install, so there we
+// show the two-tap Share → "Add to Home Screen" steps instead.
+const isStandalone = () => {
+  try {
+    return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  } catch {
+    return false;
+  }
+};
+const isIOS = () => {
+  try {
+    const ua = navigator.userAgent || "";
+    return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  } catch {
+    return false;
+  }
+};
+
+function AppIconPicker({ value, onChange, onClose, installEvent, onInstalled }) {
+  const { t } = useI18n();
+  const [showSteps, setShowSteps] = useState(false);
+  const ios = isIOS();
+  async function install() {
+    if (installEvent) {
+      try {
+        installEvent.prompt();
+        const r = await installEvent.userChoice;
+        if (r && r.outcome === "accepted") {
+          onInstalled && onInstalled();
+          onClose();
+        }
+        return;
+      } catch {}
+    }
+    setShowSteps(true);
+  }
+  const steps = ios ? [t("iosStep1"), t("iosStep2"), t("iosStep3")] : [t("andStep1"), t("andStep2")];
+  return (
+    <Sheet onBackdrop={onClose} maxW={400}>
+      <div className="display-font font-bold tsz-20 mb-1" style={{ color: BRAND }}>
+        {t("installTitle")}
+      </div>
+      <div className="tsz-12 mb-4" style={{ color: `${INK}88` }}>
+        {t("appIconHint")}
+      </div>
+      <div dir="rtl" className="grid grid-cols-3 gap-3 justify-items-center">
+        {APP_ICONS.map((ic) => {
+          const on = ic.key === value;
+          return (
+            <button
+              key={ic.key}
+              type="button"
+              onClick={() => onChange(ic.key)}
+              className="p-0 transition active:scale-95"
+              style={{ borderRadius: 22, boxShadow: on ? `0 0 0 3px ${CREAM}, 0 0 0 6px ${GOLD}` : "0 6px 14px -8px rgba(60,30,10,.45)" }}
+              aria-pressed={on}
+            >
+              <img src={ic.src} alt="" draggable={false} style={{ width: 84, height: 84, borderRadius: 20, display: "block" }} />
+            </button>
+          );
+        })}
+      </div>
+
+      {showSteps ? (
+        <div className="mt-5 rounded-2xl p-3 hstart hilla-pop" style={{ background: `${INK}08` }}>
+          <div className="tsz-13 font-bold mb-2" style={{ color: INK }}>
+            {ios ? t("iosHow") : t("andHow")}
+          </div>
+          <ol className="space-y-1.5">
+            {steps.map((st, i) => (
+              <li key={i} className="flex items-start gap-2 tsz-13" style={{ color: INK }}>
+                <span className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center tsz-11 font-bold" style={{ background: BRAND, color: CREAM }}>
+                  {i + 1}
+                </span>
+                <span>{st}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
+
+      <button onClick={install} className={`w-full mt-5 py-3 tsz-14 flex items-center justify-center gap-2 ${btn}`} style={btnPrimary}>
+        {t("addToHome")}
+      </button>
+      <button onClick={onClose} className="w-full mt-3 tsz-12 font-semibold" style={{ color: `${INK}77` }}>
+        {t("later")}
+      </button>
+    </Sheet>
+  );
+}
+
 /* --------------------------------- APP ROOT --------------------------------- */
 
-export default function HillaGame() {
+function HillaApp() {
+  const { t, L } = useI18n();
   const [mode, setMode] = useState("boot"); // boot | home | local | online
   const [localGame, setLocalGame] = useState(null);
+  const [appIcon, setAppIcon] = useState(loadAppIcon);
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const [installEvent, setInstallEvent] = useState(null);
+  const [installed, setInstalled] = useState(isStandalone);
+  useEffect(() => {
+    const onPrompt = (e) => {
+      e.preventDefault();
+      setInstallEvent(e);
+    };
+    const onInstalled = () => setInstalled(true);
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
+  useEffect(() => {
+    applyAppIcon(appIcon);
+    try {
+      window.localStorage.setItem(APP_ICON_STORE, appIcon);
+    } catch {}
+  }, [appIcon]);
 
   useEffect(() => {
     setMode(readOnlineSession() ? "online" : "home");
@@ -4323,20 +5295,24 @@ export default function HillaGame() {
     return (
       <div dir="rtl" className="hilla-root min-h-screen w-full flex items-center justify-center" style={{ ...pageBg, color: MAROON }}>
         <GlobalFont />
-        جاري التحميل...
+        {t("loading")}
       </div>
     );
   }
 
   if (mode === "home") {
     return (
-      <div dir="rtl" className="hilla-root min-h-screen w-full flex items-center justify-center p-6" style={{ ...pageBg, color: INK }}>
+      <div
+        dir={L.dir}
+        className="hilla-root relative min-h-screen w-full flex items-center justify-center px-6"
+        style={{ ...pageBg, color: INK, paddingTop: "calc(max(16px, env(safe-area-inset-top)) + 64px)", paddingBottom: "calc(max(16px, env(safe-area-inset-bottom)) + 20px)" }}
+      >
         <GlobalFont />
-        <RulesFab />
+        <TopBar start={<LangSwitch />} end={<RulesFab />} />
           <div className="w-full max-w-md text-center relative" style={{ zIndex: 1 }}>
           <CardBack size={160} tall className="mx-auto" style={{ boxShadow: "0 20px 40px -14px rgba(60,30,10,.55)" }} />
           <p className="mt-4 mb-6 tsz-15" style={{ color: MAROON_DK }}>
-            لعبة مطابقة الأزياء التقليدية السعودية
+            {t("tagline")}
           </p>
           <div className="space-y-3">
             <button
@@ -4344,27 +5320,47 @@ export default function HillaGame() {
               className={`w-full py-4 tsz-17 flex items-center justify-center gap-2 ${btn}`}
               style={{ background: BRAND, color: CREAM }}
             >
-              <Home className="w-5 h-5" style={{ color: GOLD }} /> العب على نفس الجهاز
+              <Home className="w-5 h-5" style={{ color: GOLD }} /> {t("playLocal")}
             </button>
             <button
               onClick={() => setMode("online")}
               className={`w-full py-4 tsz-17 flex items-center justify-center gap-2 border-2 ${btn}`}
               style={{ background: CREAM, color: BRAND, borderColor: BRAND }}
             >
-              <Wifi className="w-5 h-5" /> العب أونلاين (كود غرفة)
+              <Wifi className="w-5 h-5" /> {t("playOnline")}
             </button>
           </div>
+
+          {!installed && (
+          <button
+            type="button"
+            onClick={() => setShowIconPicker(true)}
+            className="mt-4 mx-auto flex items-center gap-2 rounded-full px-4 py-2 tsz-12 font-semibold transition active:scale-95"
+            style={{ background: `${INK}0b`, color: `${INK}aa` }}
+          >
+            {t("addToHome")}
+          </button>
+          )}
 
           <div className="mt-8 text-center">
             <GoldRule className="my-1.5" />
             <p className="tsz-12 font-bold mt-1" style={{ color: BRAND }}>
-              صُممت بأيدي سعودية 🇸🇦
+              {t("madeBy")}
             </p>
             <p className="tsz-11 mt-0.5" style={{ color: `${INK}77` }}>
-              طالبة جامعة الأميرة نورة، لمقرر Core Studio
+              {t("credit")}
             </p>
           </div>
         </div>
+        {showIconPicker && (
+          <AppIconPicker
+            value={appIcon}
+            onChange={setAppIcon}
+            onClose={() => setShowIconPicker(false)}
+            installEvent={installEvent}
+            onInstalled={() => setInstalled(true)}
+          />
+        )}
       </div>
     );
   }
@@ -4389,4 +5385,49 @@ export default function HillaGame() {
   }
 
   return null;
+}
+
+// Language lives above everything (default Arabic on every load, never remembered).
+export default function HillaGame() {
+  const [lang, setLang] = useState("ar");
+  const value = useMemo(() => ({ ...makeI18n(lang), setLang }), [lang]);
+
+  // #51 preload splash — an overlay on top of the app, not a gate: the online flow (session
+  // rejoin, polling, reconnect) starts underneath immediately instead of waiting up to 6s.
+  const [assetsReady, setAssetsReady] = useState(false);
+  const [splashGone, setSplashGone] = useState(false);
+  const [loadProgress, setLoadProgress] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    // keep the splash up at least 1.2s so the sunburst reads as intentional, not a flash
+    const minShow = new Promise((r) => setTimeout(r, PRELOAD_MIN_MS));
+    Promise.all([preloadAllAssets((p) => alive && setLoadProgress(p)), minShow]).then(() => {
+      if (!alive) return;
+      setLoadProgress(1);
+      // a beat at 100% so the bar visibly completes instead of vanishing mid-way
+      setTimeout(() => alive && setAssetsReady(true), 150);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (!assetsReady) return;
+    const tm = setTimeout(() => setSplashGone(true), 320);
+    return () => clearTimeout(tm);
+  }, [assetsReady]);
+
+  return (
+    <I18nContext.Provider value={value}>
+      <HillaApp />
+      {!splashGone && (
+        <div
+          aria-hidden={assetsReady}
+          style={{ position: "fixed", inset: 0, zIndex: 20000, opacity: assetsReady ? 0 : 1, transition: "opacity .3s ease-out", pointerEvents: assetsReady ? "none" : "auto" }}
+        >
+          <LoadingSplash progress={loadProgress} />
+        </div>
+      )}
+    </I18nContext.Provider>
+  );
 }
