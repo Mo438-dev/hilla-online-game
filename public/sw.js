@@ -1,11 +1,9 @@
-const CACHE_NAME = 'hilla-pwa-static-v1';
+const CACHE_NAME = 'hilla-pwa-static-v2';
 const STATIC_ASSETS = [
-  '/',
-  '/manifest.webmanifest',
-  '/pwa-icon?size=192',
-  '/pwa-icon?size=512',
-  '/pwa-icon?size=512&maskable=1',
-  '/pwa-icon?size=180&apple=1'
+  '/icons/e2/icon-192.png',
+  '/icons/e2/icon-512.png',
+  '/icons/e2/icon-maskable-512.png',
+  '/icons/e2/apple-touch-icon-180.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -33,10 +31,8 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/')) return;
   if (url.pathname.startsWith('/admin/analytics')) return;
 
-  const isStaticAsset =
-    url.pathname === '/manifest.webmanifest' ||
-    url.pathname === '/pwa-icon' ||
-    url.pathname.startsWith('/_next/static/');
+  // Manifests and icons are left to the network so a new icon set shows up without a stale copy.
+  const isStaticAsset = url.pathname.startsWith('/_next/static/');
 
   if (!isStaticAsset) return;
 
