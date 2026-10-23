@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut, RefreshCw, Type, Menu, HelpCircle, X, Smile } from "lucide-react";
+import { Volume2, VolumeX, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut, RefreshCw, Type, Menu, HelpCircle, X, Smile } from "lucide-react";
 import { HILLA_ART as ART } from "@/lib/art-manifest";
 import { newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished, sendDealSnapshot, getClientPid, sendFeedback } from "@/lib/analytics-client";
 
@@ -45,7 +45,7 @@ const REGIONS = [
       { name: "المخنق", rarity: "medium" },
       { name: "متفت", rarity: "medium" },
       { name: "دراعة", rarity: "medium" },
-      { name: "برقع حرب", rarity: "medium" },
+      { name: "رشرش", rarity: "medium" },
       { name: "بشت", rarity: "medium" },
       { name: "شماغ", rarity: "medium" },
     ],
@@ -103,7 +103,7 @@ const ITEM_DESC = {
   "المخنق": "قلادة تقليدية تُلبس ملاصقة للعنق، وقد تُصنع من الذهب أو الخرز.",
   "متفت": "ثوب نسائي نجدي واسع، يتميز بالتطريز اليدوي والزخارف النباتية الملونة.",
   "دراعة": "ثوب نسائي طويل وفضفاض، يُزيّن بالتطريز وتختلف خامته بحسب المناسبة.",
-  "برقع حرب": "غطاء وجه نسائي تراثي مرتبط بأزياء نساء قبيلة حرب، يغطي الوجه ويُظهر العينين.",
+  "رشرش": "حُلي نسائي تراثي من الذهب، من صفوف متدلية تزيّن الرقبة والصدر، ويُلبس في المناسبات والاحتفالات.",
   "بشت": "عباءة رجالية فاخرة تُلبس فوق الثوب في المناسبات الرسمية والأعياد.",
   "شماغ": "غطاء رأس رجالي مربع، غالبًا ما يكون أحمر وأبيض، ويُثبت بالعقال.",
   "ثوب مرودن": "ثوب رجالي تراثي يتميز بأكمامه الطويلة والواسعة.",
@@ -174,7 +174,7 @@ function sortItemNamesByRegion(names) {
 }
 
 const ACTION_TYPES = [
-  { id: "giveTake", name: "عطني وأعطيك", count: 2, icon: Gift, desc: "أعط لاعبًا كرتين واسحب منه كرتين بدون رؤيتها." },
+  { id: "giveTake", name: "عطني وأعطيك", count: 2, icon: Gift, desc: "اختر لاعب وكرتين من يدك تعطيه، وتاخذ منه كرتين عشوائي." },
   { id: "drawTwo", name: "اقدع", count: 4, icon: Shuffle, desc: "لاعب مختار يسحب كرتين من كومة السحب." },
   { id: "stealTwo", name: "افزع لي", count: 2, icon: Hand, desc: "لاعب مختار يأخذ كرتين من يدك بدون رؤيتها." },
   { id: "block", name: "لا ما تقدر", count: 2, icon: Shield, desc: "يلغي أي أكشن يُستخدم ضدك أو ضد لاعب آخر." },
@@ -302,7 +302,7 @@ function buildActionDeck() {
    region card can't let a player dump too much at once).
    Appearance targets per individual item across the whole deck: common 10, medium 7, rare 4.
    With the current 8 common / 20 medium / 4 rare roster that's ~236 total item appearances. */
-const RULESET_VERSION = "v2.2"; // keep in sync with lib/analytics-config.ts (analytics ruleset_version)
+const RULESET_VERSION = "v2.3"; // v2.3: رشرش in the roster + the last-card لا ما تقدر rule // keep in sync with lib/analytics-config.ts (analytics ruleset_version)
 
 const COORD_RANDOM_CARDS = 30;
 const COORD_REGION_CARDS_PER_REGION = 5;
@@ -662,6 +662,11 @@ function rDeclareAction(game, playerId, cardId, actionType, targetId) {
 
 function rDeclareGiveTake(game, playerId, cardId, targetId, giveIds) {
   const player = game.players.find((p) => p.id === playerId);
+  // The عطني وأعطيك card itself can never be one of the gifts, and the gift is exactly
+  // min(2, cards left after playing it) cards that are really in the actor's hand.
+  const rest = player.hand.filter((c) => c.id !== cardId);
+  giveIds = [...new Set(giveIds)].filter((id) => rest.some((c) => c.id === id)).slice(0, 2);
+  if (giveIds.length !== Math.min(2, rest.length)) return game;
   let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, [cardId]);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], actionUsedThisTurn: true };
   g1 = { ...g1, pendingAction: { id: uid(), actionType: "giveTake", actorId: playerId, targetId, actorName: player.name, giveIds, startedAt: Date.now() } };
@@ -674,6 +679,7 @@ function rCancelWithBlock(game, blockerId) {
   if (!blockCard) return game;
   const blockedActionType = game.pendingAction.actionType;
   const actorName = game.pendingAction.actorName;
+  const blockedTargetId = game.pendingAction.targetId;
   let { game: g1, removed } = removeFromHand(game, blockerId, [blockCard.id]);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed] };
   g1 = pushLog(g1, `${blocker.name} استخدم لا ما تقدر! تم إلغاء ${actionMeta(blockedActionType).name}.`);
@@ -689,6 +695,7 @@ function rCancelWithBlock(game, blockerId) {
         }
       : g1.stats,
   };
+  g1 = countTargeted(g1, blockedTargetId);
   g1 = checkWin(g1, blockerId);
   return g1;
 }
@@ -713,6 +720,33 @@ function allHumanBlockersDeclined(game) {
     (p) => p.id !== pa.actorId && !p.isBot && p.hand.some((c) => c.kind === "action" && c.actionType === "block")
   );
   return humans.length > 0 && humans.every((p) => declined.includes(p.id));
+}
+
+// لا ما تقدر is normally reactive only. Exception: when it's the LAST card in your hand, on your
+// own turn, and you haven't played an action this turn, you may put it down to finish — so nobody
+// gets stuck holding it with no way out.
+function canPlayLastBlock(game, playerId) {
+  const cur = game.players[game.currentPlayerIndex];
+  if (!cur || cur.id !== playerId || game.winner || game.pendingAction || game.digOptions) return false;
+  if (game.actionUsedThisTurn) return false;
+  return cur.hand.length === 1 && cur.hand[0].kind === "action" && cur.hand[0].actionType === "block";
+}
+
+function rPlayLastBlock(game, playerId) {
+  if (!canPlayLastBlock(game, playerId)) return game;
+  const player = game.players.find((p) => p.id === playerId);
+  let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, [player.hand[0].id]);
+  g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], actionUsedThisTurn: true };
+  g1 = pushLog(g1, `${player.name} نزّل لا ما تقدر كآخر كرت.`);
+  return checkWin(g1, playerId);
+}
+
+// "Most targeted" counts every targeted action aimed at a player, whether it landed or was
+// cancelled with لا ما تقدر, keyed by player id (names can repeat).
+function countTargeted(game, targetId) {
+  if (!game.stats || !targetId) return game;
+  const byId = game.stats.targetedByPlayerId || {};
+  return { ...game, stats: { ...game.stats, targetedByPlayerId: { ...byId, [targetId]: (byId[targetId] || 0) + 1 } } };
 }
 
 function rResolvePendingAction(game) {
@@ -743,15 +777,7 @@ function rResolvePendingAction(game) {
     g = addToHand(g4, pa.targetId, given);
     g = pushLog(g, `${pa.actorName} بادل كروت مع ${target.name} (عطني وأعطيك).`);
   }
-  if (g.stats && target) {
-    g = {
-      ...g,
-      stats: {
-        ...g.stats,
-        targetedByPlayerId: { ...g.stats.targetedByPlayerId, [target.id]: (g.stats.targetedByPlayerId?.[target.id] || 0) + 1 },
-      },
-    };
-  }
+  g = countTargeted(g, pa.targetId);
   g = checkWin(g, pa.actorId);
   return g;
 }
@@ -800,6 +826,7 @@ function pickGiveAwayIds(hand, n) {
 }
 
 function botDecideTurn(game, botId) {
+  if (canPlayLastBlock(game, botId)) return rPlayLastBlock(game, botId);
   const botStart = game.players.find((p) => p.id === botId);
   const coord = game.currentCoord;
   let g = game;
@@ -938,7 +965,7 @@ const I18N = {
     canBlockYou: "You can use <b>No You Don't!</b> before the countdown ends.", autoResolve: "It goes through automatically after the countdown.",
     anyoneBlock: "Anyone holding <b>No You Don't!</b> can use it now, otherwise it goes through after the countdown.",
     useBlock: "Use No You Don't!", useBlockName: "{name}: use No You Don't!", passBlock: "No, I'll let it go",
-    noBlockCard: "{name} doesn't have a No You Don't! card.", blockOnlyReactive: "No You Don't! is only used as a reaction when someone plays an action.",
+    noBlockCard: "{name} doesn't have a No You Don't! card.", blockOnlyReactive: "No You Don't! is a reaction to someone's action, or you can put it down when it's your last card.", actNote_giveTake: "Only one card left in their hand? That's fine: they get your two, you take their one.", actNote_block: "If it's your last card, you can play it to finish, as long as you haven't played an action this turn.", inactiveMeTitle: "You're inactive", inactiveMeBody: "Your turns are skipped until you're back.", imBack: "I'm back", turnSound: "Turn sound",
     whoTarget: "On whom?", digTitle: "Search the Chest", digHint: "Pick one card to keep; the rest go back to the pile.",
     digging: "{name} is searching the chest…",
     giveTitle: "Give & Take", givePick2: "Pick two cards from your hand to give the other player.", givePick1: "Pick one card from your hand to give the other player.",
@@ -1000,7 +1027,7 @@ const I18N = {
     canBlockYou: "Puedes usar <b>¡Ni hablar!</b> antes de que acabe la cuenta atrás.", autoResolve: "Se aplica sola al acabar la cuenta atrás.",
     anyoneBlock: "Quien tenga <b>¡Ni hablar!</b> puede usarla ahora; si no, se aplica al acabar la cuenta atrás.",
     useBlock: "Usar ¡Ni hablar!", useBlockName: "{name}: usar ¡Ni hablar!", passBlock: "No, lo dejo pasar",
-    noBlockCard: "{name} no tiene una carta ¡Ni hablar!", blockOnlyReactive: "¡Ni hablar! solo se usa como reacción cuando alguien juega una acción.",
+    noBlockCard: "{name} no tiene una carta ¡Ni hablar!", blockOnlyReactive: "¡Ni hablar! es una reacción a la acción de otro, o puedes jugarla cuando sea tu última carta.", actNote_giveTake: "¿Le queda una sola carta? No pasa nada: recibe tus dos y tú te llevas la suya.", actNote_block: "Si es tu última carta, puedes jugarla para terminar, siempre que no hayas jugado una acción en este turno.", inactiveMeTitle: "Estás inactivo", inactiveMeBody: "Tus turnos se saltan hasta que vuelvas.", imBack: "Ya volví", turnSound: "Sonido de turno",
     whoTarget: "¿Contra quién?", digTitle: "Busca en el baúl", digHint: "Elige una carta para quedártela; el resto vuelve al mazo.",
     digging: "{name} está buscando en el baúl…",
     giveTitle: "Toma y daca", givePick2: "Elige dos cartas de tu mano para dárselas al otro jugador.", givePick1: "Elige una carta de tu mano para dársela al otro jugador.",
@@ -1062,7 +1089,7 @@ Object.assign(I18N.ar, {
   canBlockYou: "عندك فرصة تستخدم <b>لا ما تقدر</b> قبل ما تنتهي العدّة.", autoResolve: "بينفّذ تلقائيًا بعد العدّة.",
   anyoneBlock: "أي لاعب عنده <b>لا ما تقدر</b> يقدر يستخدمه الحين، وإلا بينفّذ تلقائيًا بعد العدّة.",
   useBlock: "استخدم لا ما تقدر", useBlockName: "{name}: استخدم لا ما تقدر", passBlock: "لا، ما راح أستخدمه",
-  noBlockCard: "{name} ما معه كرت لا ما تقدر.", blockOnlyReactive: "لا ما تقدر تستخدمه كردّ فعل لما أحد يلعب أكشن.",
+  noBlockCard: "{name} ما معه كرت لا ما تقدر.", blockOnlyReactive: "لا ما تقدر تستخدمه كردّ فعل لما أحد يلعب أكشن، أو تنزله إذا صار آخر كرت معك.", actNote_giveTake: "ما بقى معه إلا كرت واحد؟ عادي، ياخذ كرتينك وتاخذ كرته.", actNote_block: "وإذا صارت آخر كرت معك، نزّلها وخلصت، بشرط ما لعبت أكشن بنفس الدور.", inactiveMeTitle: "أنت غير نشط", inactiveMeBody: "أدوارك تتخطى تلقائيًا لين ترجع.", imBack: "رجّعني نشط", turnSound: "صوت الدور",
   whoTarget: "على مين؟", digTitle: "فتّش الصندوق", digHint: "اختر كرت واحد تحتفظ فيه، والباقي يرجع للسحب.",
   digging: "{name} يفتّش الصندوق الحين…",
   giveTitle: "عطني وأعطيك", givePick2: "اختر كرتين من يدك تعطيها للاعب الثاني.", givePick1: "اختر كرت واحد من يدك تعطيها للاعب الثاني.",
@@ -1105,8 +1132,8 @@ const RARITY_NAMES = {
 
 const ACTION_NAMES = {
   giveTake: {
-    en: ["Give & Take", "Give a player two cards and take two of theirs, unseen."],
-    es: ["Toma y daca", "Dale dos cartas a un jugador y toma dos suyas sin verlas."],
+    en: ["Give & Take", "Pick a player and two cards from your hand to give them; take two of theirs at random."],
+    es: ["Toma y daca", "Elige un jugador y dos cartas de tu mano para dárselas; tomas dos suyas al azar."],
   },
   drawTwo: {
     en: ["Take Two!", "A chosen player draws two cards from the pile."],
@@ -1139,7 +1166,7 @@ const ITEM_I18N = {
   "المخنق": { en: ["Mikhnaq", "A traditional necklace worn close around the neck, made of gold or beads."], es: ["Mikhnaq", "Collar tradicional que se lleva pegado al cuello, de oro o de cuentas."] },
   "متفت": { en: ["Mitfit", "A wide Najdi women's dress with colourful hand-embroidered floral patterns."], es: ["Mitfit", "Vestido najdí de mujer, amplio, con bordados florales de colores hechos a mano."] },
   "دراعة": { en: ["Darra'a", "A long, loose women's dress, embroidered, its fabric varying with the occasion."], es: ["Darra'a", "Vestido de mujer largo y holgado, bordado; la tela cambia según la ocasión."] },
-  "برقع حرب": { en: ["Harb Burqa", "A traditional face veil linked to the dress of Harb tribeswomen, covering the face and showing the eyes."], es: ["Burka de Harb", "Velo tradicional ligado a la vestimenta de las mujeres de la tribu Harb; cubre el rostro y deja ver los ojos."] },
+  "رشرش": { en: ["Rashrash", "A traditional women's gold ornament of hanging rows that adorns the neck and chest, worn at occasions and celebrations."], es: ["Rashrash", "Adorno femenino tradicional de oro, con hileras colgantes que adornan el cuello y el pecho; se lleva en ocasiones y celebraciones."] },
   "بشت": { en: ["Bisht", "A fine men's cloak worn over the thobe on formal occasions and Eid."], es: ["Bisht", "Capa masculina de gala que se lleva sobre el thobe en ocasiones formales y en el Eid."] },
   "شماغ": { en: ["Shemagh", "A square men's headscarf, usually red and white, held in place with the agal."], es: ["Shemagh", "Pañuelo cuadrado de hombre, normalmente rojo y blanco, que se sujeta con el agal."] },
   "ثوب مرودن": { en: ["Mirwadan Thobe", "A traditional men's thobe known for its long, wide sleeves."], es: ["Thobe mirwadan", "Thobe tradicional de hombre, conocido por sus mangas largas y anchas."] },
@@ -1194,6 +1221,7 @@ const BOT_NAME_POOLS = {
 
 // Engine log lines (shared, Arabic) → viewer's language. Each rule is [regex, en(m), es(m)].
 const LOG_RULES = [
+  [/^(.+) نزّل لا ما تقدر كآخر كرت\.$/, (m, L) => `${m[1]} played ${L.action("block")} as their last card.`, (m, L) => `${m[1]} jugó ${L.action("block")} como su última carta.`],
   [/^خلصت كومة السحب، انخلطت الكروت الملعوبة وصارت كومة سحب جديدة\.$/, () => "The draw pile ran out: the played cards were shuffled into a new draw pile.", () => "Se acabó el mazo: las cartas jugadas se barajaron como mazo nuevo."],
   [/^بدأت اللعبة بـ (\d+) لاعبين، (\d+) كرت لكل لاعب\.$/, (m) => `Game started: ${m[1]} players, ${m[2]} cards each.`, (m) => `Empieza la partida: ${m[1]} jugadores, ${m[2]} cartas cada uno.`],
   [/^ثبّت الحَلّة: يبقى نفس كرت التنسيق لجولة إضافية\.$/, () => "Lock the Look: the same coordination card stays another round.", () => "Fija el look: la misma carta de coordinación se queda otra ronda."],
@@ -1234,6 +1262,7 @@ const YOU_FIX = {
     [/(^|[\s(])(?:أنت|Tú)(?=[\s:.,)!]|$)/g, "$1You"],
     [/^You ended their turn\./, "You ended your turn."],
     [/^You is back\./, "You're back."],
+    [/^You played (.+) as their last card\./, "You played $1 as your last card."],
     [/^You is now inactive/, "You're now inactive"],
     [/^You is inactive/, "You're inactive"],
   ],
@@ -1241,6 +1270,7 @@ const YOU_FIX = {
     [/(^|[\s(])(?:أنت|You)(?=[\s:.,)!]|$)/g, "$1Tú"],
     [/^Tú terminó su turno\./, "Terminaste tu turno."],
     [/^Tú ha vuelto\./, "Has vuelto."],
+    [/^Tú jugó (.+) como su última carta\./, "Jugaste $1 como tu última carta."],
     [/^Tú está inactivo/, "Estás inactivo"],
     [/^A Tú se le acabó el tiempo/, "Se te acabó el tiempo"],
     [/^Tú jugó:/, "Jugaste:"],
@@ -2207,13 +2237,21 @@ function WinStats({ game, myId, isOnline }) {
   const { t, tb, L } = useI18n();
   const [copied, setCopied] = useState(false);
   const targeted = game.stats?.targetedByPlayerId || {};
-  const topTargeted = Object.entries(targeted).sort((a, b) => b[1] - a[1])[0];
-  const lookupName = (playerId) => game.players.find((p) => p.id === playerId)?.name || playerId;
+  // Most targeted (landed + blocked, by id). Ties list everyone on the top count.
+  const topTargeted = (() => {
+    const vals = Object.values(targeted);
+    if (!vals.length) return null;
+    const max = Math.max(...vals);
+    const ps = game.players.filter((p) => targeted[p.id] === max);
+    return ps.length ? { players: ps, count: max } : null;
+  })();
   const winner = game.players.find((p) => p.id === game.winner);
   const runnerUp = game.players.filter((p) => p.id !== game.winner).sort((a, b) => a.hand.length - b.hand.length)[0];
 
   // Name each seat from the reader's point of view, so "أنت" reads naturally.
-  const who = (p) => (p ? (isOnline ? (p.id === myId ? t("you") : p.name) : p.isBot ? p.name : t("you")) : "");
+  // On a shared device with more than one human, «أنت» would be everyone, so use names there.
+  const sharedHumans = !isOnline && game.players.filter((p) => !p.isBot).length > 1;
+  const who = (p) => (p ? (isOnline ? (p.id === myId ? t("you") : L.name(p.name)) : p.isBot || sharedHumans ? L.name(p.name) : t("you")) : "");
   const cardsLeft = L.cardsLeft;
   const times = L.times;
   const sep = L.isAr ? "، " : ", ";
@@ -2234,7 +2272,7 @@ function WinStats({ game, myId, isOnline }) {
     { l: t("coordRounds"), v: `${game.coordRounds ?? 0}` },
     { l: t("cardsPlayed"), v: `${game.stats?.itemsPlayed || 0}` },
     { l: t("raresPlayed"), v: `${game.stats?.rareItemsPlayed || 0}` },
-    topTargeted ? { l: t("mostTargeted"), v: `${L.name(lookupName(topTargeted[0]))}${sep}${times(topTargeted[1])}` } : null,
+    topTargeted ? { l: t("mostTargeted"), v: `${topTargeted.players.map(who).join(L.isAr ? " و" : " & ")}${sep}${times(topTargeted.count)}` } : null,
   ].filter(Boolean);
 
   function share() {
@@ -2337,13 +2375,16 @@ function EduToast({ data }) {
 // try/catch and degrades to a silent no-op — zero risk to gameplay.
 function useIosHaptic() {
   const ref = useRef(null);
-  const fire = useCallback(() => {
+  // pattern: ms number or a vibrate() pattern array. iOS can't do patterns, so each "on" pulse
+  // becomes one switch tick, 160ms apart.
+  const fire = useCallback((pattern = 35) => {
     try {
       if (typeof navigator !== "undefined" && navigator.vibrate) {
-        navigator.vibrate(35);
+        navigator.vibrate(pattern);
         return;
       }
-      ref.current?.click();
+      const pulses = Array.isArray(pattern) ? Math.ceil(pattern.length / 2) : 1;
+      for (let i = 0; i < pulses; i++) setTimeout(() => ref.current?.click(), i * 160);
     } catch {}
   }, []);
   const node = (
@@ -2352,6 +2393,63 @@ function useIosHaptic() {
     </label>
   );
   return [fire, node];
+}
+
+/* Turn alert: a short two-note chime plus a stronger buzz when your turn starts. The chime is
+   synthesized with Web Audio (no audio file to load). On iOS the audio session is set to "ambient"
+   so it respects the silent switch. On/off lives in the ☰ menu and is saved per device. */
+const TURN_SOUND_STORE = "hulla-turn-sound";
+let turnAudioCtx = null;
+function turnAudio() {
+  try {
+    if (!turnAudioCtx) {
+      const AC = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
+      if (!AC) return null;
+      try {
+        if (navigator.audioSession) navigator.audioSession.type = "ambient";
+      } catch {}
+      turnAudioCtx = new AC();
+    }
+    return turnAudioCtx;
+  } catch {
+    return null;
+  }
+}
+// Browsers only allow audio after a user gesture, so the context is resumed on the first tap.
+function unlockTurnAudio() {
+  const ctx = turnAudio();
+  if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+}
+function playTurnChime() {
+  const ctx = turnAudio();
+  if (!ctx) return;
+  try {
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    const t0 = ctx.currentTime + 0.02;
+    [
+      [784, 0],
+      [1175, 0.13],
+    ].forEach(([freq, dt]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t0 + dt);
+      gain.gain.exponentialRampToValueAtTime(0.22, t0 + dt + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.32);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t0 + dt);
+      osc.stop(t0 + dt + 0.35);
+    });
+  } catch {}
+}
+function loadTurnSound() {
+  try {
+    return window.localStorage.getItem(TURN_SOUND_STORE) !== "off";
+  } catch {
+    return true;
+  }
 }
 
 function CountdownRing({ pendingActionId, startedAt, size = 56, windowSec = BLOCK_WINDOW_SEC, windowMs: windowMsProp, className = "mx-auto mb-2" }) {
@@ -2897,6 +2995,21 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   const [haptic, hapticNode] = useIosHaptic();
   const lastHapticTurnRef = useRef(-1);
   const [bigText, setBigText] = useState(false);
+  const [turnSound, setTurnSound] = useState(loadTurnSound);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(TURN_SOUND_STORE, turnSound ? "on" : "off");
+    } catch {}
+  }, [turnSound]);
+  useEffect(() => {
+    const unlock = () => unlockTurnAudio();
+    window.addEventListener("pointerdown", unlock, { passive: true });
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
@@ -3270,7 +3383,8 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     const humanTurn = isOnline ? isMyTurn : current && !current.isBot;
     if (humanTurn && lastHapticTurnRef.current !== turnN && !game.winner) {
       lastHapticTurnRef.current = turnN;
-      haptic();
+      haptic([90, 70, 140]);
+      if (turnSound) playTurnChime();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game.turnSerial, isMyTurn]);
@@ -3450,6 +3564,25 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game, isOnline, isHost, botExecutor]);
 
+  // The player on this device who's been marked inactive (online: me; solo vs bots: the human;
+  // pass-and-play: the human whose turn it is). Drives the "رجّعني نشط" banner.
+  const inactiveMe = isOnline
+    ? viewer && viewer.inactive
+      ? viewer
+      : null
+    : soloHuman
+    ? soloHuman.inactive
+      ? soloHuman
+      : null
+    : current && !current.isBot && current.inactive
+    ? current
+    : null;
+  function wakeMe() {
+    if (!inactiveMe) return;
+    const woken = rWakePlayer(game, inactiveMe.id);
+    if (woken !== game) dispatch(woken);
+  }
+
   function toggleSelect(cardId) {
     // Wake-on-touch (#27): merely tapping a card is proof of presence — clears inactive/missed
     // and restarts this turn's clock. rWakePlayer returns the game by reference when there's
@@ -3535,6 +3668,17 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     if (!card) return;
     // لا ما تقدر is purely reactive — it's used from the incoming-action window, never as a turn action.
     if (card.actionType === "block") {
+      if (canPlayLastBlock(game, viewer.id)) {
+        track([
+          mkEvent(game, "action_played", viewer, {
+            event_id: `${game.analyticsId}-t${game.turnSerial ?? 0}-action-${viewer.id}-lastBlock`,
+            action_type: "block",
+            payload: { last_card: true },
+          }),
+        ]);
+        dispatch(rPlayLastBlock(game, viewer.id));
+        return;
+      }
       setErrMsg(t("blockOnlyReactive"));
       return;
     }
@@ -3564,8 +3708,21 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   function chooseTarget(targetId) {
     const card = needTarget;
     if (card.actionType === "giveTake") {
-      setGiveStep({ cardId: card.id, targetId });
       setNeedTarget(null);
+      // nothing left to give (عطني وأعطيك was your last card): skip the picker
+      if (!viewer.hand.some((c) => c.id !== card.id)) {
+        const target = game.players.find((p) => p.id === targetId);
+        track([
+          mkEvent(game, "action_played", viewer, {
+            event_id: `${game.analyticsId}-t${game.turnSerial ?? 0}-action-${viewer.id}-giveTake`,
+            action_type: "giveTake",
+            payload: { target_player_id: targetId, target_is_bot: !!target?.isBot },
+          }),
+        ]);
+        dispatch(rDeclareGiveTake(game, viewer.id, card.id, targetId, []));
+        return;
+      }
+      setGiveStep({ cardId: card.id, targetId });
       return;
     }
     const target = game.players.find((p) => p.id === targetId);
@@ -3972,7 +4129,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
               </Sheet>
             )}
 
-            {giveStep && <GivePicker viewer={viewer} onConfirm={confirmGiveTake} onCancel={() => setGiveStep(null)} />}
+            {giveStep && <GivePicker viewer={viewer} excludeId={giveStep.cardId} onConfirm={confirmGiveTake} onCancel={() => setGiveStep(null)} />}
 
             {game.digOptions && (!isOnline || game.digOptions.playerId === myId) && (
               <Sheet maxW={440}>
@@ -4143,6 +4300,18 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
             </button>
             <button
               onClick={() => {
+                setTurnSound((v) => {
+                  if (!v) playTurnChime();
+                  return !v;
+                });
+              }}
+              className="w-full hstart px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
+              style={{ color: INK, background: turnSound ? `${GOLD}33` : "transparent", borderColor: `${INK}12` }}
+            >
+              {turnSound ? <Volume2 className="w-4 h-4" style={{ color: BRAND }} /> : <VolumeX className="w-4 h-4" style={{ color: BRAND }} />} {t("turnSound")} {turnSound ? "✓" : ""}
+            </button>
+            <button
+              onClick={() => {
                 try {
                   window.location.reload();
                 } catch {}
@@ -4174,6 +4343,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
 
       {/* Rendered last so it sits above the board and the ☰ menu; scales with A+. */}
       {showRules && <HowToPlay onClose={() => setShowRules(false)} bigText={bigText} />}
+      {inactiveMe && !winnerPlayer && <InactiveBanner onWake={wakeMe} />}
     </div>
   );
 }
@@ -4267,6 +4437,9 @@ function HowToPlay({ onClose, bigText }) {
                   <div className="tsz-11 mt-0.5" style={{ color: `${INK}aa` }}>
                     {L.actionDesc(a.id)}
                   </div>
+                  {(a.id === "giveTake" || a.id === "block") && (
+                    <div className="tsz-11 mt-0.5 font-semibold" style={{ color: BRAND }}>{t(`actNote_${a.id}`)}</div>
+                  )}
                 </div>
               </div>
             ))}
@@ -4283,32 +4456,50 @@ function HowToPlay({ onClose, bigText }) {
             {t("rRarityT")}
           </Section>
 
-          {/* حُلّة | SAUDI MADE lockup */}
-          <div className="flex items-center justify-center gap-4 mt-5 mb-5">
-            <Wordmark height={46} />
-            <span aria-hidden="true" style={{ width: 1.5, height: 40, background: GOLD, borderRadius: 1 }} />
-            <img src={ART.saudi_made} alt="Saudi Made" draggable={false} style={{ height: 40, width: "auto", display: "block" }} />
-          </div>
 
           <button onClick={onClose} className={`w-full py-3 tsz-14 ${btn}`} style={btnPrimary}>
             {t("letsPlay")}
           </button>
-          {/* Maker's stamp: «حُلّة | SAUDI MADE» — the wordmark and the Saudi Made mark read as one seal. */}
-          <div className="flex items-center justify-center gap-3 mt-4 mb-1" aria-label="حُلّة، صُنع في السعودية">
-            <Wordmark height={30} />
-            <span aria-hidden="true" style={{ width: 1, height: 30, background: GOLD }} />
-            <img src={ART.saudi_made} alt="Saudi Made" draggable={false} style={{ height: 26, width: "auto", display: "block" }} />
-          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function GivePicker({ viewer, onConfirm, onCancel }) {
+// Shown to a player who's been marked inactive (😴). One tap brings them back.
+function InactiveBanner({ onWake }) {
+  const { t, L } = useI18n();
+  return (
+    <div
+      dir={L.dir}
+      className="fixed left-0 right-0 flex justify-center px-4 hilla-pop"
+      style={{ zIndex: 60, bottom: "max(84px, calc(env(safe-area-inset-bottom) + 78px))", pointerEvents: "none" }}
+    >
+      <div
+        className="w-full flex items-center gap-3 rounded-2xl py-2"
+        style={{ paddingInlineStart: 12, paddingInlineEnd: 8, maxWidth: 380, background: INK, color: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 16px 34px -12px rgba(0,0,0,.55)`, pointerEvents: "auto" }}
+        role="status"
+      >
+        <span aria-hidden="true" style={{ fontSize: 22 }}>😴</span>
+        <div className="flex-1 min-w-0 hstart">
+          <div className="tsz-13 font-bold leading-tight">{t("inactiveMeTitle")}</div>
+          <div className="tsz-11 leading-tight mt-0.5" style={{ color: `${CREAM}bb` }}>
+            {t("inactiveMeBody")}
+          </div>
+        </div>
+        <button onClick={onWake} className={`px-4 py-2.5 tsz-13 whitespace-nowrap ${btn}`} style={btnPrimary}>
+          {t("imBack")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GivePicker({ viewer, excludeId, onConfirm, onCancel }) {
   const { t, tb, L } = useI18n();
   const [chosen, setChosen] = useState([]);
-  const items = viewer.hand;
+  // the عطني وأعطيك card being played isn't part of the hand you give from
+  const items = viewer.hand.filter((c) => c.id !== excludeId);
   const max = Math.min(2, items.length);
   function toggle(id) {
     setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : c.length < max ? [...c, id] : c));
@@ -5139,18 +5330,19 @@ function LoadingSplash({ progress }) {
    so the choice has to be made before adding (to change it later: remove and re-add). Thumbnails
    only here; production serves the full icon set from /icons/<key>/. */
 const APP_ICONS = [
-  { key: "e2", src: "/icons/e2/icon-192.png" },
-  { key: "f", src: "/icons/f/icon-192.png" },
   { key: "b", src: "/icons/b/icon-192.png" },
+  { key: "f", src: "/icons/f/icon-192.png" },
   { key: "a2", src: "/icons/a2/icon-192.png" },
   { key: "d2", src: "/icons/d2/icon-192.png" },
+  { key: "e2", src: "/icons/e2/icon-192.png" },
   { key: "najdi", src: "/icons/najdi/icon-192.png" },
   { key: "sharqi", src: "/icons/sharqi/icon-192.png" },
   { key: "janoubi", src: "/icons/janoubi/icon-192.png" },
   { key: "gharbi", src: "/icons/gharbi/icon-192.png" },
 ];
-const DEFAULT_APP_ICON = "e2";
-const APP_ICON_STORE = "hulla-app-icon";
+const DEFAULT_APP_ICON = "b";
+// v2: the old key was written on every load, so everyone had "e2" saved. This one is written only on pick.
+const APP_ICON_STORE = "hulla-app-icon-v2";
 
 function applyAppIcon(key) {
   const icon = APP_ICONS.find((i) => i.key === key) || APP_ICONS[0];
@@ -5297,10 +5489,13 @@ function HillaApp() {
   }, []);
   useEffect(() => {
     applyAppIcon(appIcon);
-    try {
-      window.localStorage.setItem(APP_ICON_STORE, appIcon);
-    } catch {}
   }, [appIcon]);
+  const pickAppIcon = (key) => {
+    setAppIcon(key);
+    try {
+      window.localStorage.setItem(APP_ICON_STORE, key);
+    } catch {}
+  };
 
   useEffect(() => {
     setMode(readOnlineSession() ? "online" : "home");
@@ -5370,7 +5565,7 @@ function HillaApp() {
         {showIconPicker && (
           <AppIconPicker
             value={appIcon}
-            onChange={setAppIcon}
+            onChange={pickAppIcon}
             onClose={() => setShowIconPicker(false)}
             installEvent={installEvent}
             onInstalled={() => setInstalled(true)}

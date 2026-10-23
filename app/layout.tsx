@@ -31,8 +31,8 @@ export const metadata: Metadata = {
     telephone: false
   },
   icons: {
-    icon: [{ url: '/icons/e2/favicon-32.png', sizes: '32x32', type: 'image/png' }],
-    apple: [{ url: '/icons/e2/apple-touch-icon-180.png', sizes: '180x180', type: 'image/png' }]
+    icon: [{ url: '/icons/b/favicon-32.png', sizes: '32x32', type: 'image/png' }],
+    apple: [{ url: '/icons/b/apple-touch-icon-180.png', sizes: '180x180', type: 'image/png' }]
   },
   other: {
     'mobile-web-app-capable': 'yes',

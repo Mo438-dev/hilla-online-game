@@ -19,7 +19,7 @@ export const HILLA_ART: Record<string, string> = {
   "actT_freeze": "/hilla-art/actions/freeze-thumb.webp",
   "back_tall": "/hilla-art/cards/back-tall.webp",
   "back_sq": "/hilla-art/cards/back-sq.webp",
-  "cos:برقع حرب": "/hilla-art/costumes/burqa-harb.webp",
+  "cos:رشرش": "/hilla-art/costumes/rashrash.webp",
   "cos:بشت": "/hilla-art/costumes/bisht.webp",
   "cos:المخنق": "/hilla-art/costumes/almikhnaq.webp",
   "cos:مقصب": "/hilla-art/costumes/muqassab.webp",

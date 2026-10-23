@@ -1,9 +1,9 @@
-const CACHE_NAME = 'hilla-pwa-static-v2';
+const CACHE_NAME = 'hilla-pwa-static-v3';
 const STATIC_ASSETS = [
-  '/icons/e2/icon-192.png',
-  '/icons/e2/icon-512.png',
-  '/icons/e2/icon-maskable-512.png',
-  '/icons/e2/apple-touch-icon-180.png'
+  '/icons/b/icon-192.png',
+  '/icons/b/icon-512.png',
+  '/icons/b/icon-maskable-512.png',
+  '/icons/b/apple-touch-icon-180.png'
 ];
 
 self.addEventListener('install', (event) => {

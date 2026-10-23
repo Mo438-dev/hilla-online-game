@@ -1,10 +1,11 @@
-// Ruleset v2.2 validator — checks the WHOLE box against Mohammed's spec (hard-coded below, not
+// Ruleset v2.3 validator — checks the WHOLE box against Mohammed's spec (hard-coded below, not
 // read from the source), so a drifted constant fails instead of silently passing.
-// Usage: node validate-ruleset-v22.mjs <path-to-game-source> [runs=5000]
+// Usage: node validate-ruleset-v23.mjs <path-to-game-source> [runs=5000]
 import fs from "fs";
 
 const SPEC = {
-  version: "v2.2",
+  version: "v2.3",
+  mustHave: ["رشرش"], mustNotHave: ["برقع حرب"],
   items: 32, regions: 4, itemsPerRegion: 8, copies: 3, itemCards: 96,
   actions: { "عطني وأعطيك": 2, "اقدع": 4, "افزع لي": 2, "لا ما تقدر": 2, "ثبّت الحَلّة": 2, "فتّش الصندوق": 2 },
   actionCards: 14, playCards: 110, coordCards: 50, boxTotal: 160,
@@ -19,7 +20,7 @@ const SPEC = {
 
 const file = process.argv[2];
 const RUNS = Number(process.argv[3] || 5000);
-if (!file) { console.error("usage: node validate-ruleset-v22.mjs <file> [runs]"); process.exit(2); }
+if (!file) { console.error("usage: node validate-ruleset-v23.mjs <file> [runs]"); process.exit(2); }
 const src = fs.readFileSync(file, "utf8");
 const a = src.indexOf("/* ---------------------------------- DATA");
 const b = src.indexOf("function actionMeta(");
@@ -41,6 +42,9 @@ if (M.REGIONS.length !== SPEC.regions) fail("region count");
 for (const r of M.REGIONS) if (r.items.length !== SPEC.itemsPerRegion) fail(`${r.id} has ${r.items.length} items`);
 const items = M.REGIONS.flatMap((r) => r.items.map((it) => ({ ...it, region: r.id })));
 if (new Set(items.map((i) => i.name)).size !== SPEC.items) fail("distinct items");
+for (const n of SPEC.mustHave) if (!items.some((i) => i.name === n)) fail(`missing ${n}`);
+for (const n of SPEC.mustNotHave) if (items.some((i) => i.name === n)) fail(`${n} should be removed`);
+if (items.find((i) => i.name === "رشرش")?.region !== "najdi") fail("رشرش must be Najdi");
 if (!eq(tally(items.map((i) => i.rarity)), SPEC.rarityCount)) fail(`rarity split ${JSON.stringify(tally(items.map((i) => i.rarity)))}`);
 const total = items.reduce((s, it) => s + SPEC.target[it.rarity], 0);
 if (total !== SPEC.appearances) fail(`appearance total ${total}`);
