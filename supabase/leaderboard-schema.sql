@@ -167,3 +167,16 @@ revoke all on function public.delete_stale_guests() from public, anon, authentic
 grant select on public.profiles, public.game_results to authenticated;
 grant execute on function public.leaderboard_rows(timestamptz, timestamptz) to service_role;
 grant execute on function public.delete_stale_guests() to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Extra locks on existing objects, now that anonymous sign-ins give guests the "authenticated" role.
+-- 1. hilla_rooms: RLS already allows only the service role; also drop the default table grants so
+--    the policy isn't the only lock. Nothing in the browser reads hilla_rooms (all access is through
+--    server routes with the service role key).
+-- 2. analytics_anonymize_player_names(): functions are executable by PUBLIC by default, which the
+--    earlier revoke from anon/authenticated didn't remove.
+-- ---------------------------------------------------------------------------
+revoke all on public.hilla_rooms from anon, authenticated;
+grant all privileges on public.hilla_rooms to service_role;
+revoke execute on function public.analytics_anonymize_player_names() from public;
+grant execute on function public.analytics_anonymize_player_names() to service_role;

@@ -149,13 +149,19 @@ export async function claimTurnTimeout(code: string, incomingRoom: RoomDoc, expe
   const prev = toRoomDoc(current as RoomRow);
   const nextRoom = keepServerFields(prev, incomingRoom);
   const check = prev.game ? checkTransition(prev.game, nextRoom.game) : { ok: false as const, reason: 'no_game' };
+  const counter: Partial<RoomRow> = {};
   if (!check.ok) {
-    await recordRejection(current as RoomRow, check.reason);
-    return { ok: false as const, rejected: true, reason: check.reason };
+    if (INTEGRITY_ENFORCE) {
+      await bumpRejects(current as RoomRow);
+      await logRejection(current as RoomRow, check.reason);
+      return { ok: false as const, rejected: true, reason: check.reason };
+    }
+    // log-only: accept, and mark the game in the same write
+    if ('integrity_rejects' in (current as RoomRow)) counter.integrity_rejects = ((current as RoomRow).integrity_rejects ?? 0) + 1;
   }
   const { data, error } = await supabase
     .from(ROOMS_TABLE)
-    .update(toRoomRow(nextRoom))
+    .update({ ...toRoomRow(nextRoom), ...counter })
     .eq('code', code)
     .eq('updated_at', expected.updatedAt)
     .eq('game->>turnSerial', String(expected.turnSerial))
@@ -166,6 +172,7 @@ export async function claimTurnTimeout(code: string, incomingRoom: RoomDoc, expe
 
   if (error) throw error;
   if (!data) return { ok: false as const };
+  if (!check.ok) await logRejection(data as RoomRow, check.reason);
   return { ok: true as const, room: toRoomDoc(data as RoomRow) };
 }
 
@@ -218,14 +225,30 @@ function keepServerFields(prev: RoomDoc, incoming: RoomDoc): RoomDoc {
   };
 }
 
-async function recordRejection(row: RoomRow, reason: string) {
-  const supabase = getSupabaseAdmin();
-  const gameId = row.game_id && UUID_RE.test(row.game_id) ? row.game_id : null;
+// INTEGRITY_ENFORCE=1: a save that fails a check is refused (409). Anything else (the default):
+// log-only — the save is accepted, but it's still logged and the game's results are stored with
+// counted=false, reason "integrity". Run log-only first, read integrity_rejections, then enforce.
+const INTEGRITY_ENFORCE = process.env.INTEGRITY_ENFORCE === '1';
+
+// Enforce mode only: the refused save leaves the row as it was, so the counter is bumped on its own.
+// (In log-only mode it rides along in the accepted save, so the save's version check isn't tripped.)
+async function bumpRejects(row: RoomRow) {
+  if (!('integrity_rejects' in row)) return;
   try {
-    await supabase
+    await getSupabaseAdmin()
       .from(ROOMS_TABLE)
       .update({ integrity_rejects: (row.integrity_rejects ?? 0) + 1 })
       .eq('code', row.code);
+  } catch (e) {
+    console.error('integrity counter failed', e instanceof Error ? e.message : e);
+  }
+}
+
+// The rejection log + the state_rejected analytics event. Never throws.
+async function logRejection(row: RoomRow, reason: string) {
+  const supabase = getSupabaseAdmin();
+  const gameId = row.game_id && UUID_RE.test(row.game_id) ? row.game_id : null;
+  try {
     await supabase.from('integrity_rejections').insert({ room_code: row.code, game_id: gameId, reason });
     if (gameId) {
       const g = row.game as any;
@@ -235,7 +258,7 @@ async function recordRejection(row: RoomRow, reason: string) {
         room_code: row.code,
         event_type: 'state_rejected',
         turn_number: typeof g?.turnSerial === 'number' ? g.turnSerial : null,
-        payload: { reason }
+        payload: { reason, enforced: INTEGRITY_ENFORCE }
       });
     }
   } catch (e) {
@@ -248,7 +271,8 @@ export type GuardedSave =
   | { ok: false; reason: 'not_found' | 'busy' | string; rejected?: boolean };
 
 // Every client save of a room goes through here (PUT /api/rooms/[code]). The incoming room is checked
-// against the row it replaces (lib/integrity.ts); a failing save is refused and logged. The write is
+// against the row it replaces (lib/integrity.ts); a failing save is logged, and refused when
+// INTEGRITY_ENFORCE=1 (otherwise accepted, with the game marked so its results don't count). The write is
 // conditional on the row version, so the check is always against the true previous save: if another
 // save landed in between, the incoming room is re-checked against that one.
 export async function guardedSaveRoom(code: string, incoming: RoomDoc): Promise<GuardedSave> {
@@ -280,8 +304,23 @@ export async function guardedSaveRoom(code: string, incoming: RoomDoc): Promise<
       }
     }
     if (!check.ok) {
-      await recordRejection(row, check.reason);
-      return { ok: false, reason: check.reason, rejected: true };
+      if (INTEGRITY_ENFORCE) {
+        await bumpRejects(row);
+        await logRejection(row, check.reason);
+        return { ok: false, reason: check.reason, rejected: true };
+      }
+      // log-only: accept the save, and mark the game in the same write
+      if ('integrity_rejects' in row) {
+        const freshDeal = !(prev.started && prev.game) && next.started && next.game;
+        if (freshDeal) {
+          const gid = (next.game as any)?.analyticsId;
+          extra.game_id = typeof gid === 'string' && UUID_RE.test(gid) ? gid : null;
+          extra.game_started_at = new Date().toISOString();
+          extra.integrity_rejects = 1;
+        } else {
+          extra.integrity_rejects = (row.integrity_rejects ?? 0) + 1;
+        }
+      }
     }
 
     const { data: saved, error: upErr } = await supabase
@@ -295,6 +334,7 @@ export async function guardedSaveRoom(code: string, incoming: RoomDoc): Promise<
     if (!saved) continue; // another save landed first: re-check against it
 
     const savedRow = saved as RoomRow;
+    if (!check.ok) await logRejection(savedRow, check.reason);
     const prevWinner = (prev.game as any)?.winner;
     const nextWinner = (next.game as any)?.winner;
     if (prev.started && !prevWinner && nextWinner) {
