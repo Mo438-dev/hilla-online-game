@@ -5612,13 +5612,13 @@ function SaduHome({ onOnline, onLocal, onRules, installed, onInstall, nick, setN
         <LangMenu />
       </div>
 
-      {/* woven label */}
-      <div className="relative flex justify-center mt-5">
-        <div className="text-center px-7 pt-4 pb-3" style={{ transform: "rotate(-1.5deg)", background: CREAM, borderRadius: 6, boxShadow: `0 0 0 3px ${CREAM}, 0 0 0 4.5px ${GOLD_DK}, 0 18px 30px -12px rgba(0,0,0,.6)`, outline: `1.5px dashed ${GOLD_DK}`, outlineOffset: -8 }}>
-          <Wordmark height={66} />
-          <div className="tsz-12 font-bold mt-1" style={{ color: MAROON_DK }}>
-            {t("sdTagline")}
-          </div>
+      {/* logo: the wordmark on a cream plaque over an edge-to-edge band of the diamond lattice */}
+      <div className="relative w-full flex justify-center mt-5" style={{ height: 130 }}>
+        <div className="absolute left-0 right-0" style={{ top: 52, background: MAROON_DK }}>
+          <DiamondLattice thickness={22} />
+        </div>
+        <div className="relative px-6 py-3 flex items-center" style={{ background: CREAM, borderRadius: 18, boxShadow: `0 0 0 3px ${GOLD}, 0 14px 28px -12px rgba(60,20,10,.45)` }}>
+          <Wordmark height={92} />
         </div>
       </div>
 
