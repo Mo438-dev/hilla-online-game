@@ -5892,7 +5892,8 @@ function LeaderboardScreen({ onBack }) {
   const me = data?.me || null;
   const isMe = (row) => !!me && row.rank === me.rank && row.nickname === me.nickname;
   const meListed = !!me && top.some(isMe);
-  const sub = period === "season" ? (data?.season ? `${t("lbSeason", { y: L.num(data.season.hijriYear) })} · ${t("lbDaysLeft", { n: L.num(data.season.daysLeft) })}` : "") : t("lbAllTime");
+  // «باقي ٢٢٣ يوم · موسم ١٤٤٨»: a word on each side of «·» (after a number it reads as a zero in Arabic)
+  const sub = period === "season" ? (data?.season ? `${t("lbDaysLeft", { n: L.num(data.season.daysLeft) })} · ${t("lbSeason", { y: L.num(data.season.hijriYear) })}` : "") : t("lbAllTime");
 
   const Row = ({ row, pinned }) => (
     <div
