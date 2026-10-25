@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createRoom, type RoomDoc } from '@/lib/room-store';
+import { getRequestUser } from '@/lib/auth-server';
 
 export async function POST(request: Request) {
   try {
@@ -9,7 +10,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'missing_room' }, { status: 400 });
     }
 
-    const created = await createRoom(body.room);
+    const user = await getRequestUser(request);
+    const created = await createRoom(body.room, user?.id ?? null);
     if (!created) {
       return NextResponse.json({ error: 'room_exists' }, { status: 409 });
     }

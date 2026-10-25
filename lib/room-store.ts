@@ -1,9 +1,12 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { checkFreshDeal, checkTransition } from '@/lib/integrity';
+import { writeResults } from '@/lib/leaderboard/results';
 
 export type PlayerMeta = {
   id: string;
   name: string;
   isBot?: boolean;
+  userId?: string | null; // Supabase auth uid, set by the server from the bearer token, never the client
 };
 
 export type RoomDoc = {
@@ -27,6 +30,9 @@ type RoomRow = {
   game: unknown;
   expires_at: string;
   updated_at: string;
+  game_id?: string | null;
+  game_started_at?: string | null;
+  integrity_rejects?: number;
 };
 
 const ROOMS_TABLE = 'hilla_rooms';
@@ -44,7 +50,7 @@ function toRoomDoc(row: RoomRow): RoomDoc {
   };
 }
 
-function toRoomRow(room: RoomDoc): Omit<RoomRow, 'expires_at' | 'updated_at'> {
+function toRoomRow(room: RoomDoc): Omit<RoomRow, 'expires_at' | 'updated_at' | 'game_id' | 'game_started_at' | 'integrity_rejects'> {
   return {
     code: room.code,
     host_id: room.hostId,
@@ -65,7 +71,9 @@ function isExpired(expiresAt: string) {
   return new Date(expiresAt).getTime() <= Date.now();
 }
 
-export async function createRoom(room: RoomDoc) {
+export async function createRoom(room: RoomDoc, userId: string | null = null) {
+  // The host's account comes from the verified token only.
+  room = { ...room, lobby: (room.lobby || []).map(({ userId: _ignored, ...p }) => (userId && p.id === room.hostId ? { ...p, userId } : p)) };
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from(ROOMS_TABLE)
@@ -132,8 +140,19 @@ export type TimeoutGuard = {
 // turnSerial. The three turn fields are semantic assertions that we're skipping the exact intended
 // turn. A mismatch on any of them → 0 rows updated → the claim lost (someone else moved/skipped
 // first). Normal moves stay on the blind updateRoom path, so this changes nothing for them.
-export async function claimTurnTimeout(code: string, nextRoom: RoomDoc, expected: TimeoutGuard) {
+export async function claimTurnTimeout(code: string, incomingRoom: RoomDoc, expected: TimeoutGuard) {
   const supabase = getSupabaseAdmin();
+  // Same integrity checks as a normal save, against the row the timeout is based on.
+  const { data: current, error: readErr } = await supabase.from(ROOMS_TABLE).select('*').eq('code', code).maybeSingle();
+  if (readErr) throw readErr;
+  if (!current || (current as RoomRow).updated_at !== expected.updatedAt) return { ok: false as const };
+  const prev = toRoomDoc(current as RoomRow);
+  const nextRoom = keepServerFields(prev, incomingRoom);
+  const check = prev.game ? checkTransition(prev.game, nextRoom.game) : { ok: false as const, reason: 'no_game' };
+  if (!check.ok) {
+    await recordRejection(current as RoomRow, check.reason);
+    return { ok: false as const, rejected: true, reason: check.reason };
+  }
   const { data, error } = await supabase
     .from(ROOMS_TABLE)
     .update(toRoomRow(nextRoom))
@@ -182,7 +201,125 @@ export async function declineBlock(code: string, playerId: string, pendingAction
   return { ok: false as const, reason: 'busy' as const };
 }
 
-export async function joinRoom(code: string, player: PlayerMeta) {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Account ids on lobby seats are server-owned: whatever the client sent is replaced by what the row
+// already had for that seat (set at create/join from a verified token). The host can't change either.
+function keepServerFields(prev: RoomDoc, incoming: RoomDoc): RoomDoc {
+  const userIdOf = new Map(prev.lobby.map((p) => [p.id, p.userId ?? null]));
+  return {
+    ...incoming,
+    code: prev.code,
+    hostId: prev.hostId,
+    lobby: (incoming.lobby || []).map(({ userId: _ignored, ...p }) => {
+      const uid = userIdOf.get(p.id);
+      return uid ? { ...p, userId: uid } : p;
+    })
+  };
+}
+
+async function recordRejection(row: RoomRow, reason: string) {
+  const supabase = getSupabaseAdmin();
+  const gameId = row.game_id && UUID_RE.test(row.game_id) ? row.game_id : null;
+  try {
+    await supabase
+      .from(ROOMS_TABLE)
+      .update({ integrity_rejects: (row.integrity_rejects ?? 0) + 1 })
+      .eq('code', row.code);
+    await supabase.from('integrity_rejections').insert({ room_code: row.code, game_id: gameId, reason });
+    if (gameId) {
+      const g = row.game as any;
+      await supabase.from('game_events').insert({
+        event_id: `${gameId}-rejected-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        game_id: gameId,
+        room_code: row.code,
+        event_type: 'state_rejected',
+        turn_number: typeof g?.turnSerial === 'number' ? g.turnSerial : null,
+        payload: { reason }
+      });
+    }
+  } catch (e) {
+    console.error('integrity log failed', e instanceof Error ? e.message : e);
+  }
+}
+
+export type GuardedSave =
+  | { ok: true; room: RoomDoc }
+  | { ok: false; reason: 'not_found' | 'busy' | string; rejected?: boolean };
+
+// Every client save of a room goes through here (PUT /api/rooms/[code]). The incoming room is checked
+// against the row it replaces (lib/integrity.ts); a failing save is refused and logged. The write is
+// conditional on the row version, so the check is always against the true previous save: if another
+// save landed in between, the incoming room is re-checked against that one.
+export async function guardedSaveRoom(code: string, incoming: RoomDoc): Promise<GuardedSave> {
+  const supabase = getSupabaseAdmin();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data, error } = await supabase.from(ROOMS_TABLE).select('*').eq('code', code).maybeSingle();
+    if (error) throw error;
+    if (!data) return { ok: false, reason: 'not_found' };
+    const row = data as RoomRow;
+    if (isExpired(row.expires_at)) {
+      await deleteExpiredRoom(code);
+      return { ok: false, reason: 'not_found' };
+    }
+    const prev = toRoomDoc(row);
+    const next = keepServerFields(prev, incoming);
+    const extra: Partial<RoomRow> = {};
+
+    let check: { ok: true } | { ok: false; reason: string } = { ok: true };
+    if (prev.started && prev.game) {
+      check = next.started && next.game ? checkTransition(prev.game, next.game) : { ok: false, reason: 'game_removed' };
+    } else if (next.started || next.game) {
+      check = next.started && next.game ? checkFreshDeal(next.game) : { ok: false, reason: 'bad_deal' };
+      // Only once leaderboard-schema.sql has added these columns; before that, saves work as before.
+      if (check.ok && 'game_id' in row) {
+        const gid = (next.game as any)?.analyticsId;
+        extra.game_id = typeof gid === 'string' && UUID_RE.test(gid) ? gid : null;
+        extra.game_started_at = new Date().toISOString();
+        extra.integrity_rejects = 0;
+      }
+    }
+    if (!check.ok) {
+      await recordRejection(row, check.reason);
+      return { ok: false, reason: check.reason, rejected: true };
+    }
+
+    const { data: saved, error: upErr } = await supabase
+      .from(ROOMS_TABLE)
+      .update({ ...toRoomRow(next), ...extra })
+      .eq('code', code)
+      .eq('updated_at', row.updated_at)
+      .select()
+      .maybeSingle();
+    if (upErr) throw upErr;
+    if (!saved) continue; // another save landed first: re-check against it
+
+    const savedRow = saved as RoomRow;
+    const prevWinner = (prev.game as any)?.winner;
+    const nextWinner = (next.game as any)?.winner;
+    if (prev.started && !prevWinner && nextWinner) {
+      try {
+        await writeResults({
+          code,
+          lobby: savedRow.lobby ?? [],
+          game: savedRow.game,
+          gameId: savedRow.game_id ?? null,
+          gameStartedAt: savedRow.game_started_at ?? null,
+          integrityRejects: savedRow.integrity_rejects ?? 0
+        });
+      } catch (e) {
+        // Results must never break the game; a failed write is logged and the game goes on.
+        console.error('writeResults failed', e instanceof Error ? e.message : e);
+      }
+    }
+    return { ok: true, room: toRoomDoc(savedRow) };
+  }
+  return { ok: false, reason: 'busy' };
+}
+
+export async function joinRoom(code: string, rawPlayer: PlayerMeta, userId: string | null = null) {
+  const { userId: _ignored, ...base } = rawPlayer;
+  const player: PlayerMeta = userId ? { ...base, userId } : base;
   const room = await getRoom(code);
   if (!room) return { error: 'not_found' as const };
   if (room.started) return { error: 'started' as const };

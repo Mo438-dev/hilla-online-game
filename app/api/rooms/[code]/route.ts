@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import { NextResponse } from 'next/server';
-import { getRoom, updateRoom, type RoomDoc } from '@/lib/room-store';
+import { getRoom, guardedSaveRoom, type RoomDoc } from '@/lib/room-store';
 
 export async function GET(_: Request, { params }: { params: { code: string } }) {
   try {
@@ -51,12 +51,14 @@ export async function PUT(request: Request, { params }: { params: { code: string
       return NextResponse.json({ error: 'missing_room' }, { status: 400 });
     }
 
-    const updated = await updateRoom(params.code, body.room);
-    if (!updated) {
-      return NextResponse.json({ error: 'not_found' }, { status: 404 });
+    // Checked against the previous save (lib/integrity.ts); a save that breaks a rule is refused.
+    const result = await guardedSaveRoom(params.code, body.room);
+    if (!result.ok) {
+      if (result.reason === 'not_found') return NextResponse.json({ error: 'not_found' }, { status: 404 });
+      return NextResponse.json({ error: result.rejected ? 'state_rejected' : 'busy', reason: result.reason }, { status: 409 });
     }
 
-    return NextResponse.json(updated);
+    return NextResponse.json(result.room);
   } catch (error) {
     const message =
       error instanceof Error

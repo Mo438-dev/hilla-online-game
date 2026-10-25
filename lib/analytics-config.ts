@@ -23,6 +23,9 @@ export const ANALYTICS_EVENT_TYPES = [
   'deal_snapshot', // all dealt cards at game start (no player attribution)
   'end_snapshot', // losers' remaining cards + final standings at game end
   'player_identity', // pseudonymous localStorage client_pid per human player
+  // Leaderboard / integrity
+  'state_rejected', // server refused a room save (written by the server, payload.reason)
+  'auth_rate_limited', // anonymous sign-in hit Supabase's rate limit (no game, no personal data)
 ] as const;
 
 export type AnalyticsEventType = (typeof ANALYTICS_EVENT_TYPES)[number];

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { joinRoom, type PlayerMeta } from '@/lib/room-store';
+import { getRequestUser } from '@/lib/auth-server';
 
 export async function POST(request: Request, { params }: { params: { code: string } }) {
   try {
@@ -9,7 +10,8 @@ export async function POST(request: Request, { params }: { params: { code: strin
       return NextResponse.json({ error: 'missing_player' }, { status: 400 });
     }
 
-    const result = await joinRoom(params.code, body.player);
+    const user = await getRequestUser(request);
+    const result = await joinRoom(params.code, body.player, user?.id ?? null);
 
     if ('error' in result) {
       const status = result.error === 'not_found' ? 404 : result.error === 'started' ? 409 : 410;

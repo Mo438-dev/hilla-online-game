@@ -16,7 +16,7 @@ const ITEM_EVENT_TYPES = new Set(['items_played', 'deal_snapshot', 'end_snapshot
 
 export type AnalyticsEventRow = {
   event_id: string;
-  game_id: string;
+  game_id: string | null;
   room_code: string | null;
   player_id: string | null;
   player_name: string | null;
@@ -133,10 +133,12 @@ export function sanitizeEvent(raw: unknown): AnalyticsEventRow | null {
   const eventId = asText(e.event_id);
   const eventType = asText(e.event_type) as AnalyticsEventType | null;
   if (!eventId || !eventType || !ANALYTICS_EVENT_TYPES.includes(eventType)) return null;
-  if (!isUuid(e.game_id)) return null;
+  // auth_rate_limited happens before any game exists; every other event needs one.
+  const noGame = eventType === 'auth_rate_limited';
+  if (!noGame && !isUuid(e.game_id)) return null;
   return {
     event_id: eventId,
-    game_id: e.game_id,
+    game_id: noGame ? null : (e.game_id as string),
     room_code: asText(e.room_code),
     player_id: asText(e.player_id),
     player_name: asText(e.player_name),
