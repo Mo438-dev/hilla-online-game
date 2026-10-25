@@ -5304,7 +5304,7 @@ function preloadAllAssets(onProgress) {
 function LoadingSplash({ progress }) {
   const { t, tb, L } = useI18n();
   return (
-    <div dir={L.dir} className="hilla-root fixed inset-0 overflow-hidden flex items-center justify-center" style={{ background: CREAM, color: INK }}>
+    <div dir={L.dir} className="hilla-root fixed inset-0 overflow-hidden flex items-center justify-center" style={{ background: CREAM, color: INK, bottom: "calc(-1 * env(safe-area-inset-bottom, 0px))" }}>
       <GlobalFont />
       <div
         aria-hidden="true"
@@ -5601,7 +5601,7 @@ function SaduHome({ onOnline, onLocal, onRules, installed, onInstall, nick, setN
   return (
     <div
       dir={L.dir}
-      className="hilla-root relative w-full flex flex-col overflow-hidden"
+      className="hilla-root relative w-full min-h-screen flex flex-col overflow-hidden"
       style={{ minHeight: "100dvh", ...pageBg, color: INK }}
     >
       <GlobalFont />
@@ -5642,10 +5642,14 @@ function SaduHome({ onOnline, onLocal, onRules, installed, onInstall, nick, setN
           </button>
         )}
       </div>
-      <div className="relative flex justify-center px-4 mt-3" style={{ paddingBottom: "max(14px, calc(env(safe-area-inset-bottom) + 8px))" }}>
-        <span className="text-center tsz-10 font-semibold rounded-full px-3 py-1" style={{ background: `${CREAM}e6`, color: `${INK}99` }}>
-          {t("madeBy")} · {t("credit")}
-        </span>
+      <div className="relative text-center px-4 mt-2" style={{ paddingBottom: "max(14px, calc(env(safe-area-inset-bottom) + 8px))" }}>
+        <GoldRule className="my-1.5" />
+        <p className="tsz-12 font-bold mt-1" style={{ color: BRAND }}>
+          {t("madeBy")}
+        </p>
+        <p className="tsz-11 mt-0.5" style={{ color: `${INK}77` }}>
+          {t("credit")}
+        </p>
       </div>
 
       {profile && (
@@ -5954,7 +5958,7 @@ export default function HillaGame() {
       {!splashGone && (
         <div
           aria-hidden={assetsReady}
-          style={{ position: "fixed", inset: 0, zIndex: 20000, opacity: assetsReady ? 0 : 1, transition: "opacity .3s ease-out", pointerEvents: assetsReady ? "none" : "auto" }}
+          style={{ position: "fixed", inset: 0, bottom: "calc(-1 * env(safe-area-inset-bottom, 0px))", zIndex: 20000, opacity: assetsReady ? 0 : 1, transition: "opacity .3s ease-out", pointerEvents: assetsReady ? "none" : "auto" }}
         >
           <LoadingSplash progress={loadProgress} />
         </div>

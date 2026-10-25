@@ -14,7 +14,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: MAROON
+  themeColor: CREAM
 };
 
 export const metadata: Metadata = {
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     'apple-mobile-web-app-title': 'حُلّة',
     'msapplication-TileColor': MAROON,
     'msapplication-navbutton-color': MAROON,
-    'theme-color': MAROON,
+    'theme-color': CREAM,
     'application-name': 'حُلّة',
     'background-color': CREAM
   }

@@ -1,9 +1,17 @@
 @import "tailwindcss";
 
+/* The game's page background on html/body too, so nothing white can show through anywhere the
+   page doesn't reach (e.g. the home-indicator strip in the installed iPhone app). Same cream and
+   zigzag as pageBg in HillaGame.tsx; background-color stands alone if the pattern fails. */
 html,
 body {
   margin: 0;
   min-height: 100%;
+  background-color: #f3e9d2;
+  background-image: linear-gradient(135deg, #c9a2270d 25%, transparent 25%), linear-gradient(225deg, #c9a2270d 25%, transparent 25%),
+    linear-gradient(45deg, #c9a2270d 25%, transparent 25%), linear-gradient(315deg, #c9a2270d 25%, transparent 25%);
+  background-position: 20px 0, 20px 0, 0 0, 0 0;
+  background-size: 40px 40px;
 }
 
 * {
