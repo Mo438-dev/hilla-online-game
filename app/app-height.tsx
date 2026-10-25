@@ -11,3 +11,18 @@ export default function AppHeight() {
   }, []);
   return null;
 }
+
+// iOS ignores user-scalable=no for pinch in Safari; its proprietary gesture events can still be
+// cancelled. Applies to every screen (home, leaderboard, lobby, game table).
+export function NoPinchZoom() {
+  useEffect(() => {
+    const stop = (e: Event) => e.preventDefault();
+    document.addEventListener('gesturestart', stop, { passive: false });
+    document.addEventListener('gesturechange', stop, { passive: false });
+    return () => {
+      document.removeEventListener('gesturestart', stop);
+      document.removeEventListener('gesturechange', stop);
+    };
+  }, []);
+  return null;
+}

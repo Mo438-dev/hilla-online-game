@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { IBM_Plex_Sans_Arabic, Markazi_Text } from 'next/font/google';
 import PWARegister from './pwa-register';
-import AppHeight from './app-height';
+import AppHeight, { NoPinchZoom } from './app-height';
 import './globals.css';
 
 // Licensed web stand-ins for Thmanyah (which may not be embedded): Plex for UI, Markazi for titles.
@@ -14,6 +14,9 @@ const CREAM = '#F3E9D2';
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  // No pinch/double-tap zoom in the game; «تكبير النص» is the in-app way to enlarge text.
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: 'cover',
   themeColor: CREAM
 };
@@ -64,6 +67,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <PWARegister />
         <AppHeight />
+        <NoPinchZoom />
       </body>
     </html>
   );

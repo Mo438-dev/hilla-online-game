@@ -35,6 +35,28 @@ body {
 .app-screen {
   min-height: var(--app-h);
 }
+/* Screens that must be exactly one screen tall (home, leaderboard): anything inside that needs to
+   scroll does it in its own container. */
+.app-exact {
+  height: var(--app-h);
+  overflow: hidden;
+}
+
+/* No rubber-band bounce on the page itself; inner containers still scroll. No double-tap zoom
+   (pinch is blocked in app/app-height.tsx); «تكبير النص» in the menu is the way to enlarge text. */
+html,
+body {
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+/* iOS zooms in on any focused field under 16px (nickname, room code, survey comment). */
+input:not([type="range"]):not([type="checkbox"]),
+textarea,
+select {
+  font-size: max(16px, 1em);
+}
+
 .app-fixed {
   position: fixed;
   top: 0;
