@@ -45,16 +45,18 @@ export async function GET(_: Request, { params }: { params: { code: string } }) 
 
 export async function PUT(request: Request, { params }: { params: { code: string } }) {
   try {
-    const body = (await request.json()) as { room?: RoomDoc };
+    const body = (await request.json()) as { room?: RoomDoc; baseUpdatedAt?: unknown };
 
     if (!body.room) {
       return NextResponse.json({ error: 'missing_room' }, { status: 400 });
     }
 
     // Checked against the previous save (lib/integrity.ts); a save that breaks a rule is refused.
-    const result = await guardedSaveRoom(params.code, body.room);
+    const base = typeof body.baseUpdatedAt === 'string' ? body.baseUpdatedAt : null;
+    const result = await guardedSaveRoom(params.code, body.room, base);
     if (!result.ok) {
       if (result.reason === 'not_found') return NextResponse.json({ error: 'not_found' }, { status: 404 });
+      if (result.reason === 'stale') return NextResponse.json({ error: 'stale' }, { status: 409 });
       return NextResponse.json({ error: result.rejected ? 'state_rejected' : 'busy', reason: result.reason }, { status: 409 });
     }
 

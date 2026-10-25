@@ -951,6 +951,7 @@ const I18N = {
     lobbyHint: 'Each friend opens this same chat link, taps "Play online → Join a room" and enters the code.',
     playersCount: "Players ({n}/{m})", host: "Host", startGame: "Start game", waitingHost: "Waiting for the host to start",
     needTwo: "You need at least two players.", leaveRoom: "Leave room", loading: "Loading…", preparing: "Getting ready…",
+    errStale: "The game just updated. Try that again.",
     errSave: "Couldn't save. Check your connection and try again.", errNoRoom: "We couldn't find that room. Check the code.",
     errStarted: "The game in this room has already started.", errFull: "The room is full.",
     // board
@@ -1017,6 +1018,7 @@ const I18N = {
     lobbyHint: 'Cada amigo abre este mismo enlace del chat, pulsa "Jugar en línea → Unirse a una sala" e introduce el código.',
     playersCount: "Jugadores ({n}/{m})", host: "Anfitrión", startGame: "Empezar partida", waitingHost: "Esperando a que el anfitrión empiece",
     needTwo: "Se necesitan al menos dos jugadores.", leaveRoom: "Salir de la sala", loading: "Cargando…", preparing: "Preparando…",
+    errStale: "La partida se acaba de actualizar. Inténtalo otra vez.",
     errSave: "No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.", errNoRoom: "No encontramos esa sala. Revisa el código.",
     errStarted: "La partida de esta sala ya empezó.", errFull: "La sala está llena.",
     thinking: "🤖 {name} está pensando", thinkingDots: "🤖 {name} está pensando…",
@@ -1081,6 +1083,7 @@ Object.assign(I18N.ar, {
   lobbyHint: 'كل صديق يفتح نفس رابط هذي المحادثة، يضغط "العب أونلاين ← انضم لغرفة" ويدخل الكود.',
   playersCount: "اللاعبون ({n}/{m})", host: "المضيف", startGame: "ابدأ اللعبة", waitingHost: "بانتظار المضيف يبدأ اللعبة",
   needTwo: "لازم لاعبين اثنين على الأقل.", leaveRoom: "اخرج من الغرفة", loading: "جاري التحميل…", preparing: "جاري التجهيز…",
+  errStale: "اللعبة تحدّثت قبل حركتك، جرّبها مرة ثانية.",
   errSave: "تعذر الحفظ، تأكد من الاتصال وحاول مجددًا.", errNoRoom: "ما لقينا هذي الغرفة، تأكد من الكود.",
   errStarted: "اللعبة بدأت بالفعل بهذي الغرفة.", errFull: "الغرفة مليانة.",
   thinking: "🤖 {name} يفكر", thinkingDots: "🤖 {name} يفكر…",
@@ -4913,6 +4916,12 @@ function OnlineFlow({ onBack }) {
   const latestRoomUpdatedAtRef = useRef(0);
   const activeRoomCodeRef = useRef(roomCode);
   const pendingOptimisticRoomRef = useRef(null);
+  // The server version (updatedAt) the local room is built on. Every save sends it, and the server
+  // refuses a save built on an older version (409 "stale") instead of letting it undo a newer move.
+  // Saves go out one at a time so a quick run of this client's own saves each carry the version the
+  // previous one returned.
+  const baseUpdatedAtRef = useRef(null);
+  const saveChainRef = useRef(Promise.resolve());
 
   function getRoomSyncSnapshot(doc) {
     const game = doc?.game;
@@ -4948,6 +4957,7 @@ function OnlineFlow({ onBack }) {
     roomMutationRef.current = 0;
     latestRoomUpdatedAtRef.current = 0;
     pendingOptimisticRoomRef.current = null;
+    baseUpdatedAtRef.current = null;
   }
 
   function stampRoom(doc) {
@@ -4957,6 +4967,7 @@ function OnlineFlow({ onBack }) {
 
   function adoptRoom(doc) {
     stampRoom(doc);
+    if (typeof doc?.updatedAt === "string") baseUpdatedAtRef.current = doc.updatedAt;
     setRoom(doc);
   }
 
@@ -4970,25 +4981,48 @@ function OnlineFlow({ onBack }) {
     writeOnlineSession({ roomCode, myId, myName: myName.trim() });
   }, [roomCode, myId, myName]);
 
-  async function saveRoomTo(code, doc) {
+  function saveRoomTo(code, doc) {
     const mutationVersion = ++roomMutationRef.current;
     pendingOptimisticRoomRef.current = { code, mutationVersion, snapshot: getRoomSyncSnapshot(doc) };
     setRoom(doc);
-    try {
-      const res = await fetch(`/api/rooms/${code}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ room: doc }),
-      });
-      if (!res.ok) throw new Error("save_failed");
-      const updated = await res.json();
-      if (activeRoomCodeRef.current !== code || mutationVersion !== roomMutationRef.current) return;
-      pendingOptimisticRoomRef.current = null;
-      adoptRoom(updated);
-    } catch (e) {
-      pendingOptimisticRoomRef.current = null;
-      setError(t("errSave"));
-    }
+    const send = async () => {
+      if (activeRoomCodeRef.current !== code) return;
+      try {
+        const res = await fetch(`/api/rooms/${code}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ room: doc, baseUpdatedAt: baseUpdatedAtRef.current }),
+        });
+        if (res.status === 409) {
+          const body = await res.json().catch(() => ({}));
+          if (body?.error === "stale") {
+            // Someone else's move landed first. Drop ours, show the current game, ask for a redo.
+            pendingOptimisticRoomRef.current = null;
+            if (activeRoomCodeRef.current === code) {
+              setError(t("errStale"));
+              pollRoom();
+            }
+            return;
+          }
+          throw new Error("save_failed");
+        }
+        if (!res.ok) throw new Error("save_failed");
+        const updated = await res.json();
+        if (activeRoomCodeRef.current !== code) return;
+        // Even when a newer save is queued, it was built on this one, so it is based on this version.
+        stampRoom(updated);
+        if (typeof updated?.updatedAt === "string") baseUpdatedAtRef.current = updated.updatedAt;
+        if (mutationVersion !== roomMutationRef.current) return;
+        pendingOptimisticRoomRef.current = null;
+        adoptRoom(updated);
+      } catch (e) {
+        pendingOptimisticRoomRef.current = null;
+        setError(t("errSave"));
+      }
+    };
+    const p = saveChainRef.current.then(send);
+    saveChainRef.current = p.catch(() => {});
+    return p;
   }
 
   // Online turn-timeout claim. Not optimistic (unlike saveRoomTo): the guarded write may lose, so

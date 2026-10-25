@@ -268,20 +268,24 @@ async function logRejection(row: RoomRow, reason: string) {
 
 export type GuardedSave =
   | { ok: true; room: RoomDoc }
-  | { ok: false; reason: 'not_found' | 'busy' | string; rejected?: boolean };
+  | { ok: false; reason: 'not_found' | 'busy' | 'stale' | string; rejected?: boolean };
 
 // Every client save of a room goes through here (PUT /api/rooms/[code]). The incoming room is checked
 // against the row it replaces (lib/integrity.ts); a failing save is logged, and refused when
 // INTEGRITY_ENFORCE=1 (otherwise accepted, with the game marked so its results don't count). The write is
 // conditional on the row version, so the check is always against the true previous save: if another
 // save landed in between, the incoming room is re-checked against that one.
-export async function guardedSaveRoom(code: string, incoming: RoomDoc): Promise<GuardedSave> {
+export async function guardedSaveRoom(code: string, incoming: RoomDoc, baseUpdatedAt?: string | null): Promise<GuardedSave> {
   const supabase = getSupabaseAdmin();
   for (let attempt = 0; attempt < 3; attempt++) {
     const { data, error } = await supabase.from(ROOMS_TABLE).select('*').eq('code', code).maybeSingle();
     if (error) throw error;
     if (!data) return { ok: false, reason: 'not_found' };
     const row = data as RoomRow;
+    // Built on an older version than the row: another save landed first. That's a timing race,
+    // not cheating, so it's refused as "stale" without touching the integrity log or the results.
+    // (A client that sends no base, e.g. an old cached app, is checked against the current row.)
+    if (baseUpdatedAt && row.updated_at !== baseUpdatedAt) return { ok: false, reason: 'stale' };
     if (isExpired(row.expires_at)) {
       await deleteExpiredRoom(code);
       return { ok: false, reason: 'not_found' };
