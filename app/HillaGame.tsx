@@ -2016,7 +2016,7 @@ function PlayerAvatar({ name, isBot, index = 0, size = 34 }) {
 function Sheet({ children, onBackdrop, maxW = 380, z = 50 }) {
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center p-4 hilla-fade"
+      className="app-fixed flex items-center justify-center p-4 hilla-fade"
       style={{ zIndex: z, background: "rgba(35,31,32,.5)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)" }}
       onClick={onBackdrop}
     >
@@ -2225,7 +2225,7 @@ function Confetti() {
     []
   );
   return (
-    <div className="fixed inset-0 pointer-events-none hz-70 overflow-hidden">
+    <div className="app-fixed pointer-events-none hz-70 overflow-hidden">
       {pieces.map((p, i) => (
         <span
           key={i}
@@ -2616,7 +2616,7 @@ function ReactionFX({ trigger, myId, isOnline }) {
 
   return (
     <>
-      <div ref={layerRef} className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 9990 }} />
+      <div ref={layerRef} className="app-fixed pointer-events-none overflow-hidden" style={{ zIndex: 9990 }} />
       {bubbles.map((b) => (
         <div
           key={b.id}
@@ -2728,7 +2728,7 @@ function ReactionButton({ onReact }) {
   };
   return (
     <>
-      {open && <div className="fixed inset-0" style={{ zIndex: 9990 }} onClick={() => setOpen(false)} />}
+      {open && <div className="app-fixed" style={{ zIndex: 9990 }} onClick={() => setOpen(false)} />}
       <div dir="ltr" className="fixed left-4 bottom-4 flex flex-col-reverse items-start gap-2.5" style={{ zIndex: 9991 }}>
         <button
           onClick={() => setOpen((v) => !v)}
@@ -3895,7 +3895,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   return (
     <div
       dir={L.dir}
-      className="hilla-root min-h-screen w-full px-3 pb-24"
+      className="hilla-root app-screen w-full px-3 pb-24"
       style={{
         ...pageBg,
         paddingTop: "max(12px, calc(env(safe-area-inset-top) + 6px))",
@@ -4282,7 +4282,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
 
       {menuOpen && (
         <>
-          <div className="fixed inset-0 hz-9998 backdrop-blur-sm bg-black/10" onClick={() => setMenuOpen(false)} />
+          <div className="app-fixed hz-9998 backdrop-blur-sm bg-black/10" onClick={() => setMenuOpen(false)} />
           <div
             className="fixed hz-9999 w-52 rounded-2xl shadow-xl overflow-hidden hilla-pop"
             style={{ top: "calc(env(safe-area-inset-top, 0px) + 3.75rem)", ...(L.dir === "rtl" ? { left: "1rem" } : { right: "1rem" }), background: CREAM, boxShadow: "0 18px 40px -12px rgba(0,0,0,.35)" }}
@@ -4408,7 +4408,7 @@ function HowToPlay({ onClose, bigText }) {
   return (
     <div
       dir={L.dir}
-      className="hilla-root fixed inset-0 hz-10000 flex items-center justify-center hilla-fade"
+      className="hilla-root app-fixed hz-10000 flex items-center justify-center hilla-fade"
       style={{
         background: "rgba(35,31,32,0.55)",
         "--tsz": bigText ? 1.18 : 1,
@@ -4601,7 +4601,7 @@ function ScreenShell({ children, maxW = "max-w-md" }) {
   return (
     <div
       dir={L.dir}
-      className="hilla-root relative min-h-screen w-full flex items-center justify-center px-5"
+      className="hilla-root relative app-screen w-full flex items-center justify-center px-5"
       style={{ ...pageBg, color: INK, paddingTop: "calc(max(16px, env(safe-area-inset-top)) + 64px)", paddingBottom: "calc(max(16px, env(safe-area-inset-bottom)) + 20px)" }}
     >
       <GlobalFont />
@@ -5259,7 +5259,7 @@ function OnlineFlow({ onBack }) {
     );
   }
   return (
-    <div dir={L.dir} className="hilla-root min-h-screen w-full flex flex-col items-center justify-center gap-3" style={{ ...pageBg, color: INK }}>
+    <div dir={L.dir} className="hilla-root app-screen w-full flex flex-col items-center justify-center gap-3" style={{ ...pageBg, color: INK }}>
       <GlobalFont />
       <Wordmark height={44} />
       <span className="tsz-13" style={{ color: `${INK}88` }}>{t("loading")}</span>
@@ -5345,7 +5345,7 @@ function preloadAllAssets(onProgress) {
 function LoadingSplash({ progress }) {
   const { t, tb, L } = useI18n();
   return (
-    <div dir={L.dir} className="hilla-root fixed inset-0 overflow-hidden flex items-center justify-center" style={{ background: CREAM, color: INK, bottom: "calc(-1 * env(safe-area-inset-bottom, 0px))" }}>
+    <div dir={L.dir} className="hilla-root app-fixed overflow-hidden flex items-center justify-center" style={{ background: CREAM, color: INK }}>
       <GlobalFont />
       <div
         aria-hidden="true"
@@ -5448,7 +5448,7 @@ function LangMenu() {
       </button>
       {open && (
         <>
-          <div className="fixed inset-0" style={{ zIndex: 41 }} onClick={() => setOpen(false)} />
+          <div className="app-fixed" style={{ zIndex: 41 }} onClick={() => setOpen(false)} />
           <div className="absolute mt-2 rounded-2xl overflow-hidden hilla-pop" style={{ left: 0, zIndex: 42, minWidth: 140, background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}, 0 14px 30px -10px rgba(0,0,0,.5)` }}>
             {LANGS.map((l) => (
               <button
@@ -5642,8 +5642,8 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
   return (
     <div
       dir={L.dir}
-      className="hilla-root relative w-full min-h-screen flex flex-col overflow-hidden"
-      style={{ minHeight: "100dvh", ...pageBg, color: INK }}
+      className="hilla-root relative w-full app-screen flex flex-col overflow-hidden"
+      style={{ ...pageBg, color: INK }}
     >
       <GlobalFont />
 
@@ -5822,7 +5822,7 @@ function LeaderboardScreen({ onBack }) {
   );
 
   return (
-    <div dir={L.dir} className="hilla-root relative min-h-screen w-full flex flex-col" style={{ minHeight: "100dvh", ...pageBg, color: INK }}>
+    <div dir={L.dir} className="hilla-root relative app-screen w-full flex flex-col" style={{ ...pageBg, color: INK }}>
       <GlobalFont />
       <TopBar
         start={
@@ -6120,7 +6120,7 @@ function HillaApp() {
 
   if (mode === "boot") {
     return (
-      <div dir="rtl" className="hilla-root min-h-screen w-full flex items-center justify-center" style={{ ...pageBg, color: MAROON }}>
+      <div dir="rtl" className="hilla-root app-screen w-full flex items-center justify-center" style={{ ...pageBg, color: MAROON }}>
         <GlobalFont />
         {t("loading")}
       </div>
@@ -6216,7 +6216,7 @@ export default function HillaGame() {
       {!splashGone && (
         <div
           aria-hidden={assetsReady}
-          style={{ position: "fixed", inset: 0, bottom: "calc(-1 * env(safe-area-inset-bottom, 0px))", zIndex: 20000, opacity: assetsReady ? 0 : 1, transition: "opacity .3s ease-out", pointerEvents: assetsReady ? "none" : "auto" }}
+          className="app-fixed" style={{ zIndex: 20000, opacity: assetsReady ? 0 : 1, transition: "opacity .3s ease-out", pointerEvents: assetsReady ? "none" : "auto" }}
         >
           <LoadingSplash progress={loadProgress} />
         </div>

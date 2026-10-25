@@ -17,3 +17,29 @@ body {
 * {
   box-sizing: border-box;
 }
+
+/* One full-screen height for the whole app (--app-h, set by the script in app/layout.tsx).
+   iOS home-screen apps with viewport-fit=cover + a black-translucent status bar report 100vh/100dvh
+   (and the box a bottom-anchored fixed layer sees) one top safe-area inset short, which left a strip
+   under every full-screen layer. Pages use .app-screen; fixed layers use .app-fixed, pinned to the top
+   and sized by height instead of bottom:0. Backgrounds reach the edges; content keeps its own
+   safe-area padding. The CSS values below are only the fallback until the script runs. */
+:root {
+  --app-h: 100vh;
+}
+@supports (height: 100dvh) {
+  :root {
+    --app-h: 100dvh;
+  }
+}
+.app-screen {
+  min-height: var(--app-h);
+}
+.app-fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: auto;
+  height: var(--app-h);
+}
