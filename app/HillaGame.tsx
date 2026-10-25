@@ -5584,10 +5584,9 @@ function SaduHome({ onOnline, onLocal, onRules, installed, onInstall, nick, setN
     <div
       dir={L.dir}
       className="hilla-root relative w-full flex flex-col overflow-hidden"
-      style={{ minHeight: "100dvh", backgroundColor: "#9B1B2A", backgroundImage: SADU_TILE, backgroundSize: "96px 300px", color: INK }}
+      style={{ minHeight: "100dvh", ...pageBg, color: INK }}
     >
       <GlobalFont />
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 55%, rgba(0,0,0,0) 30%, rgba(60,20,16,.22) 100%)" }} />
 
       {/* top bar: account on the start side (right in Arabic), language on the end side */}
       <div dir="rtl" className="relative flex items-center justify-between gap-3" style={{ zIndex: 40, paddingTop: "max(16px, calc(env(safe-area-inset-top) + 8px))", paddingLeft: "max(16px, env(safe-area-inset-left))", paddingRight: "max(16px, env(safe-area-inset-right))" }}>
