@@ -2331,7 +2331,7 @@ function WinStats({ game, myId, isOnline }) {
             </span>
           </div>
         ))}
-        {isOnline && <WinPoints gameId={game.analyticsId} />}
+        {isOnline && LEADERBOARD_OPEN && <WinPoints gameId={game.analyticsId} />}
         <button onClick={share} className={`w-full mt-3 py-2.5 tsz-13 flex items-center justify-center gap-1.5 ${btn}`} style={btnPrimary}>
           {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
           {copied ? t("copied") : t("share")}
@@ -5637,6 +5637,10 @@ function RugCard({ title, sub, subHidden, icon, bg, fg, style, big, lifted, dela
 // Home's read of the season board: the player's own row (account chip) and #1 (leaderboard card).
 // One request, loaded after home renders; the last value is kept for the session so coming back to
 // home never flashes. null = not loaded yet.
+// Leaderboard switch. Off: the «الترتيب» card says «قريبًا» and shows a toast, and nothing else on
+// screen mentions points (account chip, win screen). Results are still written and scored server-side.
+const LEADERBOARD_OPEN = false;
+
 let homeBoardCache = null;
 function useHomeBoard(nick) {
   const [board, setBoard] = useState(homeBoardCache);
@@ -5708,7 +5712,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
   const me = board?.me || null;
   const leader = board?.leader || null;
   // Never «·» between two numbers in Arabic (the Arabic zero is a dot): a word stays on each side.
-  const chipLine = !nick ? t("sdSaveShort") : board === null ? null : me ? t("chipPoints", { p: L.num(me.points), r: L.num(me.rank) }) : t("chipPlayOnline");
+  const chipLine = !nick || !LEADERBOARD_OPEN ? t("sdSaveShort") : board === null ? null : me ? t("chipPoints", { p: L.num(me.points), r: L.num(me.rank) }) : t("chipPlayOnline");
   const leaderLine = !leader
     ? t("lbThisSeason")
     : me && leader.rank === me.rank && leader.nickname === me.nickname
@@ -5762,7 +5766,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
             <div className="relative mx-auto" style={{ width: 340, height: 320, transform: `scale(${cardScale})`, transformOrigin: "top center" }}>
               <RugCard big title={t("sdOnline")} sub={t("sdOnlineSub")} bg={BRAND} fg={CREAM} lifted={lift === "online"} delays="0ms, 0.9s" icon={<Wifi className="w-10 h-10" style={{ color: GOLD }} />} style={{ left: "50%", top: 0, marginLeft: -68, transform: tilt("online", -4), zIndex: 6 }} onClick={() => play("online", onOnline)} />
               <RugCard title={t("sdLocal")} sub={t("sdLocalSub")} bg={CREAM} fg={BRAND} lifted={lift === "local"} delays="160ms, 1.1s" icon={<Home className="w-9 h-9" style={{ color: BRAND }} />} style={{ right: 8, top: 150, transform: tilt("local", 12), zIndex: 5 }} onClick={() => play("local", onLocal)} />
-              <RugCard title={t("sdRank")} sub={leaderLine} subHidden={board === null} bg="#2C3E63" fg={CREAM} lifted={lift === "rank"} delays="80ms, 1.3s" icon={<span style={{ fontSize: 34 }}>🏆</span>} style={{ left: 8, top: 150, transform: tilt("rank", -12), zIndex: 5 }} onClick={() => play("rank", onRank)} />
+              <RugCard title={t("sdRank")} sub={LEADERBOARD_OPEN ? leaderLine : t("sdRankSub")} subHidden={LEADERBOARD_OPEN && board === null} bg="#2C3E63" fg={CREAM} lifted={lift === "rank"} delays="80ms, 1.3s" icon={<span style={{ fontSize: 34 }}>🏆</span>} style={{ left: 8, top: 150, transform: tilt("rank", -12), zIndex: 5 }} onClick={() => play("rank", LEADERBOARD_OPEN ? onRank : () => say(t("sdRankSoon")))} />
             </div>
           </div>
         </div>
