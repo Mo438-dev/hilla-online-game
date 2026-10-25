@@ -931,6 +931,7 @@ const I18N = {
     // home + setup
     tagline: "A matching game of traditional Saudi dress",
     playLocal: "Play on this device", playOnline: "Play online (room code)",
+    sdTagline: "Every region has its outfit", sdOnline: "Online", sdOnlineSub: "With friends", sdLocal: "Same device", sdLocalSub: "Or vs bots", sdRank: "Leaderboard", sdRankSub: "Coming soon", sdRankSoon: "The leaderboard is coming soon", sdGuest: "Guest", sdSaveShort: "Sign in to save your points", sdPickName: "What should we call you?", sdChangeName: "Change your name", sdNamePh: "Your leaderboard name", sdNameRule: "2 to 16 characters · shown on the leaderboard", sdSave: "Save", sdEdit: "Edit", sdHello: "Hi {name}", sdGuestTitle: "You're playing as a guest", sdGuestBody: "Save your account so your name and points stay if you change phones", sdGoogle: "Continue with Google", sdEmail: "Continue with email", sdAuthSoon: "Sign-in arrives with the leaderboard", sdLang: "Language",
     madeBy: "Designed by Saudi hands 🇸🇦", credit: "A Princess Nourah University student, for Core Studio",
     errCreate: "Couldn't create the room, try again.", addBot: "🤖 Add a bot", removeBot: "Remove bot",
     svThanks: "Thanks for the feedback! 💛", svTitle: "Your opinion matters (optional)", svSkip: "Skip",
@@ -996,6 +997,7 @@ const I18N = {
     drawPile: "Mazo", lastCard: "Última carta", round: "Ronda {n}", menu: "Menú", reactions: "Reacciones",
     tagline: "Un juego de emparejar trajes tradicionales saudíes",
     playLocal: "Jugar en este dispositivo", playOnline: "Jugar en línea (código de sala)",
+    sdTagline: "Cada región tiene su traje", sdOnline: "En línea", sdOnlineSub: "Con amigos", sdLocal: "Mismo dispositivo", sdLocalSub: "O contra bots", sdRank: "Clasificación", sdRankSub: "Muy pronto", sdRankSoon: "La clasificación llega pronto", sdGuest: "Invitado", sdSaveShort: "Inicia sesión para guardar tus puntos", sdPickName: "¿Cómo te llamamos?", sdChangeName: "Cambia tu nombre", sdNamePh: "Tu nombre en la clasificación", sdNameRule: "De 2 a 16 caracteres · se muestra en la clasificación", sdSave: "Guardar", sdEdit: "Editar", sdHello: "Hola {name}", sdGuestTitle: "Juegas como invitado", sdGuestBody: "Guarda tu cuenta para no perder tu nombre y tus puntos si cambias de móvil", sdGoogle: "Continuar con Google", sdEmail: "Continuar con correo", sdAuthSoon: "El inicio de sesión llega con la clasificación", sdLang: "Idioma",
     madeBy: "Diseñado por manos saudíes 🇸🇦", credit: "Estudiante de la Universidad Princesa Nourah, para Core Studio",
     errCreate: "No se pudo crear la sala, inténtalo de nuevo.", addBot: "🤖 Añadir un bot", removeBot: "Quitar bot",
     svThanks: "¡Gracias por tu opinión! 💛", svTitle: "Tu opinión importa (opcional)", svSkip: "Omitir",
@@ -1058,6 +1060,7 @@ Object.assign(I18N.ar, {
   drawPile: "السحب", lastCard: "آخر كرت", round: "جولة {n}", menu: "القائمة", reactions: "التفاعلات",
   tagline: "لعبة مطابقة الأزياء التقليدية السعودية",
   playLocal: "العب على نفس الجهاز", playOnline: "العب أونلاين (كود غرفة)",
+  sdTagline: "كل منطقة لها حُلّة", sdOnline: "أونلاين", sdOnlineSub: "مع أصحابك", sdLocal: "نفس الجهاز", sdLocalSub: "أو ضد البوتات", sdRank: "الترتيب", sdRankSub: "قريبًا", sdRankSoon: "الترتيب جاي قريب", sdGuest: "ضيف", sdSaveShort: "سجّل واحفظ نقاطك", sdPickName: "وش نسمّيك؟", sdChangeName: "غيّر اسمك", sdNamePh: "اسمك في الترتيب", sdNameRule: "من ٢ إلى ١٦ حرف · يطلع للناس في الترتيب", sdSave: "احفظ", sdEdit: "غيّر", sdHello: "أهلًا {name}", sdGuestTitle: "حسابك ضيف", sdGuestBody: "احفظه عشان ما يضيع اسمك ونقاطك لو غيّرت جوالك", sdGoogle: "كمّل بقوقل", sdEmail: "كمّل بالإيميل", sdAuthSoon: "تسجيل الدخول يجي مع الترتيب", sdLang: "اللغة",
   madeBy: "صُممت بأيدي سعودية 🇸🇦", credit: "طالبة جامعة الأميرة نورة، لمقرر Core Studio",
   errCreate: "تعذر إنشاء الغرفة، حاول مجددًا.", addBot: "🤖 أضف بوت", removeBot: "أزل البوت",
   svThanks: "شكرًا على رأيك! 💛", svTitle: "رأيك يهمنا (اختياري)", svSkip: "تخطي",
@@ -1350,11 +1353,6 @@ function makeI18n(code) {
 
 const I18nContext = React.createContext({ ...makeI18n("ar"), setLang: null });
 const useI18n = () => React.useContext(I18nContext);
-
-function LangSwitch({ compact }) {
-  const { L, setLang } = useI18n();
-  return <LanguagePicker value={L.code} onChange={(c) => setLang && setLang(c)} compact={compact} />;
-}
 
 // Small segmented language switch (home screen + in-game menu).
 function LanguagePicker({ value, onChange, compact = false }) {
@@ -2064,6 +2062,9 @@ const GlobalFont = () => (
     .hilla-deal { animation: hilla-deal .38s cubic-bezier(.2,.8,.2,1) backwards; }
     .hilla-coord-in { animation: hilla-coord-in .55s cubic-bezier(.2,.8,.2,1) backwards; transform-origin: 50% 60%; }
     .hilla-drop { animation: hilla-drop .46s cubic-bezier(.2,.9,.3,1.12) backwards; }
+    .sd-card { transition: transform .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s; }
+    .sd-toast { animation: sd-toast 1.9s ease forwards; }
+    @keyframes sd-toast { 0% { opacity: 0; transform: translate(-50%, 10px); } 15%, 80% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, 0); } }
     .hilla-pop { animation: hilla-pop .28s cubic-bezier(.2,.9,.3,1.15) backwards; }
     .hilla-fade { animation: hilla-fade .2s ease-out backwards; }
     .hilla-tip { animation: hilla-fade .15s ease-out backwards; }
@@ -4896,7 +4897,7 @@ function OnlineFlow({ onBack }) {
   const { t, tb, L } = useI18n();
   const [savedSession] = useState(() => readOnlineSession());
   const [myId] = useState(() => savedSession?.myId || uid());
-  const [myName, setMyName] = useState(() => savedSession?.myName || "");
+  const [myName, setMyName] = useState(() => savedSession?.myName || loadNick());
   const [roomCode, setRoomCode] = useState(() => savedSession?.roomCode || "");
   const [onlinePhase, setOnlinePhase] = useState(() => (savedSession?.roomCode ? "restoring" : "menu")); // menu | restoring | lobby | play
   const [room, setRoom] = useState(null);
@@ -5330,6 +5331,322 @@ function LoadingSplash({ progress }) {
   );
 }
 
+/* --------------------------------- HOME: SADU MAJLIS ---------------------------------
+   The home screen is a Sadu rug (Al Sadu weaving: red, soft charcoal, white, beige) with the
+   wordmark sewn on as a woven label, and the main choices as three playing cards tossed on it.
+   Top bar: account chip (guest name / sign-in, start side) and a compact language menu. */
+const SADU_TILE = (() => {
+  const R = "#9B1B2A",
+    K = "#3B3132", // soft charcoal, thin bands only
+    W = "#F6EEDC",
+    B = "#E2CFA6";
+  let s = `<svg xmlns='http://www.w3.org/2000/svg' width='96' height='300' viewBox='0 0 96 300'>`;
+  s += `<rect width='96' height='300' fill='${R}'/>`;
+  s += `<rect y='0' width='96' height='26' fill='${K}'/>`;
+  for (let x = 0; x < 96; x += 12) s += `<polygon points='${x},26 ${x + 12},26 ${x + 6},36' fill='${K}'/>`;
+  s += `<rect y='38' width='96' height='4' fill='${W}'/>`;
+  for (const cx of [0, 48, 96]) {
+    s += `<polygon points='${cx},50 ${cx + 26},82 ${cx},114 ${cx - 26},82' fill='none' stroke='${W}' stroke-width='5'/>`;
+    s += `<polygon points='${cx},70 ${cx + 10},82 ${cx},94 ${cx - 10},82' fill='${K}'/>`;
+  }
+  s += `<rect y='122' width='96' height='4' fill='${W}'/>`;
+  s += `<rect y='130' width='96' height='22' fill='${B}'/>`;
+  for (let x = 0; x < 96; x += 16) s += `<polygon points='${x},152 ${x + 8},134 ${x + 16},152' fill='${R}'/>`;
+  s += `<rect y='152' width='96' height='4' fill='${K}'/>`;
+  s += `<rect y='164' width='96' height='40' fill='${W}'/>`;
+  for (let x = 0; x < 96; x += 24) s += `<polygon points='${x},184 ${x + 12},168 ${x + 24},184 ${x + 12},200' fill='${R}'/><rect x='${x + 9}' y='181' width='6' height='6' fill='${K}'/>`;
+  s += `<rect y='212' width='96' height='4' fill='${K}'/>`;
+  for (let x = 0; x < 96; x += 8) s += `<rect x='${x}' y='224' width='4' height='14' fill='${W}'/>`;
+  s += `<rect y='246' width='96' height='54' fill='${B}'/>`;
+  for (let x = 0; x < 96; x += 32) s += `<polygon points='${x + 16},254 ${x + 30},273 ${x + 16},292 ${x + 2},273' fill='${R}'/><polygon points='${x + 16},266 ${x + 21},273 ${x + 16},280 ${x + 11},273' fill='${W}'/>`;
+  s += `</svg>`;
+  return `url("data:image/svg+xml;utf8,${encodeURIComponent(s)}")`;
+})();
+
+// Leaderboard nickname. Artifact: kept on this device. Production: profiles.nickname via
+// POST /api/profile/nickname (see hulla-leaderboard-spec.md §6), with this as a cache.
+const NICK_STORE = "hulla-nickname";
+function loadNick() {
+  try {
+    return window.localStorage.getItem(NICK_STORE) || "";
+  } catch {
+    return "";
+  }
+}
+const cleanNick = (v) => v.trim().replace(/\s+/g, " ");
+const nickValid = (v) => {
+  const n = [...cleanNick(v)].length;
+  return n >= 2 && n <= 16;
+};
+
+function SaduToast({ msg }) {
+  if (!msg) return null;
+  return (
+    <div key={msg.id} className="fixed left-1/2 sd-toast tsz-13 font-bold rounded-full px-4 py-2" style={{ bottom: "calc(max(16px, env(safe-area-inset-bottom)) + 96px)", zIndex: 80, background: INK, color: CREAM, boxShadow: "0 10px 24px -10px rgba(0,0,0,.5)", whiteSpace: "nowrap" }}>
+      {msg.text}
+    </div>
+  );
+}
+
+function LangMenu() {
+  const { L, setLang, t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const cur = LANGS.find((l) => l.code === L.code) || LANGS[0];
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen((o) => !o)} aria-label={t("sdLang")} aria-expanded={open} className="flex items-center gap-1.5 rounded-full px-3 py-2 tsz-12 font-bold" style={{ background: `${CREAM}f2`, color: INK, boxShadow: "0 4px 12px -4px rgba(0,0,0,.45)" }}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={BRAND} strokeWidth="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20" />
+        </svg>
+        {cur.label} <span style={{ fontSize: 9, opacity: 0.6 }}>▾</span>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0" style={{ zIndex: 41 }} onClick={() => setOpen(false)} />
+          <div className="absolute mt-2 rounded-2xl overflow-hidden hilla-pop" style={{ left: 0, zIndex: 42, minWidth: 140, background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}, 0 14px 30px -10px rgba(0,0,0,.5)` }}>
+            {LANGS.map((l) => (
+              <button
+                key={l.code}
+                dir={l.dir}
+                onClick={() => {
+                  setLang && setLang(l.code);
+                  setOpen(false);
+                }}
+                className="w-full px-4 py-2.5 tsz-13 font-semibold flex items-center justify-between gap-3"
+                style={{ color: INK, background: l.code === cur.code ? `${GOLD}33` : "transparent" }}
+              >
+                <span>{l.label}</span>
+                <span style={{ color: BRAND }}>{l.code === cur.code ? "✓" : ""}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function AccountChip({ nick, onClick }) {
+  const { t } = useI18n();
+  const initial = nick ? [...nick][0] : [...t("sdGuest")][0];
+  return (
+    <button onClick={onClick} className="flex items-center gap-2 rounded-full py-1" style={{ paddingInlineStart: 4, paddingInlineEnd: 12, background: `${CREAM}f2`, boxShadow: "0 4px 12px -4px rgba(0,0,0,.45)", maxWidth: "60vw" }}>
+      <span className="w-8 h-8 rounded-full flex items-center justify-center tsz-14 font-bold flex-shrink-0" style={{ background: BRAND, color: CREAM, boxShadow: `0 0 0 2px ${CREAM}, 0 0 0 3.5px ${GOLD}` }}>
+        {initial}
+      </span>
+      <span className="flex flex-col items-start leading-tight min-w-0">
+        <span className="tsz-12 font-bold truncate" style={{ color: INK, maxWidth: "40vw" }}>
+          {nick || t("sdGuest")}
+        </span>
+        <span className="tsz-10 font-semibold truncate" style={{ color: BRAND, maxWidth: "40vw" }}>
+          {t("sdSaveShort")}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+// Account sheet. Name: pick one as a guest, edit any time. Saving the account (Google / email
+// code) is production-only (Supabase linkIdentity / updateUser + verifyOtp).
+function ProfileSheet({ nick, onSaveNick, onClose, onSignIn }) {
+  const { t, L } = useI18n();
+  const [editing, setEditing] = useState(!nick);
+  const [draft, setDraft] = useState(nick || "");
+  const ok = nickValid(draft);
+  const initial = nick ? [...nick][0] : [...t("sdGuest")][0];
+  return (
+    <Sheet onBackdrop={onClose} maxW={380} z={90}>
+      <div dir={L.dir} className="text-center">
+        <span className="mx-auto w-16 h-16 rounded-full flex items-center justify-center font-bold" style={{ fontSize: 26, background: BRAND, color: CREAM, boxShadow: `0 0 0 3px ${CREAM}, 0 0 0 5px ${GOLD}` }}>
+          {initial}
+        </span>
+        {editing ? (
+          <form
+            className="mt-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!ok) return;
+              onSaveNick(cleanNick(draft));
+              setEditing(false);
+            }}
+          >
+            <div className="tsz-13 font-bold mb-1.5" style={{ color: INK }}>
+              {nick ? t("sdChangeName") : t("sdPickName")}
+            </div>
+            <div className="flex gap-2">
+              <input
+                id="hulla-nick"
+                value={draft}
+                autoFocus
+                maxLength={24}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder={t("sdNamePh")}
+                className="flex-1 min-w-0 rounded-xl px-3 py-2.5 tsz-14 hstart focus:outline-none"
+                style={{ background: "#fff", color: INK, boxShadow: `inset 0 0 0 1.5px ${ok ? GOLD : INK + "22"}` }}
+              />
+              <button type="submit" disabled={!ok} className={`px-4 tsz-13 ${btn}`} style={ok ? btnPrimary : { background: `${INK}12`, color: `${INK}55` }}>
+                {t("sdSave")}
+              </button>
+            </div>
+            <div className="tsz-10 mt-1 hstart" style={{ color: `${INK}77` }}>
+              {t("sdNameRule")}
+            </div>
+          </form>
+        ) : (
+          <div className="mt-3 flex items-center justify-center gap-2">
+            <span className="display-font font-bold tsz-20" style={{ color: BRAND }}>
+              {nick}
+            </span>
+            <button
+              onClick={() => {
+                setDraft(nick);
+                setEditing(true);
+              }}
+              className="tsz-11 font-bold rounded-full px-2.5 py-1"
+              style={{ background: `${GOLD}33`, color: GOLD_DK }}
+            >
+              ✎ {t("sdEdit")}
+            </button>
+          </div>
+        )}
+        <div className="mt-4 rounded-2xl p-3" style={{ background: `${INK}08` }}>
+          <div className="tsz-13 font-bold" style={{ color: INK }}>
+            {t("sdGuestTitle")}
+          </div>
+          <p className="tsz-11 mt-0.5" style={{ color: `${INK}99` }}>
+            {t("sdGuestBody")}
+          </p>
+          <div className="space-y-2 mt-3">
+            <button onClick={() => onSignIn("google")} className={`w-full py-3 tsz-14 flex items-center justify-center gap-2 ${btn}`} style={{ background: "#fff", color: INK, boxShadow: `inset 0 0 0 1.5px ${INK}22` }}>
+              <span className="font-bold" style={{ color: "#4285F4" }}>
+                G
+              </span>{" "}
+              {t("sdGoogle")}
+            </button>
+            <button onClick={() => onSignIn("email")} className={`w-full py-3 tsz-14 ${btn}`} style={btnPrimary}>
+              {t("sdEmail")}
+            </button>
+          </div>
+        </div>
+        <button onClick={onClose} className="mt-3 tsz-12 font-semibold" style={{ color: `${INK}77` }}>
+          {t("later")}
+        </button>
+      </div>
+    </Sheet>
+  );
+}
+
+// One of the three menu cards lying on the rug.
+function RugCard({ title, sub, icon, bg, fg, style, big, lifted, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="absolute sd-card flex flex-col items-center justify-center text-center"
+      style={{
+        width: big ? 136 : 112,
+        height: big ? 186 : 154,
+        background: bg,
+        color: fg,
+        borderRadius: 14,
+        border: `3px solid ${CREAM}`,
+        boxShadow: lifted ? "0 30px 40px -14px rgba(0,0,0,.65)" : "0 12px 22px -10px rgba(0,0,0,.6)",
+        ...style,
+      }}
+    >
+      {icon}
+      <span className="display-font font-bold mt-3 leading-none px-1" style={{ fontSize: big ? 26 : [...title].length > 8 ? 16 : 19 }}>
+        {title}
+      </span>
+      <span className="tsz-10 font-semibold mt-1" style={{ opacity: 0.75 }}>
+        {sub}
+      </span>
+    </button>
+  );
+}
+
+function SaduHome({ onOnline, onLocal, onRules, installed, onInstall, nick, setNick }) {
+  const { t, L } = useI18n();
+  const [toast, setToast] = useState(null);
+  const [lift, setLift] = useState(null);
+  const [profile, setProfile] = useState(false);
+  const say = (text) => setToast({ id: Date.now(), text });
+  // a tap lifts the card for a beat, then opens
+  const play = (key, go) => {
+    setLift(key);
+    setTimeout(() => {
+      setLift(null);
+      go();
+    }, 260);
+  };
+  const tilt = (key, deg) => (lift === key ? "rotate(0deg) translateY(-26px) scale(1.06)" : `rotate(${deg}deg)`);
+  return (
+    <div
+      dir={L.dir}
+      className="hilla-root relative w-full flex flex-col overflow-hidden"
+      style={{ minHeight: "100dvh", backgroundColor: "#9B1B2A", backgroundImage: SADU_TILE, backgroundSize: "96px 300px", color: INK }}
+    >
+      <GlobalFont />
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 55%, rgba(0,0,0,0) 30%, rgba(60,20,16,.22) 100%)" }} />
+
+      {/* top bar: account on the start side (right in Arabic), language on the end side */}
+      <div dir="rtl" className="relative flex items-center justify-between gap-3" style={{ zIndex: 40, paddingTop: "max(16px, calc(env(safe-area-inset-top) + 8px))", paddingLeft: "max(16px, env(safe-area-inset-left))", paddingRight: "max(16px, env(safe-area-inset-right))" }}>
+        <AccountChip nick={nick} onClick={() => setProfile(true)} />
+        <LangMenu />
+      </div>
+
+      {/* woven label */}
+      <div className="relative flex justify-center mt-5">
+        <div className="text-center px-7 pt-4 pb-3" style={{ transform: "rotate(-1.5deg)", background: CREAM, borderRadius: 6, boxShadow: `0 0 0 3px ${CREAM}, 0 0 0 4.5px ${GOLD_DK}, 0 18px 30px -12px rgba(0,0,0,.6)`, outline: `1.5px dashed ${GOLD_DK}`, outlineOffset: -8 }}>
+          <Wordmark height={66} />
+          <div className="tsz-12 font-bold mt-1" style={{ color: MAROON_DK }}>
+            {t("sdTagline")}
+          </div>
+        </div>
+      </div>
+
+      {/* the three cards */}
+      <div className="relative flex-1 flex items-center justify-center" style={{ minHeight: 330 }}>
+        <div className="relative" style={{ width: 340, height: 320 }}>
+          <RugCard big title={t("sdOnline")} sub={t("sdOnlineSub")} bg={BRAND} fg={CREAM} lifted={lift === "online"} icon={<Wifi className="w-10 h-10" style={{ color: GOLD }} />} style={{ left: "50%", top: 0, marginLeft: -68, transform: tilt("online", -4), zIndex: 6 }} onClick={() => play("online", onOnline)} />
+          <RugCard title={t("sdLocal")} sub={t("sdLocalSub")} bg={CREAM} fg={BRAND} lifted={lift === "local"} icon={<Home className="w-9 h-9" style={{ color: BRAND }} />} style={{ right: 8, top: 150, transform: tilt("local", 12), zIndex: 5 }} onClick={() => play("local", onLocal)} />
+          <RugCard title={t("sdRank")} sub={t("sdRankSub")} bg="#2C3E63" fg={CREAM} lifted={lift === "rank"} icon={<span style={{ fontSize: 34 }}>🏆</span>} style={{ left: 8, top: 150, transform: tilt("rank", -12), zIndex: 5 }} onClick={() => play("rank", () => say(t("sdRankSoon")))} />
+        </div>
+      </div>
+
+      {/* how to play + add to home */}
+      <div className="relative flex flex-wrap items-center justify-center gap-2 px-4">
+        <button onClick={onRules} className="tsz-13 font-bold rounded-full px-4 py-2" style={{ background: `${CREAM}ee`, color: BRAND }}>
+          {t("howToPlay")}
+        </button>
+        {!installed && (
+          <button onClick={onInstall} className="tsz-12 font-semibold rounded-full px-4 py-2" style={{ background: `${CREAM}cc`, color: `${INK}aa` }}>
+            {t("addToHome")}
+          </button>
+        )}
+      </div>
+      <div className="relative flex justify-center px-4 mt-3" style={{ paddingBottom: "max(14px, calc(env(safe-area-inset-bottom) + 8px))" }}>
+        <span className="text-center tsz-10 font-semibold rounded-full px-3 py-1" style={{ background: `${CREAM}e6`, color: `${INK}99` }}>
+          {t("madeBy")} · {t("credit")}
+        </span>
+      </div>
+
+      {profile && (
+        <ProfileSheet
+          nick={nick}
+          onClose={() => setProfile(false)}
+          onSaveNick={(n) => {
+            setNick(n);
+            say(t("sdHello", { name: n }));
+          }}
+          onSignIn={() => say(t("sdAuthSoon"))}
+        />
+      )}
+      <SaduToast msg={toast} />
+    </div>
+  );
+}
+
 /* --------------------------------- APP ICON CHOICE ---------------------------------
    The player picks the home-screen icon. In the browser we swap the page's favicon and
    apple-touch-icon links; iOS and Android read those when the game is added to the home screen,
@@ -5478,6 +5795,14 @@ function HillaApp() {
   const [localGame, setLocalGame] = useState(null);
   const [appIcon, setAppIcon] = useState(loadAppIcon);
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+  const [nick, setNickState] = useState(loadNick);
+  const setNick = (n) => {
+    setNickState(n);
+    try {
+      window.localStorage.setItem(NICK_STORE, n);
+    } catch {}
+  };
   const [installEvent, setInstallEvent] = useState(null);
   const [installed, setInstalled] = useState(isStandalone);
   useEffect(() => {
@@ -5518,56 +5843,17 @@ function HillaApp() {
 
   if (mode === "home") {
     return (
-      <div
-        dir={L.dir}
-        className="hilla-root relative min-h-screen w-full flex items-center justify-center px-6"
-        style={{ ...pageBg, color: INK, paddingTop: "calc(max(16px, env(safe-area-inset-top)) + 64px)", paddingBottom: "calc(max(16px, env(safe-area-inset-bottom)) + 20px)" }}
-      >
-        <GlobalFont />
-        <TopBar start={<LangSwitch />} end={<RulesFab />} />
-          <div className="w-full max-w-md text-center relative" style={{ zIndex: 1 }}>
-          <CardBack size={160} tall className="mx-auto" style={{ boxShadow: "0 20px 40px -14px rgba(60,30,10,.55)" }} />
-          <p className="mt-4 mb-6 tsz-15" style={{ color: MAROON_DK }}>
-            {t("tagline")}
-          </p>
-          <div className="space-y-3">
-            <button
-              onClick={() => setMode("local")}
-              className={`w-full py-4 tsz-17 flex items-center justify-center gap-2 ${btn}`}
-              style={{ background: BRAND, color: CREAM }}
-            >
-              <Home className="w-5 h-5" style={{ color: GOLD }} /> {t("playLocal")}
-            </button>
-            <button
-              onClick={() => setMode("online")}
-              className={`w-full py-4 tsz-17 flex items-center justify-center gap-2 border-2 ${btn}`}
-              style={{ background: CREAM, color: BRAND, borderColor: BRAND }}
-            >
-              <Wifi className="w-5 h-5" /> {t("playOnline")}
-            </button>
-          </div>
-
-          {!installed && (
-          <button
-            type="button"
-            onClick={() => setShowIconPicker(true)}
-            className="mt-4 mx-auto flex items-center gap-2 rounded-full px-4 py-2 tsz-12 font-semibold transition active:scale-95"
-            style={{ background: `${INK}0b`, color: `${INK}aa` }}
-          >
-            {t("addToHome")}
-          </button>
-          )}
-
-          <div className="mt-8 text-center">
-            <GoldRule className="my-1.5" />
-            <p className="tsz-12 font-bold mt-1" style={{ color: BRAND }}>
-              {t("madeBy")}
-            </p>
-            <p className="tsz-11 mt-0.5" style={{ color: `${INK}77` }}>
-              {t("credit")}
-            </p>
-          </div>
-        </div>
+      <>
+        <SaduHome
+          onOnline={() => setMode("online")}
+          onLocal={() => setMode("local")}
+          onRules={() => setShowRules(true)}
+          installed={installed}
+          onInstall={() => setShowIconPicker(true)}
+          nick={nick}
+          setNick={setNick}
+        />
+        {showRules && <HowToPlay onClose={() => setShowRules(false)} bigText={false} />}
         {showIconPicker && (
           <AppIconPicker
             value={appIcon}
@@ -5577,7 +5863,7 @@ function HillaApp() {
             onInstalled={() => setInstalled(true)}
           />
         )}
-      </div>
+      </>
     );
   }
 
