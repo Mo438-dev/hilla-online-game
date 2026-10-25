@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Volume2, VolumeX, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut, RefreshCw, Type, Menu, HelpCircle, X, Smile } from "lucide-react";
 import { HILLA_ART as ART } from "@/lib/art-manifest";
+import { ensureGuest, authHeaders, saveNicknameRemote, linkGoogle, GOOGLE_ENABLED } from "@/lib/supabase-browser";
 import { newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished, sendDealSnapshot, getClientPid, sendFeedback } from "@/lib/analytics-client";
 
 /* ---------------------------------- PALETTE ---------------------------------- */
@@ -931,6 +932,7 @@ const I18N = {
     // home + setup
     tagline: "A matching game of traditional Saudi dress",
     playLocal: "Play on this device", playOnline: "Play online (room code)",
+    sdErr_length: "2 to 16 characters.", sdErr_chars: "Letters, numbers, spaces, _ and - only.", sdErr_blocked: "Pick a different name.", sdErr_taken: "That name is taken.", sdErr_too_fast: "Wait a moment before changing it again.",
     sdTagline: "Every region has its outfit", sdOnline: "Online", sdOnlineSub: "With friends", sdLocal: "Same device", sdLocalSub: "Or vs bots", sdRank: "Leaderboard", sdRankSub: "Coming soon", sdRankSoon: "The leaderboard is coming soon", sdGuest: "Guest", sdSaveShort: "Sign in to save your points", sdPickName: "What should we call you?", sdChangeName: "Change your name", sdNamePh: "Your leaderboard name", sdNameRule: "2 to 16 characters · shown on the leaderboard", sdSave: "Save", sdEdit: "Edit", sdHello: "Hi {name}", sdGuestTitle: "You're playing as a guest", sdGuestBody: "Save your account so your name and points stay if you change phones", sdGoogle: "Continue with Google", sdEmail: "Continue with email", sdAuthSoon: "Sign-in arrives with the leaderboard", sdLang: "Language",
     madeBy: "Designed by Saudi hands 🇸🇦", credit: "A Princess Nourah University student, for Core Studio",
     errCreate: "Couldn't create the room, try again.", addBot: "🤖 Add a bot", removeBot: "Remove bot",
@@ -997,6 +999,7 @@ const I18N = {
     drawPile: "Mazo", lastCard: "Última carta", round: "Ronda {n}", menu: "Menú", reactions: "Reacciones",
     tagline: "Un juego de emparejar trajes tradicionales saudíes",
     playLocal: "Jugar en este dispositivo", playOnline: "Jugar en línea (código de sala)",
+    sdErr_length: "De 2 a 16 caracteres.", sdErr_chars: "Solo letras, números, espacios, _ y -.", sdErr_blocked: "Elige otro nombre.", sdErr_taken: "Ese nombre ya está en uso.", sdErr_too_fast: "Espera un momento antes de cambiarlo otra vez.",
     sdTagline: "Cada región tiene su traje", sdOnline: "En línea", sdOnlineSub: "Con amigos", sdLocal: "Mismo dispositivo", sdLocalSub: "O contra bots", sdRank: "Clasificación", sdRankSub: "Muy pronto", sdRankSoon: "La clasificación llega pronto", sdGuest: "Invitado", sdSaveShort: "Inicia sesión para guardar tus puntos", sdPickName: "¿Cómo te llamamos?", sdChangeName: "Cambia tu nombre", sdNamePh: "Tu nombre en la clasificación", sdNameRule: "De 2 a 16 caracteres · se muestra en la clasificación", sdSave: "Guardar", sdEdit: "Editar", sdHello: "Hola {name}", sdGuestTitle: "Juegas como invitado", sdGuestBody: "Guarda tu cuenta para no perder tu nombre y tus puntos si cambias de móvil", sdGoogle: "Continuar con Google", sdEmail: "Continuar con correo", sdAuthSoon: "El inicio de sesión llega con la clasificación", sdLang: "Idioma",
     madeBy: "Diseñado por manos saudíes 🇸🇦", credit: "Estudiante de la Universidad Princesa Nourah, para Core Studio",
     errCreate: "No se pudo crear la sala, inténtalo de nuevo.", addBot: "🤖 Añadir un bot", removeBot: "Quitar bot",
@@ -1060,6 +1063,7 @@ Object.assign(I18N.ar, {
   drawPile: "السحب", lastCard: "آخر كرت", round: "جولة {n}", menu: "القائمة", reactions: "التفاعلات",
   tagline: "لعبة مطابقة الأزياء التقليدية السعودية",
   playLocal: "العب على نفس الجهاز", playOnline: "العب أونلاين (كود غرفة)",
+  sdErr_length: "من ٢ إلى ١٦ حرف.", sdErr_chars: "حروف وأرقام ومسافات و _ و - بس.", sdErr_blocked: "اختر اسم ثاني.", sdErr_taken: "هذا الاسم مأخوذ.", sdErr_too_fast: "انتظر شوي قبل ما تغيّره مرة ثانية.",
   sdTagline: "كل منطقة لها حُلّة", sdOnline: "أونلاين", sdOnlineSub: "مع أصحابك", sdLocal: "نفس الجهاز", sdLocalSub: "أو ضد البوتات", sdRank: "الترتيب", sdRankSub: "قريبًا", sdRankSoon: "الترتيب جاي قريب", sdGuest: "ضيف", sdSaveShort: "سجّل واحفظ نقاطك", sdPickName: "وش نسمّيك؟", sdChangeName: "غيّر اسمك", sdNamePh: "اسمك في الترتيب", sdNameRule: "من ٢ إلى ١٦ حرف · يطلع للناس في الترتيب", sdSave: "احفظ", sdEdit: "غيّر", sdHello: "أهلًا {name}", sdGuestTitle: "حسابك ضيف", sdGuestBody: "احفظه عشان ما يضيع اسمك ونقاطك لو غيّرت جوالك", sdGoogle: "كمّل بقوقل", sdEmail: "كمّل بالإيميل", sdAuthSoon: "تسجيل الدخول يجي مع الترتيب", sdLang: "اللغة",
   madeBy: "صُممت بأيدي سعودية 🇸🇦", credit: "طالبة جامعة الأميرة نورة، لمقرر Core Studio",
   errCreate: "تعذر إنشاء الغرفة، حاول مجددًا.", addBot: "🤖 أضف بوت", removeBot: "أزل البوت",
@@ -5093,7 +5097,7 @@ function OnlineFlow({ onBack }) {
       try {
         const res = await fetch("/api/rooms", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...(await authHeaders()) },
           body: JSON.stringify({ room: doc }),
         });
         if (res.status === 409) continue;
@@ -5118,7 +5122,7 @@ function OnlineFlow({ onBack }) {
     try {
       const res = await fetch(`/api/rooms/${code}/join`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify({ player: { id: myId, name: myName.trim() } }),
       });
       if (res.status === 404) {
@@ -5453,6 +5457,8 @@ function ProfileSheet({ nick, onSaveNick, onClose, onSignIn }) {
   const { t, L } = useI18n();
   const [editing, setEditing] = useState(!nick);
   const [draft, setDraft] = useState(nick || "");
+  const [saveErr, setSaveErr] = useState("");
+  const [busy, setBusy] = useState(false);
   const ok = nickValid(draft);
   const initial = nick ? [...nick][0] : [...t("sdGuest")][0];
   return (
@@ -5464,10 +5470,17 @@ function ProfileSheet({ nick, onSaveNick, onClose, onSignIn }) {
         {editing ? (
           <form
             className="mt-3"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              if (!ok) return;
-              onSaveNick(cleanNick(draft));
+              if (!ok || busy) return;
+              setBusy(true);
+              const err = await onSaveNick(cleanNick(draft));
+              setBusy(false);
+              if (err) {
+                setSaveErr(t(`sdErr_${err}`));
+                return;
+              }
+              setSaveErr("");
               setEditing(false);
             }}
           >
@@ -5492,6 +5505,11 @@ function ProfileSheet({ nick, onSaveNick, onClose, onSignIn }) {
             <div className="tsz-10 mt-1 hstart" style={{ color: `${INK}77` }}>
               {t("sdNameRule")}
             </div>
+            {saveErr && (
+              <div className="tsz-11 mt-1 font-semibold hstart" style={{ color: BRAND }}>
+                {saveErr}
+              </div>
+            )}
           </form>
         ) : (
           <div className="mt-3 flex items-center justify-center gap-2">
@@ -5634,11 +5652,22 @@ function SaduHome({ onOnline, onLocal, onRules, installed, onInstall, nick, setN
         <ProfileSheet
           nick={nick}
           onClose={() => setProfile(false)}
-          onSaveNick={(n) => {
-            setNick(n);
-            say(t("sdHello", { name: n }));
+          onSaveNick={async (n) => {
+            // With accounts on, the server validates (unique, filtered); localStorage stays a cache.
+            const res = await saveNicknameRemote(n);
+            if (!res.ok && res.error !== "offline") return res.error;
+            setNick(res.ok ? res.nickname : n);
+            say(t("sdHello", { name: res.ok ? res.nickname : n }));
+            return null;
           }}
-          onSignIn={() => say(t("sdAuthSoon"))}
+          onSignIn={async (provider) => {
+            if (provider === "google" && GOOGLE_ENABLED) {
+              const { error } = await linkGoogle();
+              if (error) say(error);
+              return;
+            }
+            say(t("sdAuthSoon"));
+          }}
         />
       )}
       <SaduToast msg={toast} />
@@ -5829,6 +5858,7 @@ function HillaApp() {
 
   useEffect(() => {
     setMode(readOnlineSession() ? "online" : "home");
+    ensureGuest(); // silent guest account for the leaderboard; a no-op until auth is configured
   }, []);
 
   if (mode === "boot") {
