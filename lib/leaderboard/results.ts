@@ -39,19 +39,24 @@ export async function writeResults(room: FinishedRoom) {
   const accounted = humans.filter((p) => userOf.has(p.id));
   if (!accounted.length) return;
 
-  // game_results.game_id references game_sessions; make sure the row exists even if the client's
-  // analytics call never arrived.
-  await supabase.from('game_sessions').upsert(
+  // game_results.game_id references game_sessions, which is normally written by the client's
+  // analytics call. If that never arrived (blocked, offline), create a minimal row first so the
+  // results can't fail on the foreign key. Insert-if-missing: a row the client already wrote is left
+  // as it is, and the client's own later insert is a no-op on the same columns.
+  const { error: sessionError } = await supabase.from('game_sessions').upsert(
     {
       id: gameId,
       room_code: room.code,
       ruleset_version: game.rulesetVersion ?? 'v2.1',
+      started_at: room.gameStartedAt ?? new Date().toISOString(),
       player_count: players.length,
       human_count: humans.length,
-      bot_count: players.length - humans.length
+      bot_count: players.length - humans.length,
+      completed: false
     },
     { onConflict: 'id', ignoreDuplicates: true }
   );
+  if (sessionError) throw sessionError;
 
   const now = Date.now();
   const durationMs = room.gameStartedAt ? now - Date.parse(room.gameStartedAt) : null;

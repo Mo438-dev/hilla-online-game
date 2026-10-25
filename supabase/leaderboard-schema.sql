@@ -38,6 +38,11 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now()
 );
 
+-- Server routes enforce 2–16 (lib/leaderboard/nickname.ts); this is the backstop.
+alter table public.profiles drop constraint if exists profiles_nickname_length;
+alter table public.profiles add constraint profiles_nickname_length
+  check (nickname is null or char_length(nickname) between 2 and 16);
+
 create table if not exists public.nickname_reports (
   reporter_id uuid not null references auth.users(id) on delete cascade,
   target_id uuid not null references auth.users(id) on delete cascade,
