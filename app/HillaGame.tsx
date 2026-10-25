@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Volume2, VolumeX, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut, RefreshCw, Type, Menu, HelpCircle, X, Smile } from "lucide-react";
 import { HILLA_ART as ART } from "@/lib/art-manifest";
-import { ensureGuest, authHeaders, saveNicknameRemote, linkGoogle, GOOGLE_ENABLED, AUTH_ENABLED } from "@/lib/supabase-browser";
+import { ensureGuest, authHeaders, saveNicknameRemote, syncNickname, linkGoogle, GOOGLE_ENABLED, AUTH_ENABLED } from "@/lib/supabase-browser";
 import { newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished, sendDealSnapshot, getClientPid, sendFeedback } from "@/lib/analytics-client";
 
 /* ---------------------------------- PALETTE ---------------------------------- */
@@ -6116,6 +6116,11 @@ function HillaApp() {
   useEffect(() => {
     setMode(readOnlineSession() ? "online" : "home");
     ensureGuest(); // silent guest account for the leaderboard; a no-op until auth is configured
+    // Make sure the leaderboard knows this player's name (a name saved only on the phone never
+    // reached the server, so the player was missing from the board).
+    syncNickname(loadNick()).then((serverNick) => {
+      if (serverNick) setNick(serverNick);
+    });
   }, []);
 
   if (mode === "boot") {

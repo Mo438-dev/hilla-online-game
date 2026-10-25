@@ -76,6 +76,26 @@ export async function saveNicknameRemote(nickname: string): Promise<{ ok: true; 
   }
 }
 
+// On open: the server is the source of truth for the leaderboard name, the phone's copy is a cache.
+// A name typed before accounts existed (or while offline) only lives on the phone, so the leaderboard
+// can't list that player; if the server has none, send the phone's up. Returns the name to show, or
+// null when there's nothing to change (no account, offline, or the phone's name was refused).
+export async function syncNickname(localNick: string): Promise<string | null> {
+  const headers = await authHeaders();
+  if (!headers.Authorization) return null;
+  try {
+    const res = await fetch('/api/profile/nickname', { headers, cache: 'no-store' });
+    if (!res.ok) return null;
+    const { nickname } = await res.json();
+    if (nickname) return nickname === localNick ? null : nickname;
+    if (!localNick) return null;
+    const saved = await saveNicknameRemote(localNick);
+    return saved.ok && saved.nickname !== localNick ? saved.nickname : null;
+  } catch {
+    return null;
+  }
+}
+
 // «احفظ تقدّمك» with Google: links Google to the SAME (guest) user, so nickname and points carry over.
 export async function linkGoogle() {
   const c = sb();
