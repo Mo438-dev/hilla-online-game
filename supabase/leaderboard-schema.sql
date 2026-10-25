@@ -165,6 +165,10 @@ revoke all on public.leaderboard_all_time, public.leaderboard_season from anon, 
 revoke all on function public.leaderboard_rows(timestamptz, timestamptz) from public, anon, authenticated;
 revoke all on function public.delete_stale_guests() from public, anon, authenticated;
 grant select on public.profiles, public.game_results to authenticated;
+-- Explicit, as with game_feedback: default grants didn't reliably cover service_role there.
+grant all privileges on public.profiles, public.game_results, public.seasons, public.nickname_reports, public.integrity_rejections to service_role;
+grant select on public.leaderboard_all_time, public.leaderboard_season to service_role;
+grant usage, select on all sequences in schema public to service_role;
 grant execute on function public.leaderboard_rows(timestamptz, timestamptz) to service_role;
 grant execute on function public.delete_stale_guests() to service_role;
 
