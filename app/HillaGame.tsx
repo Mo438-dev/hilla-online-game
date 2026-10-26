@@ -960,6 +960,7 @@ const I18N = {
     ptsWord: "pts", lbFriends: "Friends", lbSoonTag: "Soon", lbFriendsNote: "Your friends are everyone you've played online with", lbGlobalSoon: "The global board is coming soon. For now, compete with your friends.", lbHowTitle: "How are points counted?", lbHowWin: "Winning", lbHowFinish: "Finishing the game", lbHowExtra: "Each player beyond two (winner)", lbHowNote: "Online games with two or more real players count. Games with bots or on the same device don't. Your friends are everyone you've played with, and a season is one full Hijri year.", lbOk: "OK", lbNoFriendsTitle: "No friends yet", lbNoFriendsBody: "Play online with friends: everyone you play with shows up here and you compete for points.", lbPlayOnline: "Play online",
     lbSeasonLine: "Season {y} · {n} days left", lbInvite: "Invite friends", lbColPlayer: "Player", lbColWinsGames: "W / G", lbColPoints: "Pts", noRankLocal: "🏆 Same-device games and games against bots don't count for the leaderboard. Points are for online games with real players.", noRankWin: "Same-device games don't count for the leaderboard", noRankBots: "Didn't count: it was only with bots", noRankShort: "Didn't count: the game was too short", noRankDaily: "Didn't count: you've reached today's game limit", noRankLobby: "You need a second real player for points to count",
     blockTooLate: "Too late",
+    premove: "Premove", premoveTag: "Ready", premoveHint: "Pick cards now — they're played when your turn starts", premoveBar: "Premove ready · played when your turn starts", premoveClear: "Cancel premove", premoveCancelled: "Your premove was cancelled — it no longer fits",
     sdTagline: "Every region has its outfit", sdOnline: "Online", sdOnlineSub: "With friends", sdLocal: "Same device", sdLocalSub: "Or vs bots", sdRank: "Leaderboard", sdRankSub: "Coming soon", sdRankSoon: "The leaderboard is coming soon", sdGuest: "Guest", sdSaveShort: "Sign in to save your points", sdPickName: "What should we call you?", sdChangeName: "Change your name", sdNamePh: "Your leaderboard name", sdNameRule: "2 to 16 characters · shown on the leaderboard", sdSave: "Save", sdEdit: "Edit", sdHello: "Hi {name}", sdGuestTitle: "You're playing as a guest", sdGuestBody: "Save your account so your name and points stay if you change phones", sdGoogle: "Continue with Google", sdEmail: "Continue with email", sdAuthSoon: "Sign-in arrives with the leaderboard", sdLang: "Language",
     madeBy: "Designed by Saudi hands 🇸🇦", credit: "A Princess Nourah University student, for Core Studio",
     errCreate: "Couldn't create the room, try again.", addBot: "🤖 Add a bot", removeBot: "Remove bot",
@@ -1033,6 +1034,7 @@ const I18N = {
     ptsWord: "pts", lbFriends: "Amigos", lbSoonTag: "Pronto", lbFriendsNote: "Tus amigos son todos con quienes jugaste en línea", lbGlobalSoon: "La clasificación global llega pronto. Por ahora, compite con tus amigos.", lbHowTitle: "¿Cómo se cuentan los puntos?", lbHowWin: "Ganar", lbHowFinish: "Terminar la partida", lbHowExtra: "Cada jugador más allá de dos (ganador)", lbHowNote: "Cuentan las partidas en línea con dos o más jugadores reales. Las partidas con bots o en el mismo dispositivo no cuentan. Tus amigos son todos con quienes jugaste, y una temporada es un año hijri completo.", lbOk: "Vale", lbNoFriendsTitle: "Aún no tienes amigos", lbNoFriendsBody: "Juega en línea con tus amigos: todos con quienes juegues aparecen aquí y compiten por puntos.", lbPlayOnline: "Jugar en línea",
     lbSeasonLine: "Temporada {y} · quedan {n} días", lbInvite: "Invita a tus amigos", lbColPlayer: "Jugador", lbColWinsGames: "V / P", lbColPoints: "Pts", noRankLocal: "🏆 Las partidas en el mismo dispositivo y contra bots no cuentan para la clasificación. Los puntos son para partidas en línea con jugadores reales.", noRankWin: "Las partidas en el mismo dispositivo no cuentan para la clasificación", noRankBots: "No contó: solo había bots", noRankShort: "No contó: la partida fue muy corta", noRankDaily: "No contó: llegaste al límite diario de partidas", noRankLobby: "Necesitas un segundo jugador real para que cuenten los puntos",
     blockTooLate: "Demasiado tarde",
+    premove: "Jugada anticipada", premoveTag: "Lista", premoveHint: "Elige cartas ahora: se juegan al empezar tu turno", premoveBar: "Jugada anticipada lista · se juega al empezar tu turno", premoveClear: "Cancelar jugada anticipada", premoveCancelled: "Tu jugada anticipada se canceló: ya no encaja",
     sdTagline: "Cada región tiene su traje", sdOnline: "En línea", sdOnlineSub: "Con amigos", sdLocal: "Mismo dispositivo", sdLocalSub: "O contra bots", sdRank: "Clasificación", sdRankSub: "Muy pronto", sdRankSoon: "La clasificación llega pronto", sdGuest: "Invitado", sdSaveShort: "Inicia sesión para guardar tus puntos", sdPickName: "¿Cómo te llamamos?", sdChangeName: "Cambia tu nombre", sdNamePh: "Tu nombre en la clasificación", sdNameRule: "De 2 a 16 caracteres · se muestra en la clasificación", sdSave: "Guardar", sdEdit: "Editar", sdHello: "Hola {name}", sdGuestTitle: "Juegas como invitado", sdGuestBody: "Guarda tu cuenta para no perder tu nombre y tus puntos si cambias de móvil", sdGoogle: "Continuar con Google", sdEmail: "Continuar con correo", sdAuthSoon: "El inicio de sesión llega con la clasificación", sdLang: "Idioma",
     madeBy: "Diseñado por manos saudíes 🇸🇦", credit: "Estudiante de la Universidad Princesa Nourah, para Core Studio",
     errCreate: "No se pudo crear la sala, inténtalo de nuevo.", addBot: "🤖 Añadir un bot", removeBot: "Quitar bot",
@@ -1103,6 +1105,7 @@ Object.assign(I18N.ar, {
   ptsWord: "نقطة", lbFriends: "ربعك", lbSoonTag: "قريبًا", lbFriendsNote: "ربعك هم اللي لعبت معهم أونلاين", lbGlobalSoon: "الترتيب العام قريب. للحين تنافس ربعك.", lbHowTitle: "كيف تنحسب النقاط؟", lbHowWin: "الفوز", lbHowFinish: "إكمال المباراة", lbHowExtra: "كل لاعب فوق الاثنين (للفائز)", lbHowNote: "تنحسب مباريات الأونلاين اللي فيها لاعبين حقيقيين اثنين أو أكثر. المباريات مع البوتات أو على نفس الجهاز ما تنحسب. ربعك هم كل اللي لعبت معهم، والموسم سنة هجرية كاملة.", lbOk: "تمام", lbNoFriendsTitle: "ما عندك ربع للحين", lbNoFriendsBody: "العب أونلاين مع ربعك، وكل واحد لعبت معه يطلع هنا وتتنافسون على النقاط.", lbPlayOnline: "العب أونلاين",
   lbSeasonLine: "موسم {y} · باقي {n} يوم", lbInvite: "نادِ ربعك", lbColPlayer: "اللاعب", lbColWinsGames: "فوز / لعب", lbColPoints: "نقاط", noRankLocal: "🏆 مباريات نفس الجهاز ومع البوتات ما تنحسب في الترتيب. النقاط بس للأونلاين مع لاعبين حقيقيين.", noRankWin: "مباريات نفس الجهاز ما تنحسب في الترتيب", noRankBots: "ما انحسبت: كانت مع بوتات بس", noRankShort: "ما انحسبت: المباراة كانت قصيرة", noRankDaily: "ما انحسبت: وصلت حد المباريات اليومي", noRankLobby: "تحتاج لاعب حقيقي ثاني عشان تنحسب النقاط",
   blockTooLate: "فات الوقت",
+  premove: "حركة مسبقة", premoveTag: "جاهز", premoveHint: "اختر كروتك الحين، وتنلعب أول ما يجي دورك", premoveBar: "حركتك المسبقة جاهزة · تنلعب أول ما يجي دورك", premoveClear: "إلغاء الحركة المسبقة", premoveCancelled: "انلغت حركتك المسبقة، ما عادت تنفع",
   sdTagline: "كل منطقة لها حُلّة", sdOnline: "أونلاين", sdOnlineSub: "مع أصحابك", sdLocal: "نفس الجهاز", sdLocalSub: "أو ضد البوتات", sdRank: "الترتيب", sdRankSub: "قريبًا", sdRankSoon: "الترتيب جاي قريب", sdGuest: "ضيف", sdSaveShort: "سجّل واحفظ نقاطك", sdPickName: "وش نسمّيك؟", sdChangeName: "غيّر اسمك", sdNamePh: "اسمك في الترتيب", sdNameRule: "من ٢ إلى ١٦ حرف · يطلع للناس في الترتيب", sdSave: "احفظ", sdEdit: "غيّر", sdHello: "أهلًا {name}", sdGuestTitle: "حسابك ضيف", sdGuestBody: "احفظه عشان ما يضيع اسمك ونقاطك لو غيّرت جوالك", sdGoogle: "كمّل بقوقل", sdEmail: "كمّل بالإيميل", sdAuthSoon: "تسجيل الدخول يجي مع الترتيب", sdLang: "اللغة",
   madeBy: "صُممت بأيدي سعودية 🇸🇦", credit: "طالبة جامعة الأميرة نورة، لمقرر Core Studio",
   errCreate: "تعذر إنشاء الغرفة، حاول مجددًا.", addBot: "🤖 أضف بوت", removeBot: "أزل البوت",
@@ -2461,6 +2464,16 @@ function useIosHaptic() {
    synthesized with Web Audio (no audio file to load). On iOS the audio session is set to "ambient"
    so it respects the silent switch. On/off lives in the ☰ menu and is saved per device. */
 const TURN_SOUND_STORE = "hulla-turn-sound";
+// Premove (off by default, switched on from the in-game menu): pick item cards while waiting and
+// they're played the moment your turn starts. Kept on this device only until then.
+const PREMOVE_STORE = "hulla-premove";
+function loadPremove() {
+  try {
+    return window.localStorage.getItem(PREMOVE_STORE) === "on";
+  } catch {
+    return false;
+  }
+}
 let turnAudioCtx = null;
 function turnAudio() {
   try {
@@ -3064,6 +3077,14 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
       window.localStorage.setItem(TURN_SOUND_STORE, turnSound ? "on" : "off");
     } catch {}
   }, [turnSound]);
+  const [premoveOn, setPremoveOn] = useState(loadPremove);
+  const [pre, setPre] = useState([]); // premoved item card ids, on this device only
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PREMOVE_STORE, premoveOn ? "on" : "off");
+    } catch {}
+    if (!premoveOn) setPre([]);
+  }, [premoveOn]);
   useEffect(() => {
     const unlock = () => unlockTurnAudio();
     window.addEventListener("pointerdown", unlock, { passive: true });
@@ -3657,13 +3678,19 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   }
 
   function playSelectedItems() {
-    const res = rPlayItems(game, viewer.id, selected);
-    if (res.error) {
-      setErrMsg(res.error);
-      return;
+    playItemIds(selected);
+  }
+
+  // One path for a tap on «حط» and for a premove: same reducer, analytics event and save.
+  // Returns false (nothing played) when the cards don't fit.
+  function playItemIds(ids, onError = (e) => setErrMsg(e)) {
+    const res = rPlayItems(game, viewer.id, ids);
+    if (res.error || res.game === game) {
+      onError(res.error);
+      return false;
     }
     setSelected([]);
-    const playedCards = viewer.hand.filter((c) => selected.includes(c.id) && c.kind === "item");
+    const playedCards = viewer.hand.filter((c) => ids.includes(c.id) && c.kind === "item");
     if (playedCards.length > 0 && eduCountRef.current < 4) {
       const info = ITEM_DESC[playedCards[0].name];
       if (info) {
@@ -3685,6 +3712,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     let g = res.game;
     if (!g.winner) g = rEndTurn(g, viewer.id);
     dispatch(g);
+    return true;
   }
 
   // Ends the current player's turn explicitly — for when they only played an action card (or
@@ -3892,6 +3920,33 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   const showThinkingPanel = multiHumanLocal && current.isBot;
   const handActive = isMyTurn && !current.isBot;
 
+  // Premove only makes sense when this screen belongs to one player: online, or one human vs bots.
+  const canPremove = premoveOn && !isMyTurn && !game.winner && viewer && !viewer.isBot && (isOnline || !!soloHuman);
+  function togglePre(cardId) {
+    setPre((s) => (s.includes(cardId) ? s.filter((x) => x !== cardId) : [...s, cardId]));
+  }
+  // A premoved card left the hand before my turn (اقدع / عطني وأعطيك): drop the premove and say so.
+  useEffect(() => {
+    if (!pre.length || !viewer) return;
+    if (pre.some((id) => !viewer.hand.some((c) => c.id === id))) {
+      setPre([]);
+      setErrMsg(t("premoveCancelled"));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewer?.hand]);
+  // My turn started: play the premove after a short beat (once any pending action or «فتّش الصندوق»
+  // is done), or cancel it if it no longer fits the coordination card.
+  useEffect(() => {
+    if (!pre.length || !isMyTurn || current.isBot || game.winner || game.pendingAction || game.digOptions) return;
+    const tm = setTimeout(() => {
+      const ids = pre;
+      setPre([]);
+      playItemIds(ids, () => setErrMsg(t("premoveCancelled")));
+    }, 500);
+    return () => clearTimeout(tm);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMyTurn, game.turnSerial, game.pendingAction, game.digOptions]);
+
   const itemCards = viewer.hand.filter((c) => c.kind === "item");
   const actionCards = viewer.hand.filter((c) => c.kind === "action");
 
@@ -3903,10 +3958,15 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
         </div>
       );
     }
-    const onPick = (id) => (handActive ? toggleSelect(id) : null);
+    const onPick = (id) => (handActive ? toggleSelect(id) : canPremove ? togglePre(id) : null);
     const node = (c, i) => (
-      <div key={c.id} className="hilla-deal pt-4" style={{ animationDelay: `${Math.min(i, 12) * 28}ms` }}>
-        <ItemCard card={c} size={cardSize} selected={selected.includes(c.id)} onClick={() => onPick(c.id)} />
+      <div key={c.id} className="hilla-deal pt-4 relative" style={{ animationDelay: `${Math.min(i, 12) * 28}ms` }}>
+        <ItemCard card={c} size={cardSize} selected={handActive ? selected.includes(c.id) : pre.includes(c.id)} onClick={() => onPick(c.id)} />
+        {!handActive && pre.includes(c.id) && (
+          <span className="absolute left-1/2 tsz-10 font-bold rounded-full px-2 py-0.5" style={{ top: 4, transform: "translateX(-50%)", background: GOLD, color: "#3A2608", boxShadow: `0 0 0 2px ${CREAM}` }}>
+            {t("premoveTag")}
+          </span>
+        )}
       </div>
     );
     if (!sortByRegion) return itemCards.map(node);
@@ -4309,6 +4369,17 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                   </div>
                 )}
 
+                {canPremove && (
+                  <div className="flex items-center gap-2 tsz-12 font-semibold mb-2 px-3 py-1.5 rounded-xl" style={{ background: pre.length ? `${GOLD}33` : `${INK}08`, color: pre.length ? "#5A3F0C" : `${INK}88` }}>
+                    <span className="flex-1">{pre.length ? t("premoveBar") : t("premoveHint")}</span>
+                    {pre.length > 0 && (
+                      <button onClick={() => setPre([])} aria-label={t("premoveClear")} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: `${INK}12` }}>
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex gap-2 mt-1">
                   <button
                     onClick={playSelectedItems}
@@ -4389,6 +4460,17 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
               style={{ color: INK, background: turnSound ? `${GOLD}33` : "transparent", borderColor: `${INK}12` }}
             >
               {turnSound ? <Volume2 className="w-4 h-4" style={{ color: BRAND }} /> : <VolumeX className="w-4 h-4" style={{ color: BRAND }} />} {t("turnSound")} {turnSound ? "✓" : ""}
+            </button>
+            <button
+              onClick={() => setPremoveOn((v) => !v)}
+              className="w-full hstart px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
+              style={{ color: INK, background: premoveOn ? `${GOLD}33` : "transparent", borderColor: `${INK}12` }}
+            >
+              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke={BRAND} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M5 5v14l8-7z" />
+                <path d="M13 5v14l8-7z" />
+              </svg>{" "}
+              {t("premove")} {premoveOn ? "✓" : ""}
             </button>
             <button
               onClick={() => {
