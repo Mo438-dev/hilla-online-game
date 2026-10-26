@@ -934,7 +934,8 @@ const I18N = {
     playLocal: "Play on this device", playOnline: "Play online (room code)",
     sdErr_length: "2 to 16 characters.", sdErr_chars: "Letters, numbers, spaces, _ and - only.", sdErr_blocked: "Pick a different name.", sdErr_taken: "That name is taken.", sdErr_too_fast: "Wait a moment before changing it again.",
     lbTitle: "Leaderboard", lbThisSeason: "This season", lbAll: "All time", lbSeason: "Season {y}", lbDaysLeft: "{n} days left", lbAllTime: "All seasons", lbRule: "3 points for a win, +1 for each player beyond two, 1 point for finishing", lbEmpty: "No results yet. Play online with friends to get on the board!", lbError: "Couldn't load the leaderboard.", lbRetry: "Try again", lbPts: "{n} pts", lbGamesWins: "{g} games · {w} wins", lbToNext: "{p} points to reach #{r}", lbLoading: "Loading…", winPoints: "+{n} leaderboard points",
-    chipPoints: "{p} pts · Rank {r}", chipPlayOnline: "Play online to start earning points", lbLeader: "{name} is leading", lbLeaderYou: "You're in the lead 👑", resumeGame: "Continue your game · Room {code}", lbYourSpot: "Your spot?", lbStatRank: "Rank", lbStatPoints: "Points", lbStatGames: "Games", lbStatWins: "Wins",
+    chipPoints: "{p} · Rank {r}", chipPlayOnline: "Play online to start earning points", lbLeader: "{name} leads", lbLeaderYou: "You're in the lead 👑", resumeGame: "Continue your game · Room {code}", lbYourSpot: "Your spot?", lbStatRank: "Rank", lbStatPoints: "Points", lbStatGames: "Games", lbStatWins: "Wins",
+    ptsWord: "pts", lbFriends: "Friends", lbSoonTag: "Soon", lbFriendsNote: "Your friends are everyone you've played online with", lbGlobalSoon: "The global board is coming soon. For now, compete with your friends.", lbHowTitle: "How are points counted?", lbHowWin: "Winning", lbHowFinish: "Finishing the game", lbHowExtra: "Each player beyond two (winner)", lbHowNote: "Online games with two or more real players count. Your friends are everyone you've played with, and a season is one full Hijri year.", lbOk: "OK", lbNoFriendsTitle: "No friends yet", lbNoFriendsBody: "Play online with friends: everyone you play with shows up here and you compete for points.", lbPlayOnline: "Play online",
     sdTagline: "Every region has its outfit", sdOnline: "Online", sdOnlineSub: "With friends", sdLocal: "Same device", sdLocalSub: "Or vs bots", sdRank: "Leaderboard", sdRankSub: "Coming soon", sdRankSoon: "The leaderboard is coming soon", sdGuest: "Guest", sdSaveShort: "Sign in to save your points", sdPickName: "What should we call you?", sdChangeName: "Change your name", sdNamePh: "Your leaderboard name", sdNameRule: "2 to 16 characters · shown on the leaderboard", sdSave: "Save", sdEdit: "Edit", sdHello: "Hi {name}", sdGuestTitle: "You're playing as a guest", sdGuestBody: "Save your account so your name and points stay if you change phones", sdGoogle: "Continue with Google", sdEmail: "Continue with email", sdAuthSoon: "Sign-in arrives with the leaderboard", sdLang: "Language",
     madeBy: "Designed by Saudi hands 🇸🇦", credit: "A Princess Nourah University student, for Core Studio",
     errCreate: "Couldn't create the room, try again.", addBot: "🤖 Add a bot", removeBot: "Remove bot",
@@ -1004,7 +1005,8 @@ const I18N = {
     playLocal: "Jugar en este dispositivo", playOnline: "Jugar en línea (código de sala)",
     sdErr_length: "De 2 a 16 caracteres.", sdErr_chars: "Solo letras, números, espacios, _ y -.", sdErr_blocked: "Elige otro nombre.", sdErr_taken: "Ese nombre ya está en uso.", sdErr_too_fast: "Espera un momento antes de cambiarlo otra vez.",
     lbTitle: "Clasificación", lbThisSeason: "Esta temporada", lbAll: "Histórico", lbSeason: "Temporada {y}", lbDaysLeft: "Quedan {n} días", lbAllTime: "Todas las temporadas", lbRule: "3 puntos por ganar, +1 por cada jugador más allá de dos, 1 punto por terminar", lbEmpty: "Aún no hay resultados. ¡Juega en línea con amigos para entrar!", lbError: "No se pudo cargar la clasificación.", lbRetry: "Reintentar", lbPts: "{n} pts", lbGamesWins: "{g} partidas · {w} victorias", lbToNext: "Te faltan {p} puntos para el puesto {r}", lbLoading: "Cargando…", winPoints: "+{n} puntos en la clasificación",
-    chipPoints: "{p} pts · Puesto {r}", chipPlayOnline: "Juega en línea para sumar puntos", lbLeader: "{name} va en cabeza", lbLeaderYou: "Vas en cabeza 👑", resumeGame: "Continúa tu partida · Sala {code}", lbYourSpot: "¿Tu lugar?", lbStatRank: "Puesto", lbStatPoints: "Puntos", lbStatGames: "Partidas", lbStatWins: "Victorias",
+    chipPoints: "{p} · Puesto {r}", chipPlayOnline: "Juega en línea para sumar puntos", lbLeader: "{name} lidera", lbLeaderYou: "Vas en cabeza 👑", resumeGame: "Continúa tu partida · Sala {code}", lbYourSpot: "¿Tu lugar?", lbStatRank: "Puesto", lbStatPoints: "Puntos", lbStatGames: "Partidas", lbStatWins: "Victorias",
+    ptsWord: "pts", lbFriends: "Amigos", lbSoonTag: "Pronto", lbFriendsNote: "Tus amigos son todos con quienes jugaste en línea", lbGlobalSoon: "La clasificación global llega pronto. Por ahora, compite con tus amigos.", lbHowTitle: "¿Cómo se cuentan los puntos?", lbHowWin: "Ganar", lbHowFinish: "Terminar la partida", lbHowExtra: "Cada jugador más allá de dos (ganador)", lbHowNote: "Cuentan las partidas en línea con dos o más jugadores reales. Tus amigos son todos con quienes jugaste, y una temporada es un año hijri completo.", lbOk: "Vale", lbNoFriendsTitle: "Aún no tienes amigos", lbNoFriendsBody: "Juega en línea con tus amigos: todos con quienes juegues aparecen aquí y compiten por puntos.", lbPlayOnline: "Jugar en línea",
     sdTagline: "Cada región tiene su traje", sdOnline: "En línea", sdOnlineSub: "Con amigos", sdLocal: "Mismo dispositivo", sdLocalSub: "O contra bots", sdRank: "Clasificación", sdRankSub: "Muy pronto", sdRankSoon: "La clasificación llega pronto", sdGuest: "Invitado", sdSaveShort: "Inicia sesión para guardar tus puntos", sdPickName: "¿Cómo te llamamos?", sdChangeName: "Cambia tu nombre", sdNamePh: "Tu nombre en la clasificación", sdNameRule: "De 2 a 16 caracteres · se muestra en la clasificación", sdSave: "Guardar", sdEdit: "Editar", sdHello: "Hola {name}", sdGuestTitle: "Juegas como invitado", sdGuestBody: "Guarda tu cuenta para no perder tu nombre y tus puntos si cambias de móvil", sdGoogle: "Continuar con Google", sdEmail: "Continuar con correo", sdAuthSoon: "El inicio de sesión llega con la clasificación", sdLang: "Idioma",
     madeBy: "Diseñado por manos saudíes 🇸🇦", credit: "Estudiante de la Universidad Princesa Nourah, para Core Studio",
     errCreate: "No se pudo crear la sala, inténtalo de nuevo.", addBot: "🤖 Añadir un bot", removeBot: "Quitar bot",
@@ -1071,7 +1073,8 @@ Object.assign(I18N.ar, {
   playLocal: "العب على نفس الجهاز", playOnline: "العب أونلاين (كود غرفة)",
   sdErr_length: "من ٢ إلى ١٦ حرف.", sdErr_chars: "حروف وأرقام ومسافات و _ و - بس.", sdErr_blocked: "اختر اسم ثاني.", sdErr_taken: "هذا الاسم مأخوذ.", sdErr_too_fast: "انتظر شوي قبل ما تغيّره مرة ثانية.",
   lbTitle: "الترتيب", lbThisSeason: "هذا الموسم", lbAll: "الكل", lbSeason: "موسم {y}", lbDaysLeft: "باقي {n} يوم", lbAllTime: "كل المواسم", lbRule: "٣ نقاط للفوز و+١ عن كل لاعب فوق الاثنين، ونقطة لإكمال اللعبة", lbEmpty: "ما فيه نتائج للحين. العب أونلاين مع أصحابك وكن أول واحد!", lbError: "ما قدرنا نجيب الترتيب.", lbRetry: "حاول مرة ثانية", lbPts: "{n} نقطة", lbGamesWins: "{g} لعبة · {w} فوز", lbToNext: "باقي لك {p} نقطة توصل للمركز {r}", lbLoading: "نجيب الترتيب…", winPoints: "+{n} نقطة في الترتيب",
-  chipPoints: "{p} نقطة · المركز {r}", chipPlayOnline: "العب أونلاين وابدأ تجمع نقاط", lbLeader: "{name} في الصدارة", lbLeaderYou: "أنت المتصدر 👑", resumeGame: "كمّل لعبتك · غرفة {code}", lbYourSpot: "مكانك هنا؟", lbStatRank: "مركزك", lbStatPoints: "نقاطك", lbStatGames: "ألعابك", lbStatWins: "فوزك",
+  chipPoints: "{p} · المركز {r}", chipPlayOnline: "العب أونلاين وابدأ تجمع نقاط", lbLeader: "{name} تتصدر", lbLeaderYou: "أنت المتصدر 👑", resumeGame: "كمّل لعبتك · غرفة {code}", lbYourSpot: "مكانك هنا؟", lbStatRank: "مركزك", lbStatPoints: "نقاطك", lbStatGames: "ألعابك", lbStatWins: "فوزك",
+  ptsWord: "نقطة", lbFriends: "ربعك", lbSoonTag: "قريبًا", lbFriendsNote: "ربعك هم اللي لعبت معهم أونلاين", lbGlobalSoon: "الترتيب العام قريب. للحين تنافس ربعك.", lbHowTitle: "كيف تنحسب النقاط؟", lbHowWin: "الفوز", lbHowFinish: "إكمال المباراة", lbHowExtra: "كل لاعب فوق الاثنين (للفائز)", lbHowNote: "تنحسب مباريات الأونلاين اللي فيها لاعبين حقيقيين اثنين أو أكثر. ربعك هم كل اللي لعبت معهم، والموسم سنة هجرية كاملة.", lbOk: "تمام", lbNoFriendsTitle: "ما عندك ربع للحين", lbNoFriendsBody: "العب أونلاين مع ربعك، وكل واحد لعبت معه يطلع هنا وتتنافسون على النقاط.", lbPlayOnline: "العب أونلاين",
   sdTagline: "كل منطقة لها حُلّة", sdOnline: "أونلاين", sdOnlineSub: "مع أصحابك", sdLocal: "نفس الجهاز", sdLocalSub: "أو ضد البوتات", sdRank: "الترتيب", sdRankSub: "قريبًا", sdRankSoon: "الترتيب جاي قريب", sdGuest: "ضيف", sdSaveShort: "سجّل واحفظ نقاطك", sdPickName: "وش نسمّيك؟", sdChangeName: "غيّر اسمك", sdNamePh: "اسمك في الترتيب", sdNameRule: "من ٢ إلى ١٦ حرف · يطلع للناس في الترتيب", sdSave: "احفظ", sdEdit: "غيّر", sdHello: "أهلًا {name}", sdGuestTitle: "حسابك ضيف", sdGuestBody: "احفظه عشان ما يضيع اسمك ونقاطك لو غيّرت جوالك", sdGoogle: "كمّل بقوقل", sdEmail: "كمّل بالإيميل", sdAuthSoon: "تسجيل الدخول يجي مع الترتيب", sdLang: "اللغة",
   madeBy: "صُممت بأيدي سعودية 🇸🇦", credit: "طالبة جامعة الأميرة نورة، لمقرر Core Studio",
   errCreate: "تعذر إنشاء الغرفة، حاول مجددًا.", addBot: "🤖 أضف بوت", removeBot: "أزل البوت",
@@ -1345,6 +1348,8 @@ function makeI18n(code) {
     name: (n) => (YOU_WORDS.has(n) ? t("you") : n),
     cardsLeft: (n) => (n === 1 ? t("left1") : n === 2 ? t("left2") : ar && n > 10 ? t("leftN11", { n }) : t("leftN", { n })),
     num: (n) => Number(n).toLocaleString(ar ? "ar-SA" : lang.code, { useGrouping: false }),
+    // «٧ نقاط» / «١١ نقطة»: Arabic uses the plural for 3–10 only
+    points: (n) => (ar ? `${L.num(n)} ${n >= 3 && n <= 10 ? "نقاط" : "نقطة"}` : `${n} ${t("ptsWord")}`),
     times: (n) => (n === 1 ? t("times1") : n === 2 ? t("times2") : t("timesN", { n })),
     playCards: (n) => (n === 1 ? t("playN1") : n === 2 ? t("playN2") : ar && n > 10 ? t("playN11", { n }) : t("playN", { n })),
     botNames: (n) => (ar ? pickRandomBotNames(n) : shuffle(BOT_NAME_POOLS[lang.code] || BOT_NAME_POOL).slice(0, n)),
@@ -2331,7 +2336,7 @@ function WinStats({ game, myId, isOnline }) {
             </span>
           </div>
         ))}
-        {isOnline && LEADERBOARD_OPEN && <WinPoints gameId={game.analyticsId} />}
+        {isOnline && <WinPoints gameId={game.analyticsId} />}
         <button onClick={share} className={`w-full mt-3 py-2.5 tsz-13 flex items-center justify-center gap-1.5 ${btn}`} style={btnPrimary}>
           {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
           {copied ? t("copied") : t("share")}
@@ -5637,8 +5642,8 @@ function RugCard({ title, sub, subHidden, icon, bg, fg, style, big, lifted, dela
 // Home's read of the season board: the player's own row (account chip) and #1 (leaderboard card).
 // One request, loaded after home renders; the last value is kept for the session so coming back to
 // home never flashes. null = not loaded yet.
-// Leaderboard switch. Off: the «الترتيب» card says «قريبًا» and shows a toast, and nothing else on
-// screen mentions points (account chip, win screen). Results are still written and scored server-side.
+// Global board switch. The friends board («ربعك») is always open; this only controls the «الكل» tab,
+// which shows «قريبًا» while it's off.
 const LEADERBOARD_OPEN = false;
 
 let homeBoardCache = null;
@@ -5649,10 +5654,10 @@ function useHomeBoard(nick) {
     (async () => {
       try {
         const headers = await authHeaders();
-        const res = await fetch("/api/leaderboard?period=season&limit=1", { headers, cache: "no-store" });
+        const res = await fetch("/api/leaderboard?scope=friends&limit=1", { headers, cache: "no-store" });
         if (!res.ok) return;
         const d = await res.json();
-        homeBoardCache = { me: d.me || null, leader: d.top?.[0] || null };
+        homeBoardCache = { me: d.me || null, leader: d.top?.[0] || null, friends: d.friends || 0 };
         if (alive) setBoard(homeBoardCache);
       } catch {}
     })();
@@ -5712,8 +5717,8 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
   const me = board?.me || null;
   const leader = board?.leader || null;
   // Never «·» between two numbers in Arabic (the Arabic zero is a dot): a word stays on each side.
-  const chipLine = !nick || !LEADERBOARD_OPEN ? t("sdSaveShort") : board === null ? null : me ? t("chipPoints", { p: L.num(me.points), r: L.num(me.rank) }) : t("chipPlayOnline");
-  const leaderLine = !leader
+  const chipLine = !nick ? t("sdSaveShort") : board === null ? null : me ? t("chipPoints", { p: L.points(me.points), r: L.num(me.rank) }) : t("chipPlayOnline");
+  const leaderLine = !leader || !board?.friends
     ? t("lbThisSeason")
     : me && leader.rank === me.rank && leader.nickname === me.nickname
     ? t("lbLeaderYou")
@@ -5766,7 +5771,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
             <div className="relative mx-auto" style={{ width: 340, height: 320, transform: `scale(${cardScale})`, transformOrigin: "top center" }}>
               <RugCard big title={t("sdOnline")} sub={t("sdOnlineSub")} bg={BRAND} fg={CREAM} lifted={lift === "online"} delays="0ms, 0.9s" icon={<Wifi className="w-10 h-10" style={{ color: GOLD }} />} style={{ left: "50%", top: 0, marginLeft: -68, transform: tilt("online", -4), zIndex: 6 }} onClick={() => play("online", onOnline)} />
               <RugCard title={t("sdLocal")} sub={t("sdLocalSub")} bg={CREAM} fg={BRAND} lifted={lift === "local"} delays="160ms, 1.1s" icon={<Home className="w-9 h-9" style={{ color: BRAND }} />} style={{ right: 8, top: 150, transform: tilt("local", 12), zIndex: 5 }} onClick={() => play("local", onLocal)} />
-              <RugCard title={t("sdRank")} sub={LEADERBOARD_OPEN ? leaderLine : t("sdRankSub")} subHidden={LEADERBOARD_OPEN && board === null} bg="#2C3E63" fg={CREAM} lifted={lift === "rank"} delays="80ms, 1.3s" icon={<span style={{ fontSize: 34 }}>🏆</span>} style={{ left: 8, top: 150, transform: tilt("rank", -12), zIndex: 5 }} onClick={() => play("rank", LEADERBOARD_OPEN ? onRank : () => say(t("sdRankSoon")))} />
+              <RugCard title={t("sdRank")} sub={leaderLine} subHidden={board === null} bg="#2C3E63" fg={CREAM} lifted={lift === "rank"} delays="80ms, 1.3s" icon={<span style={{ fontSize: 34 }}>🏆</span>} style={{ left: 8, top: 150, transform: tilt("rank", -12), zIndex: 5 }} onClick={() => play("rank", onRank)} />
             </div>
           </div>
         </div>
@@ -5867,9 +5872,48 @@ const PODIUM = [
   { place: 3, color: "#B4773F", h: 54 },
 ];
 
-function LeaderboardScreen({ onBack }) {
+function ScoringSheet({ onClose }) {
   const { t, L } = useI18n();
-  const [period, setPeriod] = useState("season");
+  const rows = [
+    [t("lbHowWin"), L.num(3)],
+    [t("lbHowFinish"), L.num(1)],
+    [t("lbHowExtra"), `+${L.num(1)}`],
+  ];
+  return (
+    <Sheet onBackdrop={onClose} maxW={360} z={90}>
+      <div dir={L.dir}>
+        <div className="display-font font-bold tsz-20 text-center mb-3" style={{ color: BRAND }}>
+          {t("lbHowTitle")}
+        </div>
+        <div className="rounded-2xl overflow-hidden" style={{ boxShadow: `inset 0 0 0 1.5px ${GOLD}` }}>
+          {rows.map(([label, pts], i) => (
+            <div key={label} className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: i ? `1px solid ${INK}14` : "none" }}>
+              <span className="tsz-14 font-semibold" style={{ color: INK }}>
+                {label}
+              </span>
+              <span dir="ltr" className="tsz-15 font-bold" style={{ color: BRAND }}>
+                {pts}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="tsz-12 mt-3 hstart" style={{ color: `${INK}88` }}>
+          {t("lbHowNote")}
+        </p>
+        <button onClick={onClose} className={`w-full mt-4 py-3 tsz-14 ${btn}`} style={btnPrimary}>
+          {t("lbOk")}
+        </button>
+      </div>
+    </Sheet>
+  );
+}
+
+function LeaderboardScreen({ onBack, onPlayOnline }) {
+  const { t, L } = useI18n();
+  // «ربعك» (friends) is the board; «الكل» (everyone) opens only when LEADERBOARD_OPEN is on
+  const [scope, setScope] = useState("friends");
+  const [globalTapped, setGlobalTapped] = useState(false);
+  const [howOpen, setHowOpen] = useState(false);
   const [state, setState] = useState({ status: "loading" });
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -5878,7 +5922,8 @@ function LeaderboardScreen({ onBack }) {
     (async () => {
       try {
         const headers = await authHeaders();
-        const res = await fetch(`/api/leaderboard?period=${period}&limit=50`, { headers, cache: "no-store" });
+        const q = scope === "friends" ? "scope=friends&limit=50" : "period=season&limit=50";
+        const res = await fetch(`/api/leaderboard?${q}`, { headers, cache: "no-store" });
         if (!res.ok) throw new Error("load_failed");
         const data = await res.json();
         if (alive) setState({ status: "ok", data });
@@ -5889,15 +5934,16 @@ function LeaderboardScreen({ onBack }) {
     return () => {
       alive = false;
     };
-  }, [period, tick]);
+  }, [scope, tick]);
 
   const data = state.status === "ok" ? state.data : null;
   const top = data?.top || [];
   const me = data?.me || null;
+  const noFriends = scope === "friends" && state.status === "ok" && !data?.friends;
   const isMe = (row) => !!me && row.rank === me.rank && row.nickname === me.nickname;
   const meListed = !!me && top.some(isMe);
   // «باقي ٢٢٣ يوم · موسم ١٤٤٨»: a word on each side of «·» (after a number it reads as a zero in Arabic)
-  const sub = period === "season" ? (data?.season ? `${t("lbDaysLeft", { n: L.num(data.season.daysLeft) })} · ${t("lbSeason", { y: L.num(data.season.hijriYear) })}` : "") : t("lbAllTime");
+  const sub = data?.season ? `${t("lbDaysLeft", { n: L.num(data.season.daysLeft) })} · ${t("lbSeason", { y: L.num(data.season.hijriYear) })}` : "";
 
   const Row = ({ row, pinned }) => (
     <div
@@ -5917,7 +5963,7 @@ function LeaderboardScreen({ onBack }) {
         </div>
       </div>
       <span className="tsz-14 font-bold flex-shrink-0" style={{ color: INK }}>
-        {t("lbPts", { n: L.num(row.points) })}
+        {L.points(row.points)}
       </span>
     </div>
   );
@@ -5937,29 +5983,42 @@ function LeaderboardScreen({ onBack }) {
           <div className="display-font font-bold tsz-28 leading-none" style={{ color: BRAND }}>
             🏆 {t("lbTitle")}
           </div>
-          <div className="tsz-12 mt-1.5 font-semibold" style={{ color: `${INK}88`, minHeight: 18 }}>
-            {sub}
+          <div className="tsz-12 mt-1.5 font-semibold flex items-center justify-center gap-1.5" style={{ color: `${INK}88`, minHeight: 22 }}>
+            <span>{sub}</span>
+            <button
+              onClick={() => setHowOpen(true)}
+              aria-label={t("lbHowTitle")}
+              className="w-5 h-5 rounded-full flex items-center justify-center tsz-11 font-bold flex-shrink-0"
+              style={{ background: CREAM, color: BRAND, boxShadow: `inset 0 0 0 1.5px ${GOLD}` }}
+            >
+              ؟
+            </button>
           </div>
         </div>
 
         <div className="flex gap-1.5 p-1 rounded-2xl mt-4" style={{ background: `${INK}0d` }}>
-          {[
-            ["season", t("lbThisSeason")],
-            ["all", t("lbAll")],
-          ].map(([k, label]) => (
-            <button
-              key={k}
-              onClick={() => setPeriod(k)}
-              className="flex-1 py-2 rounded-xl tsz-13 font-bold"
-              style={period === k ? { background: BRAND, color: CREAM } : { background: "transparent", color: `${INK}99` }}
-            >
-              {label}
-            </button>
-          ))}
+          <button onClick={() => { setScope("friends"); setGlobalTapped(false); }} className="flex-1 py-2 rounded-xl tsz-13 font-bold" style={scope === "friends" ? { background: BRAND, color: CREAM } : { background: "transparent", color: `${INK}99` }}>
+            {t("lbFriends")}
+          </button>
+          <button
+            onClick={() => (LEADERBOARD_OPEN ? setScope("all") : setGlobalTapped(true))}
+            className="flex-1 py-2 rounded-xl tsz-13 font-bold flex items-center justify-center gap-1.5"
+            style={scope === "all" ? { background: BRAND, color: CREAM } : { background: "transparent", color: `${INK}99`, opacity: LEADERBOARD_OPEN ? 1 : 0.6 }}
+          >
+            {t("lbAll")}
+            {!LEADERBOARD_OPEN && (
+              <span className="tsz-10 font-bold rounded-full px-1.5 py-0.5" style={{ background: GOLD, color: CREAM }}>
+                {t("lbSoonTag")}
+              </span>
+            )}
+          </button>
+        </div>
+        <div className="tsz-11 text-center mt-1.5 font-semibold" style={{ color: globalTapped ? BRAND : `${INK}88` }}>
+          {globalTapped ? t("lbGlobalSoon") : scope === "friends" ? t("lbFriendsNote") : " "}
         </div>
 
-        {/* your stats: only once the player has counted games */}
-        {me && (
+        {/* your stats: only once the player has counted games (and isn't on the empty friends state) */}
+        {me && !noFriends && (
           <div className="grid grid-cols-4 gap-1 mt-3 rounded-2xl px-2 py-2" style={{ background: CREAM, boxShadow: `inset 0 0 0 1.5px ${GOLD}` }}>
             {[
               [t("lbStatRank"), L.num(me.rank)],
@@ -5996,13 +6055,28 @@ function LeaderboardScreen({ onBack }) {
           </div>
         )}
 
-        {state.status === "ok" && top.length === 0 && (
+        {noFriends && (
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-6 gap-2">
+            <div style={{ fontSize: 44 }}>🤝</div>
+            <div className="tsz-17 font-bold" style={{ color: BRAND }}>
+              {t("lbNoFriendsTitle")}
+            </div>
+            <p className="tsz-13" style={{ color: `${INK}99` }}>
+              {t("lbNoFriendsBody")}
+            </p>
+            <button onClick={onPlayOnline} className={`mt-2 px-6 py-3 tsz-14 flex items-center gap-2 ${btn}`} style={btnPrimary}>
+              <Wifi className="w-4 h-4" /> {t("lbPlayOnline")}
+            </button>
+          </div>
+        )}
+
+        {state.status === "ok" && !noFriends && top.length === 0 && (
           <div className="flex-1 flex items-center justify-center text-center px-6 tsz-14 font-semibold" style={{ color: `${INK}99` }}>
             {t("lbEmpty")}
           </div>
         )}
 
-        {state.status === "ok" && top.length > 0 && (
+        {state.status === "ok" && !noFriends && top.length > 0 && (
           <>
             {/* podium: 2nd, 1st, 3rd left to right in every language; a missing place is a faded spot */}
             <div dir="ltr" className="flex items-end justify-center gap-2 mt-4 flex-shrink-0">
@@ -6018,7 +6092,7 @@ function LeaderboardScreen({ onBack }) {
                       {row ? row.nickname : t("lbYourSpot")}
                     </div>
                     <div dir={L.dir} className="tsz-11 font-semibold mb-1" style={{ color: `${INK}99`, visibility: row ? "visible" : "hidden" }}>
-                      {row ? t("lbPts", { n: L.num(row.points) }) : "·"}
+                      {row ? L.points(row.points) : "·"}
                     </div>
                     <div
                       className="w-full flex items-start justify-center pt-2 rounded-t-xl"
@@ -6056,11 +6130,8 @@ function LeaderboardScreen({ onBack }) {
             )}
           </>
         )}
-
-        <div className="tsz-11 text-center mt-3 font-semibold flex-shrink-0" style={{ color: `${INK}88` }}>
-          {t("lbRule")}
-        </div>
       </div>
+      {howOpen && <ScoringSheet onClose={() => setHowOpen(false)} />}
     </div>
   );
 }
@@ -6308,7 +6379,7 @@ function HillaApp() {
   }
 
   if (mode === "rank") {
-    return <LeaderboardScreen onBack={() => setMode("home")} />;
+    return <LeaderboardScreen onBack={() => setMode("home")} onPlayOnline={() => setMode("online")} />;
   }
 
   if (mode === "online") {
