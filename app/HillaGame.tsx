@@ -935,7 +935,8 @@ const I18N = {
     sdErr_length: "2 to 16 characters.", sdErr_chars: "Letters, numbers, spaces, _ and - only.", sdErr_blocked: "Pick a different name.", sdErr_taken: "That name is taken.", sdErr_too_fast: "Wait a moment before changing it again.",
     lbTitle: "Leaderboard", lbThisSeason: "This season", lbAll: "All time", lbSeason: "Season {y}", lbDaysLeft: "{n} days left", lbAllTime: "All seasons", lbRule: "3 points for a win, +1 for each player beyond two, 1 point for finishing", lbEmpty: "No results yet. Play online with friends to get on the board!", lbError: "Couldn't load the leaderboard.", lbRetry: "Try again", lbPts: "{n} pts", lbGamesWins: "{g} games · {w} wins", lbToNext: "{p} points to reach #{r}", lbLoading: "Loading…", winPoints: "+{n} leaderboard points",
     chipPoints: "{p} · Rank {r}", chipPlayOnline: "Play online to start earning points", lbLeader: "{name} leads", lbLeaderYou: "You're in the lead 👑", resumeGame: "Continue your game · Room {code}", lbYourSpot: "Your spot?", lbStatRank: "Rank", lbStatPoints: "Points", lbStatGames: "Games", lbStatWins: "Wins",
-    ptsWord: "pts", lbFriends: "Friends", lbSoonTag: "Soon", lbFriendsNote: "Your friends are everyone you've played online with", lbGlobalSoon: "The global board is coming soon. For now, compete with your friends.", lbHowTitle: "How are points counted?", lbHowWin: "Winning", lbHowFinish: "Finishing the game", lbHowExtra: "Each player beyond two (winner)", lbHowNote: "Online games with two or more real players count. Your friends are everyone you've played with, and a season is one full Hijri year.", lbOk: "OK", lbNoFriendsTitle: "No friends yet", lbNoFriendsBody: "Play online with friends: everyone you play with shows up here and you compete for points.", lbPlayOnline: "Play online",
+    ptsWord: "pts", lbFriends: "Friends", lbSoonTag: "Soon", lbFriendsNote: "Your friends are everyone you've played online with", lbGlobalSoon: "The global board is coming soon. For now, compete with your friends.", lbHowTitle: "How are points counted?", lbHowWin: "Winning", lbHowFinish: "Finishing the game", lbHowExtra: "Each player beyond two (winner)", lbHowNote: "Online games with two or more real players count. Games with bots or on the same device don't. Your friends are everyone you've played with, and a season is one full Hijri year.", lbOk: "OK", lbNoFriendsTitle: "No friends yet", lbNoFriendsBody: "Play online with friends: everyone you play with shows up here and you compete for points.", lbPlayOnline: "Play online",
+    lbSeasonLine: "Season {y} · {n} days left", lbInvite: "Invite friends", lbColPlayer: "Player", lbColWinsGames: "W / G", lbColPoints: "Pts", noRankLocal: "🏆 Same-device games and games against bots don't count for the leaderboard. Points are for online games with real players.", noRankWin: "Same-device games don't count for the leaderboard", noRankBots: "Didn't count: it was only with bots", noRankShort: "Didn't count: the game was too short", noRankDaily: "Didn't count: you've reached today's game limit", noRankLobby: "You need a second real player for points to count",
     sdTagline: "Every region has its outfit", sdOnline: "Online", sdOnlineSub: "With friends", sdLocal: "Same device", sdLocalSub: "Or vs bots", sdRank: "Leaderboard", sdRankSub: "Coming soon", sdRankSoon: "The leaderboard is coming soon", sdGuest: "Guest", sdSaveShort: "Sign in to save your points", sdPickName: "What should we call you?", sdChangeName: "Change your name", sdNamePh: "Your leaderboard name", sdNameRule: "2 to 16 characters · shown on the leaderboard", sdSave: "Save", sdEdit: "Edit", sdHello: "Hi {name}", sdGuestTitle: "You're playing as a guest", sdGuestBody: "Save your account so your name and points stay if you change phones", sdGoogle: "Continue with Google", sdEmail: "Continue with email", sdAuthSoon: "Sign-in arrives with the leaderboard", sdLang: "Language",
     madeBy: "Designed by Saudi hands 🇸🇦", credit: "A Princess Nourah University student, for Core Studio",
     errCreate: "Couldn't create the room, try again.", addBot: "🤖 Add a bot", removeBot: "Remove bot",
@@ -1006,7 +1007,8 @@ const I18N = {
     sdErr_length: "De 2 a 16 caracteres.", sdErr_chars: "Solo letras, números, espacios, _ y -.", sdErr_blocked: "Elige otro nombre.", sdErr_taken: "Ese nombre ya está en uso.", sdErr_too_fast: "Espera un momento antes de cambiarlo otra vez.",
     lbTitle: "Clasificación", lbThisSeason: "Esta temporada", lbAll: "Histórico", lbSeason: "Temporada {y}", lbDaysLeft: "Quedan {n} días", lbAllTime: "Todas las temporadas", lbRule: "3 puntos por ganar, +1 por cada jugador más allá de dos, 1 punto por terminar", lbEmpty: "Aún no hay resultados. ¡Juega en línea con amigos para entrar!", lbError: "No se pudo cargar la clasificación.", lbRetry: "Reintentar", lbPts: "{n} pts", lbGamesWins: "{g} partidas · {w} victorias", lbToNext: "Te faltan {p} puntos para el puesto {r}", lbLoading: "Cargando…", winPoints: "+{n} puntos en la clasificación",
     chipPoints: "{p} · Puesto {r}", chipPlayOnline: "Juega en línea para sumar puntos", lbLeader: "{name} lidera", lbLeaderYou: "Vas en cabeza 👑", resumeGame: "Continúa tu partida · Sala {code}", lbYourSpot: "¿Tu lugar?", lbStatRank: "Puesto", lbStatPoints: "Puntos", lbStatGames: "Partidas", lbStatWins: "Victorias",
-    ptsWord: "pts", lbFriends: "Amigos", lbSoonTag: "Pronto", lbFriendsNote: "Tus amigos son todos con quienes jugaste en línea", lbGlobalSoon: "La clasificación global llega pronto. Por ahora, compite con tus amigos.", lbHowTitle: "¿Cómo se cuentan los puntos?", lbHowWin: "Ganar", lbHowFinish: "Terminar la partida", lbHowExtra: "Cada jugador más allá de dos (ganador)", lbHowNote: "Cuentan las partidas en línea con dos o más jugadores reales. Tus amigos son todos con quienes jugaste, y una temporada es un año hijri completo.", lbOk: "Vale", lbNoFriendsTitle: "Aún no tienes amigos", lbNoFriendsBody: "Juega en línea con tus amigos: todos con quienes juegues aparecen aquí y compiten por puntos.", lbPlayOnline: "Jugar en línea",
+    ptsWord: "pts", lbFriends: "Amigos", lbSoonTag: "Pronto", lbFriendsNote: "Tus amigos son todos con quienes jugaste en línea", lbGlobalSoon: "La clasificación global llega pronto. Por ahora, compite con tus amigos.", lbHowTitle: "¿Cómo se cuentan los puntos?", lbHowWin: "Ganar", lbHowFinish: "Terminar la partida", lbHowExtra: "Cada jugador más allá de dos (ganador)", lbHowNote: "Cuentan las partidas en línea con dos o más jugadores reales. Las partidas con bots o en el mismo dispositivo no cuentan. Tus amigos son todos con quienes jugaste, y una temporada es un año hijri completo.", lbOk: "Vale", lbNoFriendsTitle: "Aún no tienes amigos", lbNoFriendsBody: "Juega en línea con tus amigos: todos con quienes juegues aparecen aquí y compiten por puntos.", lbPlayOnline: "Jugar en línea",
+    lbSeasonLine: "Temporada {y} · quedan {n} días", lbInvite: "Invita a tus amigos", lbColPlayer: "Jugador", lbColWinsGames: "V / P", lbColPoints: "Pts", noRankLocal: "🏆 Las partidas en el mismo dispositivo y contra bots no cuentan para la clasificación. Los puntos son para partidas en línea con jugadores reales.", noRankWin: "Las partidas en el mismo dispositivo no cuentan para la clasificación", noRankBots: "No contó: solo había bots", noRankShort: "No contó: la partida fue muy corta", noRankDaily: "No contó: llegaste al límite diario de partidas", noRankLobby: "Necesitas un segundo jugador real para que cuenten los puntos",
     sdTagline: "Cada región tiene su traje", sdOnline: "En línea", sdOnlineSub: "Con amigos", sdLocal: "Mismo dispositivo", sdLocalSub: "O contra bots", sdRank: "Clasificación", sdRankSub: "Muy pronto", sdRankSoon: "La clasificación llega pronto", sdGuest: "Invitado", sdSaveShort: "Inicia sesión para guardar tus puntos", sdPickName: "¿Cómo te llamamos?", sdChangeName: "Cambia tu nombre", sdNamePh: "Tu nombre en la clasificación", sdNameRule: "De 2 a 16 caracteres · se muestra en la clasificación", sdSave: "Guardar", sdEdit: "Editar", sdHello: "Hola {name}", sdGuestTitle: "Juegas como invitado", sdGuestBody: "Guarda tu cuenta para no perder tu nombre y tus puntos si cambias de móvil", sdGoogle: "Continuar con Google", sdEmail: "Continuar con correo", sdAuthSoon: "El inicio de sesión llega con la clasificación", sdLang: "Idioma",
     madeBy: "Diseñado por manos saudíes 🇸🇦", credit: "Estudiante de la Universidad Princesa Nourah, para Core Studio",
     errCreate: "No se pudo crear la sala, inténtalo de nuevo.", addBot: "🤖 Añadir un bot", removeBot: "Quitar bot",
@@ -1074,7 +1076,8 @@ Object.assign(I18N.ar, {
   sdErr_length: "من ٢ إلى ١٦ حرف.", sdErr_chars: "حروف وأرقام ومسافات و _ و - بس.", sdErr_blocked: "اختر اسم ثاني.", sdErr_taken: "هذا الاسم مأخوذ.", sdErr_too_fast: "انتظر شوي قبل ما تغيّره مرة ثانية.",
   lbTitle: "الترتيب", lbThisSeason: "هذا الموسم", lbAll: "الكل", lbSeason: "موسم {y}", lbDaysLeft: "باقي {n} يوم", lbAllTime: "كل المواسم", lbRule: "٣ نقاط للفوز و+١ عن كل لاعب فوق الاثنين، ونقطة لإكمال اللعبة", lbEmpty: "ما فيه نتائج للحين. العب أونلاين مع أصحابك وكن أول واحد!", lbError: "ما قدرنا نجيب الترتيب.", lbRetry: "حاول مرة ثانية", lbPts: "{n} نقطة", lbGamesWins: "{g} لعبة · {w} فوز", lbToNext: "باقي لك {p} نقطة توصل للمركز {r}", lbLoading: "نجيب الترتيب…", winPoints: "+{n} نقطة في الترتيب",
   chipPoints: "{p} · المركز {r}", chipPlayOnline: "العب أونلاين وابدأ تجمع نقاط", lbLeader: "{name} في الصدارة", lbLeaderYou: "أنت المتصدر 👑", resumeGame: "كمّل لعبتك · غرفة {code}", lbYourSpot: "مكانك هنا؟", lbStatRank: "مركزك", lbStatPoints: "نقاطك", lbStatGames: "ألعابك", lbStatWins: "فوزك",
-  ptsWord: "نقطة", lbFriends: "ربعك", lbSoonTag: "قريبًا", lbFriendsNote: "ربعك هم اللي لعبت معهم أونلاين", lbGlobalSoon: "الترتيب العام قريب. للحين تنافس ربعك.", lbHowTitle: "كيف تنحسب النقاط؟", lbHowWin: "الفوز", lbHowFinish: "إكمال المباراة", lbHowExtra: "كل لاعب فوق الاثنين (للفائز)", lbHowNote: "تنحسب مباريات الأونلاين اللي فيها لاعبين حقيقيين اثنين أو أكثر. ربعك هم كل اللي لعبت معهم، والموسم سنة هجرية كاملة.", lbOk: "تمام", lbNoFriendsTitle: "ما عندك ربع للحين", lbNoFriendsBody: "العب أونلاين مع ربعك، وكل واحد لعبت معه يطلع هنا وتتنافسون على النقاط.", lbPlayOnline: "العب أونلاين",
+  ptsWord: "نقطة", lbFriends: "ربعك", lbSoonTag: "قريبًا", lbFriendsNote: "ربعك هم اللي لعبت معهم أونلاين", lbGlobalSoon: "الترتيب العام قريب. للحين تنافس ربعك.", lbHowTitle: "كيف تنحسب النقاط؟", lbHowWin: "الفوز", lbHowFinish: "إكمال المباراة", lbHowExtra: "كل لاعب فوق الاثنين (للفائز)", lbHowNote: "تنحسب مباريات الأونلاين اللي فيها لاعبين حقيقيين اثنين أو أكثر. المباريات مع البوتات أو على نفس الجهاز ما تنحسب. ربعك هم كل اللي لعبت معهم، والموسم سنة هجرية كاملة.", lbOk: "تمام", lbNoFriendsTitle: "ما عندك ربع للحين", lbNoFriendsBody: "العب أونلاين مع ربعك، وكل واحد لعبت معه يطلع هنا وتتنافسون على النقاط.", lbPlayOnline: "العب أونلاين",
+  lbSeasonLine: "موسم {y} · باقي {n} يوم", lbInvite: "ادعُ ربعك", lbColPlayer: "اللاعب", lbColWinsGames: "فوز / لعب", lbColPoints: "نقاط", noRankLocal: "🏆 مباريات نفس الجهاز ومع البوتات ما تنحسب في الترتيب. النقاط بس للأونلاين مع لاعبين حقيقيين.", noRankWin: "مباريات نفس الجهاز ما تنحسب في الترتيب", noRankBots: "ما انحسبت: كانت مع بوتات بس", noRankShort: "ما انحسبت: المباراة كانت قصيرة", noRankDaily: "ما انحسبت: وصلت حد المباريات اليومي", noRankLobby: "تحتاج لاعب حقيقي ثاني عشان تنحسب النقاط",
   sdTagline: "كل منطقة لها حُلّة", sdOnline: "أونلاين", sdOnlineSub: "مع أصحابك", sdLocal: "نفس الجهاز", sdLocalSub: "أو ضد البوتات", sdRank: "الترتيب", sdRankSub: "قريبًا", sdRankSoon: "الترتيب جاي قريب", sdGuest: "ضيف", sdSaveShort: "سجّل واحفظ نقاطك", sdPickName: "وش نسمّيك؟", sdChangeName: "غيّر اسمك", sdNamePh: "اسمك في الترتيب", sdNameRule: "من ٢ إلى ١٦ حرف · يطلع للناس في الترتيب", sdSave: "احفظ", sdEdit: "غيّر", sdHello: "أهلًا {name}", sdGuestTitle: "حسابك ضيف", sdGuestBody: "احفظه عشان ما يضيع اسمك ونقاطك لو غيّرت جوالك", sdGoogle: "كمّل بقوقل", sdEmail: "كمّل بالإيميل", sdAuthSoon: "تسجيل الدخول يجي مع الترتيب", sdLang: "اللغة",
   madeBy: "صُممت بأيدي سعودية 🇸🇦", credit: "طالبة جامعة الأميرة نورة، لمقرر Core Studio",
   errCreate: "تعذر إنشاء الغرفة، حاول مجددًا.", addBot: "🤖 أضف بوت", removeBot: "أزل البوت",
@@ -2337,6 +2340,11 @@ function WinStats({ game, myId, isOnline }) {
           </div>
         ))}
         {isOnline && <WinPoints gameId={game.analyticsId} />}
+        {!isOnline && (
+          <div className="tsz-11 font-semibold text-center mt-2" style={{ color: `${INK}88` }}>
+            {t("noRankWin")}
+          </div>
+        )}
         <button onClick={share} className={`w-full mt-3 py-2.5 tsz-13 flex items-center justify-center gap-1.5 ${btn}`} style={btnPrimary}>
           {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
           {copied ? t("copied") : t("share")}
@@ -4709,6 +4717,9 @@ function LocalSetup({ onStart, onBack }) {
           <p className="tsz-11" style={{ color: `${INK}77` }}>
             {t("botNote")}
           </p>
+          <p className="tsz-11" style={{ color: `${INK}77` }}>
+            {t("noRankLocal")}
+          </p>
         </div>
         <div>
           <label className="tsz-13 mb-2 flex items-center justify-between font-bold" style={{ color: INK }}>
@@ -4881,6 +4892,11 @@ function OnlineLobby({ room, myId, onStart, onAddBot, onRemoveBot, onBack }) {
           >
             {t("addBot")}
           </button>
+        )}
+        {isHost && room.lobby.filter((p) => !p.isBot).length < 2 && (
+          <div className="tsz-11 font-semibold text-center mt-2" style={{ color: `${INK}88` }}>
+            {t("noRankLobby")}
+          </div>
         )}
         {isHost ? (
           <button onClick={onStart} disabled={room.lobby.length < 2} className={`w-full py-3.5 tsz-15 flex items-center justify-center gap-2 mt-2 ${btn}`} style={btnPrimary}>
@@ -5829,9 +5845,13 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
 // already up (never delays it); the result is written by the server in the same save that set the
 // winner, so a couple of short retries cover the moment before it lands. Nothing is shown when the
 // game didn't count, there's no account, or anything fails.
+// Reasons a game didn't count that are worth telling the player (integrity is never shown).
+const NO_RANK_REASON = { too_few_humans: "noRankBots", too_short: "noRankShort", too_few_turns: "noRankShort", daily_cap: "noRankDaily", same_group_cap: "noRankDaily" };
+
 function WinPoints({ gameId }) {
   const { t, L } = useI18n();
   const [points, setPoints] = useState(null);
+  const [notCounted, setNotCounted] = useState(null);
   useEffect(() => {
     if (!AUTH_ENABLED || !gameId) return;
     let alive = true;
@@ -5844,6 +5864,7 @@ function WinPoints({ gameId }) {
           if (res.status === 200) {
             const r = await res.json();
             if (alive && r?.counted) setPoints(r.points);
+            else if (alive && NO_RANK_REASON[r?.reason]) setNotCounted(NO_RANK_REASON[r.reason]);
             return;
           }
         } catch {}
@@ -5854,6 +5875,13 @@ function WinPoints({ gameId }) {
       alive = false;
     };
   }, [gameId]);
+  if (notCounted) {
+    return (
+      <div className="tsz-11 font-semibold text-center mt-2" style={{ color: `${INK}88` }}>
+        {t(notCounted)}
+      </div>
+    );
+  }
   if (points === null) return null;
   return (
     <div className="mt-3 text-center tsz-14 font-bold rounded-xl py-2 hilla-pop" style={{ background: `${GOLD}26`, color: BRAND }}>
@@ -5866,11 +5894,21 @@ function WinPoints({ gameId }) {
    Opened from the «الترتيب» card on home. Reads GET /api/leaderboard (season or all time): top 3 on
    a block podium, the rest as a list, the viewer's own row highlighted or pinned at the bottom.
    Purely a reader: it never blocks or touches the game. */
+// Medal ring colours (gold, silver, bronze), shared by the podium and the ranked list.
+const MEDAL = ["#C9962E", "#A3A9B1", "#A8673A"];
 const PODIUM = [
   { place: 2, color: "#B9B9B9", h: 70 },
   { place: 1, color: GOLD, h: 96 },
   { place: 3, color: "#B4773F", h: 54 },
 ];
+
+function NameAvatar({ name, size = 28, ring }) {
+  return (
+    <span className="rounded-full flex items-center justify-center font-bold flex-shrink-0" style={{ width: size, height: size, fontSize: Math.round(size * 0.46), background: BRAND, color: CREAM, boxShadow: `0 0 0 2px ${CREAM}, 0 0 0 3.5px ${ring}` }}>
+      {[...(name || "؟")][0]}
+    </span>
+  );
+}
 
 function ScoringSheet({ onClose }) {
   const { t, L } = useI18n();
@@ -5942,8 +5980,9 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
   const noFriends = scope === "friends" && state.status === "ok" && !data?.friends;
   const isMe = (row) => !!me && row.rank === me.rank && row.nickname === me.nickname;
   const meListed = !!me && top.some(isMe);
-  // «باقي ٢٢٣ يوم · موسم ١٤٤٨»: a word on each side of «·» (after a number it reads as a zero in Arabic)
-  const sub = data?.season ? `${t("lbDaysLeft", { n: L.num(data.season.daysLeft) })} · ${t("lbSeason", { y: L.num(data.season.hijriYear) })}` : "";
+  // one string, so the bidi algorithm can't flip the two halves
+  const sub = data?.season ? t("lbSeasonLine", { y: L.num(data.season.hijriYear), n: L.num(data.season.daysLeft) }) : "";
+  const meOnPodium = top.slice(0, 3).some(isMe);
 
   const Row = ({ row, pinned }) => (
     <div
@@ -5983,13 +6022,15 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
           <div className="display-font font-bold tsz-28 leading-none" style={{ color: BRAND }}>
             🏆 {t("lbTitle")}
           </div>
-          <div className="tsz-12 mt-1.5 font-semibold flex items-center justify-center gap-1.5" style={{ color: `${INK}88`, minHeight: 22 }}>
-            <span>{sub}</span>
+          <div className="mt-1.5 flex items-center justify-center gap-2" style={{ minHeight: 24 }}>
+            <span className="tsz-13 font-semibold" style={{ color: `${INK}88` }}>
+              {sub}
+            </span>
             <button
               onClick={() => setHowOpen(true)}
               aria-label={t("lbHowTitle")}
-              className="w-5 h-5 rounded-full flex items-center justify-center tsz-11 font-bold flex-shrink-0"
-              style={{ background: CREAM, color: BRAND, boxShadow: `inset 0 0 0 1.5px ${GOLD}` }}
+              className="w-6 h-6 rounded-full flex items-center justify-center tsz-12 font-bold flex-shrink-0"
+              style={{ background: `${INK}12`, color: BRAND }}
             >
               ؟
             </button>
@@ -6085,11 +6126,11 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
                 const initial = row ? [...row.nickname][0] : "؟";
                 return (
                   <div key={place} className="flex-1 flex flex-col items-center min-w-0" style={{ maxWidth: 110, opacity: row ? 1 : 0.55 }}>
-                    <span className="w-9 h-9 rounded-full flex items-center justify-center tsz-15 font-bold mb-1" style={{ background: row ? BRAND : `${INK}22`, color: CREAM, boxShadow: `0 0 0 2px ${CREAM}, 0 0 0 3.5px ${color}` }}>
+                    <span className="w-9 h-9 rounded-full flex items-center justify-center tsz-15 font-bold mb-1" style={{ background: row ? BRAND : `${INK}22`, color: CREAM, boxShadow: `0 0 0 2px ${CREAM}, 0 0 0 3.5px ${MEDAL[place - 1]}` }}>
                       {initial}
                     </span>
                     <div dir={L.dir} className="tsz-13 font-bold truncate w-full text-center" style={{ color: row && isMe(row) ? BRAND : INK }}>
-                      {row ? row.nickname : t("lbYourSpot")}
+                      {row ? row.nickname : meOnPodium ? t("lbInvite") : t("lbYourSpot")}
                     </div>
                     <div dir={L.dir} className="tsz-11 font-semibold mb-1" style={{ color: `${INK}99`, visibility: row ? "visible" : "hidden" }}>
                       {row ? L.points(row.points) : "·"}
@@ -6111,11 +6152,38 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
               })}
             </div>
 
-            {/* the rest of the list scrolls on its own; the page itself never does */}
-            <div className="space-y-1.5 mt-3 flex-1 min-h-0 overflow-y-auto" style={{ overscrollBehavior: "contain" }}>
-              {top.slice(3).map((row) => (
-                <Row key={`${row.rank}-${row.nickname}`} row={row} />
-              ))}
+            {/* everyone, top 3 included, with wins / games and points; scrolls inside, the page never does */}
+            <div className="mt-4 flex-1 min-h-0 overflow-y-auto rounded-2xl" style={{ overscrollBehavior: "contain", background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}55` }}>
+              <div className="flex items-center px-3 py-2 tsz-10 font-bold sticky top-0" style={{ color: `${INK}77`, borderBottom: `1px solid ${INK}10`, background: CREAM }}>
+                <span style={{ width: 28 }}>#</span>
+                <span className="flex-1">{t("lbColPlayer")}</span>
+                <span style={{ width: 64, textAlign: "center" }}>{t("lbColWinsGames")}</span>
+                <span className="hend" style={{ width: 44 }}>
+                  {t("lbColPoints")}
+                </span>
+              </div>
+              {top.map((row) => {
+                const mine = isMe(row);
+                const ring = row.rank <= 3 ? MEDAL[row.rank - 1] : `${GOLD}88`;
+                return (
+                  <div key={`${row.rank}-${row.nickname}`} className="flex items-center px-3 py-2.5" style={{ borderBottom: `1px solid ${INK}0c`, background: mine ? `${GOLD}33` : "transparent" }}>
+                    <span className="tsz-13 font-bold" style={{ width: 28, color: row.rank <= 3 ? MEDAL[row.rank - 1] : `${INK}88` }}>
+                      {L.num(row.rank)}
+                    </span>
+                    <NameAvatar name={row.nickname} size={28} ring={ring} />
+                    <span className="flex-1 ms-2 tsz-13 font-semibold truncate" style={{ color: mine ? BRAND : INK }}>
+                      {row.nickname}
+                      {mine ? ` · ${t("you")}` : ""}
+                    </span>
+                    <span dir="ltr" className="tsz-12" style={{ width: 64, textAlign: "center", color: `${INK}88` }}>
+                      {L.isAr ? `${L.num(row.games)} / ${L.num(row.wins)}` : `${L.num(row.wins)} / ${L.num(row.games)}`}
+                    </span>
+                    <span className="tsz-14 font-bold hend" style={{ width: 44, color: BRAND }}>
+                      {L.num(row.points)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
             {me && !meListed && (

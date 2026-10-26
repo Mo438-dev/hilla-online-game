@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   if (!user) return new NextResponse(null, { status: 204, headers: noStore });
   const { data, error } = await getSupabaseAdmin()
     .from('game_results')
-    .select('points, counted, place')
+    .select('points, counted, place, reason')
     .eq('game_id', gameId)
     .eq('user_id', user.id)
     .maybeSingle();
