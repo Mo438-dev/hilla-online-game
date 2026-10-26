@@ -511,8 +511,19 @@ function endRound(game) {
 // same player, so a player can freely combine item plays with one action card before ending.
 // turnSerial increments exactly once per turn; the online bot executor uses it to guarantee at
 // most one bot move per turn even if the same room state is polled repeatedly.
+// The turn clock pauses while an action card waits for «لا ما تقدر» (or the player picks from
+// فتّش الصندوق), so that wait never eats into the player's own turn time. pausedElapsedMs is part of
+// the synced game, so every client resumes from the same point.
+function pauseTurnClock(g) {
+  return { ...g, pausedElapsedMs: Date.now() - (typeof g.turnStartedAt === "number" ? g.turnStartedAt : Date.now()) };
+}
+function resumeTurnClock(g) {
+  if (typeof g.pausedElapsedMs !== "number") return g;
+  return { ...g, turnStartedAt: Date.now() - g.pausedElapsedMs, pausedElapsedMs: null };
+}
+
 function endTurn(game) {
-  let g = { ...game, actionUsedThisTurn: false, turnSerial: (game.turnSerial ?? 0) + 1, turnStartedAt: Date.now() };
+  let g = { ...game, actionUsedThisTurn: false, turnSerial: (game.turnSerial ?? 0) + 1, turnStartedAt: Date.now(), pausedElapsedMs: null };
   if (g.currentPlayerIndex === g.players.length - 1) {
     g = endRound(g);
     g.currentPlayerIndex = 0;
@@ -636,7 +647,7 @@ function rPlayDig(game, playerId, cardId) {
   let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, [cardId]);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], actionUsedThisTurn: true };
   const { game: g2, drawn } = drawFromPile(g1, 3);
-  let g3 = { ...g2, digOptions: { playerId, cards: drawn } };
+  let g3 = pauseTurnClock({ ...g2, digOptions: { playerId, cards: drawn } });
   g3 = pushLog(g3, `${player.name} فتّش الصندوق.`);
   return g3;
 }
@@ -646,7 +657,7 @@ function rFinishDig(game, keepId) {
   const kept = cards.find((c) => c.id === keepId);
   const rest = cards.filter((c) => c.id !== keepId);
   let g = addToHand(game, playerId, [kept]);
-  g = { ...g, drawPile: [...rest, ...g.drawPile], digOptions: null };
+  g = resumeTurnClock({ ...g, drawPile: [...rest, ...g.drawPile], digOptions: null });
   const player = g.players.find((p) => p.id === playerId);
   g = pushLog(g, `${player.name} أضاف "${kept.name}" من فتّش الصندوق.`);
   g = checkWin(g, playerId);
@@ -657,7 +668,7 @@ function rDeclareAction(game, playerId, cardId, actionType, targetId) {
   const player = game.players.find((p) => p.id === playerId);
   let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, [cardId]);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], actionUsedThisTurn: true };
-  g1 = { ...g1, pendingAction: { id: uid(), actionType, actorId: playerId, targetId, actorName: player.name, startedAt: Date.now() } };
+  g1 = pauseTurnClock({ ...g1, pendingAction: { id: uid(), actionType, actorId: playerId, targetId, actorName: player.name, startedAt: Date.now() } });
   return g1;
 }
 
@@ -670,7 +681,7 @@ function rDeclareGiveTake(game, playerId, cardId, targetId, giveIds) {
   if (giveIds.length !== Math.min(2, rest.length)) return game;
   let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, [cardId]);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], actionUsedThisTurn: true };
-  g1 = { ...g1, pendingAction: { id: uid(), actionType: "giveTake", actorId: playerId, targetId, actorName: player.name, giveIds, startedAt: Date.now() } };
+  g1 = pauseTurnClock({ ...g1, pendingAction: { id: uid(), actionType: "giveTake", actorId: playerId, targetId, actorName: player.name, giveIds, startedAt: Date.now() } });
   return g1;
 }
 
@@ -685,7 +696,7 @@ function rCancelWithBlock(game, blockerId) {
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed] };
   g1 = pushLog(g1, `${blocker.name} استخدم لا ما تقدر! تم إلغاء ${actionMeta(blockedActionType).name}.`);
   g1 = {
-    ...g1,
+    ...resumeTurnClock(g1),
     pendingAction: null,
     // Display-only marker for BlockFlashToast; never cleared, never read by game logic.
     blockEvent: { id: uid(), blockerName: blocker.name, actorName, actionType: blockedActionType },
@@ -753,7 +764,7 @@ function countTargeted(game, targetId) {
 function rResolvePendingAction(game) {
   const pa = game.pendingAction;
   if (!pa) return game;
-  let g = { ...game, pendingAction: null };
+  let g = resumeTurnClock({ ...game, pendingAction: null });
   const target = g.players.find((p) => p.id === pa.targetId);
   if (pa.actionType === "drawTwo") {
     const { game: g2, drawn } = drawFromPile(g, 2);
