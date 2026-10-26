@@ -252,6 +252,17 @@ const BLOCK_WINDOW_MS = BLOCK_WINDOW_SEC * 1000;
 // (from the moment it appeared) so people can read what happened. Not applied when no human can
 // intervene at all (bots only) — that case already uses the short 2.5s window.
 const PASS_MIN_READ_MS = 4000;
+// Online: the host waits this long past the window before resolving, so a «لا ما تقدر» tapped in
+// the last second still lands. The countdown everyone sees still ends at the window.
+const BLOCK_GRACE_MS = 1000;
+
+// The server's clock as this phone sees it. Every room response carries serverNow; the online flow
+// keeps serverClockOffset up to date, so pending-action windows (stamped by the server) count down
+// the same on every phone. 0 offline.
+let serverClockOffset = 0;
+function serverNow() {
+  return Date.now() + serverClockOffset;
+}
 
 let _uid = 0;
 const uid = () => `c${Date.now().toString(36)}${(_uid++).toString(36)}`;
@@ -668,7 +679,7 @@ function rDeclareAction(game, playerId, cardId, actionType, targetId) {
   const player = game.players.find((p) => p.id === playerId);
   let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, [cardId]);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], actionUsedThisTurn: true };
-  g1 = pauseTurnClock({ ...g1, pendingAction: { id: uid(), actionType, actorId: playerId, targetId, actorName: player.name, startedAt: Date.now() } });
+  g1 = pauseTurnClock({ ...g1, pendingAction: { id: uid(), actionType, actorId: playerId, targetId, actorName: player.name, startedAt: serverNow() } });
   return g1;
 }
 
@@ -681,7 +692,7 @@ function rDeclareGiveTake(game, playerId, cardId, targetId, giveIds) {
   if (giveIds.length !== Math.min(2, rest.length)) return game;
   let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, [cardId]);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], actionUsedThisTurn: true };
-  g1 = pauseTurnClock({ ...g1, pendingAction: { id: uid(), actionType: "giveTake", actorId: playerId, targetId, actorName: player.name, giveIds, startedAt: Date.now() } });
+  g1 = pauseTurnClock({ ...g1, pendingAction: { id: uid(), actionType: "giveTake", actorId: playerId, targetId, actorName: player.name, giveIds, startedAt: serverNow() } });
   return g1;
 }
 
@@ -903,19 +914,19 @@ function botDecideTurn(game, botId) {
 
   if (steal2 && leader) {
     const { game: g1, removed } = removeFromHand(g, botId, [steal2.id]);
-    g = { ...g1, discardPile: [...g1.discardPile, ...removed], pendingAction: { id: uid(), actionType: "stealTwo", actorId: botId, targetId: leader.id, actorName: botStart.name, startedAt: Date.now() } };
+    g = { ...g1, discardPile: [...g1.discardPile, ...removed], pendingAction: { id: uid(), actionType: "stealTwo", actorId: botId, targetId: leader.id, actorName: botStart.name, startedAt: serverNow() } };
     return g;
   }
   if (draw2 && leader) {
     const { game: g1, removed } = removeFromHand(g, botId, [draw2.id]);
-    g = { ...g1, discardPile: [...g1.discardPile, ...removed], pendingAction: { id: uid(), actionType: "drawTwo", actorId: botId, targetId: leader.id, actorName: botStart.name, startedAt: Date.now() } };
+    g = { ...g1, discardPile: [...g1.discardPile, ...removed], pendingAction: { id: uid(), actionType: "drawTwo", actorId: botId, targetId: leader.id, actorName: botStart.name, startedAt: serverNow() } };
     return g;
   }
   if (give && leader && bot.hand.length > 0) {
     const { game: g1, removed } = removeFromHand(g, botId, [give.id]);
     const afterHand = g1.players.find((p) => p.id === botId).hand;
     const giveIds = pickGiveAwayIds(afterHand, Math.min(2, afterHand.length));
-    g = { ...g1, discardPile: [...g1.discardPile, ...removed], pendingAction: { id: uid(), actionType: "giveTake", actorId: botId, targetId: leader.id, actorName: botStart.name, giveIds, startedAt: Date.now() } };
+    g = { ...g1, discardPile: [...g1.discardPile, ...removed], pendingAction: { id: uid(), actionType: "giveTake", actorId: botId, targetId: leader.id, actorName: botStart.name, giveIds, startedAt: serverNow() } };
     return g;
   }
 
@@ -948,6 +959,7 @@ const I18N = {
     chipPoints: "{p} · Rank {r}", chipPlayOnline: "Play online to start earning points", lbLeader: "{name} leads", lbLeaderYou: "You're in the lead 👑", resumeGame: "Continue your game · Room {code}", lbYourSpot: "Your spot?", lbStatRank: "Rank", lbStatPoints: "Points", lbStatGames: "Games", lbStatWins: "Wins",
     ptsWord: "pts", lbFriends: "Friends", lbSoonTag: "Soon", lbFriendsNote: "Your friends are everyone you've played online with", lbGlobalSoon: "The global board is coming soon. For now, compete with your friends.", lbHowTitle: "How are points counted?", lbHowWin: "Winning", lbHowFinish: "Finishing the game", lbHowExtra: "Each player beyond two (winner)", lbHowNote: "Online games with two or more real players count. Games with bots or on the same device don't. Your friends are everyone you've played with, and a season is one full Hijri year.", lbOk: "OK", lbNoFriendsTitle: "No friends yet", lbNoFriendsBody: "Play online with friends: everyone you play with shows up here and you compete for points.", lbPlayOnline: "Play online",
     lbSeasonLine: "Season {y} · {n} days left", lbInvite: "Invite friends", lbColPlayer: "Player", lbColWinsGames: "W / G", lbColPoints: "Pts", noRankLocal: "🏆 Same-device games and games against bots don't count for the leaderboard. Points are for online games with real players.", noRankWin: "Same-device games don't count for the leaderboard", noRankBots: "Didn't count: it was only with bots", noRankShort: "Didn't count: the game was too short", noRankDaily: "Didn't count: you've reached today's game limit", noRankLobby: "You need a second real player for points to count",
+    blockTooLate: "Too late",
     sdTagline: "Every region has its outfit", sdOnline: "Online", sdOnlineSub: "With friends", sdLocal: "Same device", sdLocalSub: "Or vs bots", sdRank: "Leaderboard", sdRankSub: "Coming soon", sdRankSoon: "The leaderboard is coming soon", sdGuest: "Guest", sdSaveShort: "Sign in to save your points", sdPickName: "What should we call you?", sdChangeName: "Change your name", sdNamePh: "Your leaderboard name", sdNameRule: "2 to 16 characters · shown on the leaderboard", sdSave: "Save", sdEdit: "Edit", sdHello: "Hi {name}", sdGuestTitle: "You're playing as a guest", sdGuestBody: "Save your account so your name and points stay if you change phones", sdGoogle: "Continue with Google", sdEmail: "Continue with email", sdAuthSoon: "Sign-in arrives with the leaderboard", sdLang: "Language",
     madeBy: "Designed by Saudi hands 🇸🇦", credit: "A Princess Nourah University student, for Core Studio",
     errCreate: "Couldn't create the room, try again.", addBot: "🤖 Add a bot", removeBot: "Remove bot",
@@ -1020,6 +1032,7 @@ const I18N = {
     chipPoints: "{p} · Puesto {r}", chipPlayOnline: "Juega en línea para sumar puntos", lbLeader: "{name} lidera", lbLeaderYou: "Vas en cabeza 👑", resumeGame: "Continúa tu partida · Sala {code}", lbYourSpot: "¿Tu lugar?", lbStatRank: "Puesto", lbStatPoints: "Puntos", lbStatGames: "Partidas", lbStatWins: "Victorias",
     ptsWord: "pts", lbFriends: "Amigos", lbSoonTag: "Pronto", lbFriendsNote: "Tus amigos son todos con quienes jugaste en línea", lbGlobalSoon: "La clasificación global llega pronto. Por ahora, compite con tus amigos.", lbHowTitle: "¿Cómo se cuentan los puntos?", lbHowWin: "Ganar", lbHowFinish: "Terminar la partida", lbHowExtra: "Cada jugador más allá de dos (ganador)", lbHowNote: "Cuentan las partidas en línea con dos o más jugadores reales. Las partidas con bots o en el mismo dispositivo no cuentan. Tus amigos son todos con quienes jugaste, y una temporada es un año hijri completo.", lbOk: "Vale", lbNoFriendsTitle: "Aún no tienes amigos", lbNoFriendsBody: "Juega en línea con tus amigos: todos con quienes juegues aparecen aquí y compiten por puntos.", lbPlayOnline: "Jugar en línea",
     lbSeasonLine: "Temporada {y} · quedan {n} días", lbInvite: "Invita a tus amigos", lbColPlayer: "Jugador", lbColWinsGames: "V / P", lbColPoints: "Pts", noRankLocal: "🏆 Las partidas en el mismo dispositivo y contra bots no cuentan para la clasificación. Los puntos son para partidas en línea con jugadores reales.", noRankWin: "Las partidas en el mismo dispositivo no cuentan para la clasificación", noRankBots: "No contó: solo había bots", noRankShort: "No contó: la partida fue muy corta", noRankDaily: "No contó: llegaste al límite diario de partidas", noRankLobby: "Necesitas un segundo jugador real para que cuenten los puntos",
+    blockTooLate: "Demasiado tarde",
     sdTagline: "Cada región tiene su traje", sdOnline: "En línea", sdOnlineSub: "Con amigos", sdLocal: "Mismo dispositivo", sdLocalSub: "O contra bots", sdRank: "Clasificación", sdRankSub: "Muy pronto", sdRankSoon: "La clasificación llega pronto", sdGuest: "Invitado", sdSaveShort: "Inicia sesión para guardar tus puntos", sdPickName: "¿Cómo te llamamos?", sdChangeName: "Cambia tu nombre", sdNamePh: "Tu nombre en la clasificación", sdNameRule: "De 2 a 16 caracteres · se muestra en la clasificación", sdSave: "Guardar", sdEdit: "Editar", sdHello: "Hola {name}", sdGuestTitle: "Juegas como invitado", sdGuestBody: "Guarda tu cuenta para no perder tu nombre y tus puntos si cambias de móvil", sdGoogle: "Continuar con Google", sdEmail: "Continuar con correo", sdAuthSoon: "El inicio de sesión llega con la clasificación", sdLang: "Idioma",
     madeBy: "Diseñado por manos saudíes 🇸🇦", credit: "Estudiante de la Universidad Princesa Nourah, para Core Studio",
     errCreate: "No se pudo crear la sala, inténtalo de nuevo.", addBot: "🤖 Añadir un bot", removeBot: "Quitar bot",
@@ -1089,6 +1102,7 @@ Object.assign(I18N.ar, {
   chipPoints: "{p} · المركز {r}", chipPlayOnline: "العب أونلاين وابدأ تجمع نقاط", lbLeader: "{name} في الصدارة", lbLeaderYou: "أنت المتصدر 👑", resumeGame: "كمّل لعبتك · غرفة {code}", lbYourSpot: "مكانك هنا؟", lbStatRank: "مركزك", lbStatPoints: "نقاطك", lbStatGames: "ألعابك", lbStatWins: "فوزك",
   ptsWord: "نقطة", lbFriends: "ربعك", lbSoonTag: "قريبًا", lbFriendsNote: "ربعك هم اللي لعبت معهم أونلاين", lbGlobalSoon: "الترتيب العام قريب. للحين تنافس ربعك.", lbHowTitle: "كيف تنحسب النقاط؟", lbHowWin: "الفوز", lbHowFinish: "إكمال المباراة", lbHowExtra: "كل لاعب فوق الاثنين (للفائز)", lbHowNote: "تنحسب مباريات الأونلاين اللي فيها لاعبين حقيقيين اثنين أو أكثر. المباريات مع البوتات أو على نفس الجهاز ما تنحسب. ربعك هم كل اللي لعبت معهم، والموسم سنة هجرية كاملة.", lbOk: "تمام", lbNoFriendsTitle: "ما عندك ربع للحين", lbNoFriendsBody: "العب أونلاين مع ربعك، وكل واحد لعبت معه يطلع هنا وتتنافسون على النقاط.", lbPlayOnline: "العب أونلاين",
   lbSeasonLine: "موسم {y} · باقي {n} يوم", lbInvite: "نادِ ربعك", lbColPlayer: "اللاعب", lbColWinsGames: "فوز / لعب", lbColPoints: "نقاط", noRankLocal: "🏆 مباريات نفس الجهاز ومع البوتات ما تنحسب في الترتيب. النقاط بس للأونلاين مع لاعبين حقيقيين.", noRankWin: "مباريات نفس الجهاز ما تنحسب في الترتيب", noRankBots: "ما انحسبت: كانت مع بوتات بس", noRankShort: "ما انحسبت: المباراة كانت قصيرة", noRankDaily: "ما انحسبت: وصلت حد المباريات اليومي", noRankLobby: "تحتاج لاعب حقيقي ثاني عشان تنحسب النقاط",
+  blockTooLate: "فات الوقت",
   sdTagline: "كل منطقة لها حُلّة", sdOnline: "أونلاين", sdOnlineSub: "مع أصحابك", sdLocal: "نفس الجهاز", sdLocalSub: "أو ضد البوتات", sdRank: "الترتيب", sdRankSub: "قريبًا", sdRankSoon: "الترتيب جاي قريب", sdGuest: "ضيف", sdSaveShort: "سجّل واحفظ نقاطك", sdPickName: "وش نسمّيك؟", sdChangeName: "غيّر اسمك", sdNamePh: "اسمك في الترتيب", sdNameRule: "من ٢ إلى ١٦ حرف · يطلع للناس في الترتيب", sdSave: "احفظ", sdEdit: "غيّر", sdHello: "أهلًا {name}", sdGuestTitle: "حسابك ضيف", sdGuestBody: "احفظه عشان ما يضيع اسمك ونقاطك لو غيّرت جوالك", sdGoogle: "كمّل بقوقل", sdEmail: "كمّل بالإيميل", sdAuthSoon: "تسجيل الدخول يجي مع الترتيب", sdLang: "اللغة",
   madeBy: "صُممت بأيدي سعودية 🇸🇦", credit: "طالبة جامعة الأميرة نورة، لمقرر Core Studio",
   errCreate: "تعذر إنشاء الغرفة، حاول مجددًا.", addBot: "🤖 أضف بوت", removeBot: "أزل البوت",
@@ -2372,8 +2386,8 @@ function ReactionStrip({ pa, players, windowMs }) {
   const { t, tb, L } = useI18n();
   if (!pa) return null;
   const target = players.find((p) => p.id === pa.targetId);
-  const startedAt = typeof pa.startedAt === "number" ? pa.startedAt : Date.now();
-  const elapsed = Math.max(0, Math.min(windowMs, Date.now() - startedAt));
+  const startedAt = typeof pa.startedAt === "number" ? pa.startedAt : serverNow();
+  const elapsed = Math.max(0, Math.min(windowMs, serverNow() - startedAt));
   return (
     <div className="fixed left-0 right-0 hz-60 pointer-events-none px-3" dir={L.dir} style={{ top: "calc(env(safe-area-inset-top, 0px) + 0.5rem)" }}>
       <div className="mx-auto max-w-md rounded-2xl overflow-hidden shadow-lg flex items-center gap-2 hpad-e3 hilla-pop" style={{ background: `${INK}ee` }}>
@@ -2500,13 +2514,14 @@ function loadTurnSound() {
   }
 }
 
-function CountdownRing({ pendingActionId, startedAt, size = 56, windowSec = BLOCK_WINDOW_SEC, windowMs: windowMsProp, className = "mx-auto mb-2" }) {
-  const safeStart = typeof startedAt === "number" ? startedAt : Date.now();
+function CountdownRing({ pendingActionId, startedAt, size = 56, windowSec = BLOCK_WINDOW_SEC, windowMs: windowMsProp, className = "mx-auto mb-2", serverClock = false }) {
+  const clock = serverClock ? serverNow : Date.now;
+  const safeStart = typeof startedAt === "number" ? startedAt : clock();
   const windowMs = typeof windowMsProp === "number" ? windowMsProp : windowSec * 1000;
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(() => clock());
   useEffect(() => {
-    setNow(Date.now());
-    const iv = setInterval(() => setNow(Date.now()), 200);
+    setNow(clock());
+    const iv = setInterval(() => setNow(clock()), 200);
     return () => clearInterval(iv);
   }, [pendingActionId]);
   const elapsed = now - safeStart;
@@ -3029,7 +3044,7 @@ function PostGameSurvey({ game, myId, isOnline }) {
   );
 }
 
-function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onClaimTimeout, onDeclineBlock, dispatch, onExit, onGoHome }) {
+function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onClaimTimeout, onDeclineBlock, onBlock, dispatch, onExit, onGoHome }) {
   const { t, tb, L } = useI18n();
   const [selected, setSelected] = useState([]);
   const [needTarget, setNeedTarget] = useState(null);
@@ -3444,8 +3459,8 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     const meTargeted = isOnline ? target?.id === myId : target && !target.isBot;
     if (!meTargeted) return;
     haptic();
-    const startedAt = typeof pa.startedAt === "number" ? pa.startedAt : Date.now();
-    const warnIn = Math.max(0, pendingWindowMs(game) - 3000 - (Date.now() - startedAt));
+    const startedAt = typeof pa.startedAt === "number" ? pa.startedAt : serverNow();
+    const warnIn = Math.max(0, pendingWindowMs(game) - 3000 - (serverNow() - startedAt));
     const tm = setTimeout(haptic, warnIn);
     return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3601,12 +3616,13 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
 
     const isResolver = !isOnline || (actor?.isBot ? !!isHost : pa.actorId === myId);
     if (!isResolver) return;
-    const startedAt = typeof pa.startedAt === "number" ? pa.startedAt : Date.now();
-    const elapsed = Date.now() - startedAt;
+    const startedAt = typeof pa.startedAt === "number" ? pa.startedAt : serverNow();
+    const elapsed = serverNow() - startedAt;
     // #58: once every human who could block has passed, resolve early (after a short read).
+    // Otherwise wait out the window, plus a short grace online so a last-second «لا ما تقدر» lands.
     const remaining = allHumanBlockersDeclined(game)
       ? Math.max(250, PASS_MIN_READ_MS - elapsed)
-      : Math.max(0, pendingWindowMs(game) - elapsed);
+      : Math.max(0, pendingWindowMs(game) + (isOnline ? BLOCK_GRACE_MS : 0) - elapsed);
     const tm = setTimeout(() => settlePendingAction(() => rResolvePendingAction(game)), remaining);
     return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3806,6 +3822,22 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
       return;
     }
     const pa = game.pendingAction;
+    if (isOnline && onBlock && pa) {
+      settledRef.current = pa.id; // this client won't also resolve it while the block is in flight
+      const events = [
+        mkEvent(game, "block_used", blocker, {
+          event_id: `${game.analyticsId}-pa-${pa.id || "x"}-block-${blockerId}`,
+          action_type: "block",
+          payload: { blocked_action_type: pa.actionType, blocked_actor_player_id: pa.actorId },
+        }),
+      ];
+      onBlock(blockerId, pa.id).then((result) => {
+        if (result === "applied") track(events);
+        else if (result === "late") setErrMsg(t("blockTooLate"));
+        else setErrMsg(t("errSave"));
+      });
+      return;
+    }
     settlePendingAction(
       () => rCancelWithBlock(game, blockerId),
       pa
@@ -4082,7 +4114,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                         <div className="flex items-start justify-center gap-3 mb-3">
                           <ActionCard actionType={pa.actionType} size={150} showDesc={false} className="hilla-drop" />
                           <div className="absolute top-4 left-4">
-                            <CountdownRing pendingActionId={pa.id} startedAt={pa.startedAt} windowMs={pendingWindowMs(game)} size={48} className="" />
+                            <CountdownRing pendingActionId={pa.id} startedAt={pa.startedAt} windowMs={pendingWindowMs(game)} size={48} className="" serverClock />
                           </div>
                         </div>
                         <div className="mb-1" style={{ color: INK }}>
@@ -5094,6 +5126,53 @@ function OnlineFlow({ onBack }) {
     } catch (e) {}
   }
 
+  // «لا ما تقدر» online, judged by the pending action rather than the whole-state version: save the
+  // block on the latest room; if another save landed first (a pass, a reaction, a poll behind), fetch
+  // the room again and re-apply it as long as that same action is still pending and the card is still
+  // in hand. Returns "applied", "late" (the action had already resolved) or "error".
+  async function blockOnline(code, blockerId, paId) {
+    let base = room;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (attempt > 0 || !base?.game) {
+        try {
+          const res = await fetch(`/api/rooms/${code}`, { cache: "no-store" });
+          if (!res.ok) return "error";
+          base = await res.json();
+        } catch {
+          return "error";
+        }
+      }
+      const g = base.game;
+      const pa = g?.pendingAction;
+      const blocker = g?.players?.find((p) => p.id === blockerId);
+      if (!pa || pa.id !== paId || !blocker?.hand.some((c) => c.kind === "action" && c.actionType === "block")) {
+        if (attempt > 0 && activeRoomCodeRef.current === code) adoptRoom(base);
+        if (attempt === 0) continue; // local copy may be behind: check the server before saying it's late
+        return "late";
+      }
+      let next = rCancelWithBlock(g, blockerId);
+      if (!next.winner) {
+        const actor = next.players.find((p) => p.id === pa.actorId);
+        if (actor?.isBot) next = rEndTurn(next, pa.actorId);
+      }
+      try {
+        const res = await fetch(`/api/rooms/${code}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ room: { ...base, game: next }, baseUpdatedAt: attempt === 0 ? baseUpdatedAtRef.current : base.updatedAt }),
+        });
+        if (res.status === 409) continue;
+        if (!res.ok) return "error";
+        const updated = await res.json();
+        if (activeRoomCodeRef.current === code) adoptRoom(updated);
+        return "applied";
+      } catch {
+        return "error";
+      }
+    }
+    return "late";
+  }
+
   async function claimTimeout(code, nextGame, expected) {
     try {
       const res = await fetch(`/api/rooms/${code}/timeout`, {
@@ -5119,6 +5198,7 @@ function OnlineFlow({ onBack }) {
     const mutationVersionAtStart = roomMutationRef.current;
     pollInFlightRef.current = true;
     try {
+      const sentAt = Date.now();
       const res = await fetch(`/api/rooms/${code}`, { cache: "no-store" });
       if (activeRoomCodeRef.current !== code) return;
       if (res.status === 404) {
@@ -5130,6 +5210,12 @@ function OnlineFlow({ onBack }) {
       }
       if (!res.ok) return;
       const doc = await res.json();
+      // Server clock sync for the «لا ما تقدر» window: assume the server stamped serverNow halfway
+      // through the round trip, and smooth out the jitter.
+      if (typeof doc?.serverNow === "number") {
+        const sample = doc.serverNow - (sentAt + Date.now()) / 2;
+        serverClockOffset = serverClockOffset === 0 ? sample : serverClockOffset * 0.8 + sample * 0.2;
+      }
       if (activeRoomCodeRef.current !== code) return;
       if (requestId < appliedPollSeqRef.current) return;
       if (mutationVersionAtStart !== roomMutationRef.current) return;
@@ -5293,6 +5379,7 @@ function OnlineFlow({ onBack }) {
         roomUpdatedAt={room.updatedAt}
         onClaimTimeout={(nextGame, expected) => claimTimeout(roomCode, nextGame, expected)}
         onDeclineBlock={(paId) => declineBlockOnline(roomCode, paId)}
+        onBlock={(blockerId, paId) => blockOnline(roomCode, blockerId, paId)}
         dispatch={dispatchGame}
         onExit={exitToMenu}
         onGoHome={exitToHome}

@@ -18,6 +18,7 @@ export type RoomDoc = {
   lobby: PlayerMeta[];
   game: unknown;
   updatedAt?: string | null;
+  serverNow?: number; // server clock (ms) when this doc was sent; clients use it to sync timers
 };
 
 type RoomRow = {
@@ -46,7 +47,8 @@ function toRoomDoc(row: RoomRow): RoomDoc {
     started: row.started,
     lobby: row.lobby ?? [],
     game: row.game ?? null,
-    updatedAt: row.updated_at ?? null
+    updatedAt: row.updated_at ?? null,
+    serverNow: Date.now()
   };
 }
 
@@ -293,6 +295,14 @@ export async function guardedSaveRoom(code: string, incoming: RoomDoc, baseUpdat
     const prev = toRoomDoc(row);
     const next = keepServerFields(prev, incoming);
     const extra: Partial<RoomRow> = {};
+    // A new «لا ما تقدر» window starts on the server's clock, so every phone counts the same 15s.
+    // Later saves of the same pending action keep the server's stamp, whatever the phone sent.
+    const nextPa = (next.game as any)?.pendingAction;
+    const prevPa = (prev.game as any)?.pendingAction;
+    if (nextPa) {
+      const startedAt = nextPa.id === prevPa?.id && typeof prevPa?.startedAt === 'number' ? prevPa.startedAt : Date.now();
+      next.game = { ...(next.game as any), pendingAction: { ...nextPa, startedAt } };
+    }
 
     let check: { ok: true } | { ok: false; reason: string } = { ok: true };
     if (prev.started && prev.game) {
