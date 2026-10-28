@@ -991,6 +991,7 @@ const I18N = {
     blockTooLate: "Too late",
     premove: "Premove", premoveTag: "Ready", premoveHint: "Pick cards now — they're played when your turn starts", premoveBar: "Premove ready · played when your turn starts", premoveClear: "Cancel premove", premoveCancelled: "Your premove was cancelled — it no longer fits",
     winPlaceLine: "You came {place} · {left}", winnerTag: "Winner", winPieceMine: "The piece you won with", winPieceOf: "The piece {name} won with", winHome: "Home", awDur: "Game time", awRounds: "Rounds", awCards: "Cards played", awRares: "Rares played", awTarget: "Most targeted", awTargetTie: "Tied for most targeted", awTieN: "{n} players", awEach: "each", winLastCard: "Last card!", winFinaleMe: "You're out of cards!", winFinaleOf: "{name} is out of cards!", winDuel: "Head-to-head: you {a} · {name} {b}", winDuelTap: "Head-to-head", fbTitle: "Your opinion matters · optional", fbSkip: "Skip", fbQFun: "How fun was the game?", fbQRules: "Were the rules clear?", fbQAgain: "Would you play again?", fbQComment: "Anything to tell us?", fbYes: "Sure 😍", fbNo: "No 😅", fbCommentPh: "Comment (optional)", fbSend: "Send", fbThanks: "Thank you! 🙏", duelTitle: "Head-to-head", duelWins: "wins", duelTied: "All square", duelLeadMe: "You're ahead", duelLeadThem: "{name} is ahead", duelGames: "From {n} games you played together this season", duelLast: "Last games:", duelW: "W", duelL: "L", duelNone: "You haven't played together this season", lbDuelHint: "Tap anyone to see your head-to-head",
+    duelNewest: "latest", duelNotCounted: "This game didn't count, so it isn't in your head-to-head.", noRankGeneric: "This game didn't count for the leaderboard",
     sdTagline: "Every region has its outfit", sdOnline: "Online", sdOnlineSub: "With friends", sdLocal: "Same device", sdLocalSub: "Or vs bots", sdRank: "Leaderboard", sdRankSub: "Coming soon", sdRankSoon: "The leaderboard is coming soon", sdGuest: "Guest", sdSaveShort: "Sign in to save your points", sdPickName: "What should we call you?", sdChangeName: "Change your name", sdNamePh: "Your leaderboard name", sdNameRule: "2 to 16 characters · shown on the leaderboard", sdSave: "Save", sdEdit: "Edit", sdHello: "Hi {name}", sdGuestTitle: "You're playing as a guest", sdGuestBody: "Save your account so your name and points stay if you change phones", sdGoogle: "Continue with Google", sdEmail: "Continue with email", sdAuthSoon: "Sign-in arrives with the leaderboard", sdLang: "Language",
     madeBy: "Designed by Saudi hands 🇸🇦", credit: "A Princess Nourah University student, for Core Studio",
     errCreate: "Couldn't create the room, try again.", addBot: "🤖 Add a bot", removeBot: "Remove bot",
@@ -1066,6 +1067,7 @@ const I18N = {
     blockTooLate: "Demasiado tarde",
     premove: "Jugada anticipada", premoveTag: "Lista", premoveHint: "Elige cartas ahora: se juegan al empezar tu turno", premoveBar: "Jugada anticipada lista · se juega al empezar tu turno", premoveClear: "Cancelar jugada anticipada", premoveCancelled: "Tu jugada anticipada se canceló: ya no encaja",
     winPlaceLine: "Quedaste {place} · {left}", winnerTag: "Ganador", winPieceMine: "La pieza con la que ganaste", winPieceOf: "La pieza con la que ganó {name}", winHome: "Inicio", awDur: "Duración", awRounds: "Rondas", awCards: "Cartas jugadas", awRares: "Raras jugadas", awTarget: "Más atacado", awTargetTie: "Empate en más atacados", awTieN: "{n} jugadores", awEach: "cada uno", winLastCard: "¡Última carta!", winFinaleMe: "¡Te quedaste sin cartas!", winFinaleOf: "¡{name} se quedó sin cartas!", winDuel: "Cara a cara: tú {a} · {name} {b}", winDuelTap: "Cara a cara", fbTitle: "Tu opinión importa · opcional", fbSkip: "Omitir", fbQFun: "¿Qué tan divertida fue la partida?", fbQRules: "¿Las reglas eran claras?", fbQAgain: "¿Volverías a jugar?", fbQComment: "¿Algo que contarnos?", fbYes: "Claro 😍", fbNo: "No 😅", fbCommentPh: "Comentario (opcional)", fbSend: "Enviar", fbThanks: "¡Gracias! 🙏", duelTitle: "Cara a cara", duelWins: "victorias", duelTied: "Empatados", duelLeadMe: "Vas por delante", duelLeadThem: "{name} va por delante", duelGames: "De {n} partidas que jugaron juntos esta temporada", duelLast: "Últimas partidas:", duelW: "V", duelL: "D", duelNone: "No han jugado juntos esta temporada", lbDuelHint: "Toca a cualquiera para ver su cara a cara",
+    duelNewest: "último", duelNotCounted: "Esta partida no contó, así que no está en su cara a cara.", noRankGeneric: "Esta partida no contó para la clasificación",
     sdTagline: "Cada región tiene su traje", sdOnline: "En línea", sdOnlineSub: "Con amigos", sdLocal: "Mismo dispositivo", sdLocalSub: "O contra bots", sdRank: "Clasificación", sdRankSub: "Muy pronto", sdRankSoon: "La clasificación llega pronto", sdGuest: "Invitado", sdSaveShort: "Inicia sesión para guardar tus puntos", sdPickName: "¿Cómo te llamamos?", sdChangeName: "Cambia tu nombre", sdNamePh: "Tu nombre en la clasificación", sdNameRule: "De 2 a 16 caracteres · se muestra en la clasificación", sdSave: "Guardar", sdEdit: "Editar", sdHello: "Hola {name}", sdGuestTitle: "Juegas como invitado", sdGuestBody: "Guarda tu cuenta para no perder tu nombre y tus puntos si cambias de móvil", sdGoogle: "Continuar con Google", sdEmail: "Continuar con correo", sdAuthSoon: "El inicio de sesión llega con la clasificación", sdLang: "Idioma",
     madeBy: "Diseñado por manos saudíes 🇸🇦", credit: "Estudiante de la Universidad Princesa Nourah, para Core Studio",
     errCreate: "No se pudo crear la sala, inténtalo de nuevo.", addBot: "🤖 Añadir un bot", removeBot: "Quitar bot",
@@ -1138,6 +1140,7 @@ Object.assign(I18N.ar, {
   blockTooLate: "فات الوقت",
   premove: "حركة مسبقة", premoveTag: "جاهز", premoveHint: "اختر كروتك الحين، وتنلعب أول ما يجي دورك", premoveBar: "حركتك المسبقة جاهزة · تنلعب أول ما يجي دورك", premoveClear: "إلغاء الحركة المسبقة", premoveCancelled: "انلغت حركتك المسبقة، ما عادت تنفع",
   winPlaceLine: "جيت {place} · {left}", winnerTag: "الفائز", winPieceMine: "القطعة اللي فزت فيها", winPieceOf: "القطعة اللي فاز فيها {name}", winHome: "الرئيسية", awDur: "مدة المباراة", awRounds: "جولات", awCards: "كروت انلعبت", awRares: "نوادر انلعبت", awTarget: "الأكثر استهدافًا", awTargetTie: "تعادلوا في الاستهداف", awTieN: "{n} لاعبين", awEach: "لكل واحد", winLastCard: "آخر كرت!", winFinaleMe: "خلّصت كروتك!", winFinaleOf: "{name} خلّص كروته!", winDuel: "المواجهة: أنت {a} · {name} {b}", winDuelTap: "المواجهة", fbTitle: "رأيك يهمنا · اختياري", fbSkip: "تخطي", fbQFun: "كم كانت المباراة ممتعة؟", fbQRules: "القوانين كانت واضحة؟", fbQAgain: "تلعبها مرة ثانية؟", fbQComment: "عندك شي تقوله؟", fbYes: "أكيد 😍", fbNo: "لا 😅", fbCommentPh: "تعليق (اختياري)", fbSend: "أرسل", fbThanks: "شكرًا لك! 🙏", duelTitle: "المواجهة", duelWins: "فوز", duelTied: "متعادلين", duelLeadMe: "الأفضلية لك", duelLeadThem: "الأفضلية لـ{name}", duelGames: "من {n} مباريات لعبتوها مع بعض هذا الموسم", duelLast: "آخر المباريات:", duelW: "ف", duelL: "خ", duelNone: "ما لعبتوا مع بعض هذا الموسم", lbDuelHint: "اضغط على أي واحد تشوف مواجهتكم",
+  duelNewest: "الأحدث", duelNotCounted: "هالمباراة ما انحسبت، فما هي داخلة في المواجهة.", noRankGeneric: "ما انحسبت هالمباراة في الترتيب",
   sdTagline: "كل منطقة لها حُلّة", sdOnline: "أونلاين", sdOnlineSub: "مع أصحابك", sdLocal: "نفس الجهاز", sdLocalSub: "أو ضد البوتات", sdRank: "الترتيب", sdRankSub: "قريبًا", sdRankSoon: "الترتيب جاي قريب", sdGuest: "ضيف", sdSaveShort: "سجّل واحفظ نقاطك", sdPickName: "وش نسمّيك؟", sdChangeName: "غيّر اسمك", sdNamePh: "اسمك في الترتيب", sdNameRule: "من ٢ إلى ١٦ حرف · يطلع للناس في الترتيب", sdSave: "احفظ", sdEdit: "غيّر", sdHello: "أهلًا {name}", sdGuestTitle: "حسابك ضيف", sdGuestBody: "احفظه عشان ما يضيع اسمك ونقاطك لو غيّرت جوالك", sdGoogle: "كمّل بقوقل", sdEmail: "كمّل بالإيميل", sdAuthSoon: "تسجيل الدخول يجي مع الترتيب", sdLang: "اللغة",
   madeBy: "صُممت بأيدي سعودية 🇸🇦", credit: "طالبة جامعة الأميرة نورة، لمقرر Core Studio",
   errCreate: "تعذر إنشاء الغرفة، حاول مجددًا.", addBot: "🤖 أضف بوت", removeBot: "أزل البوت",
@@ -3150,7 +3153,7 @@ function WinFinale({ game, meId, isOnline, onDone }) {
 
 // Head-to-head: only the games the two of you played together this season (GET /api/duel).
 // query is "with=<userId>" (win screen) or "nick=<nickname>" (leaderboard).
-function DuelSheet({ them, query, onClose }) {
+function DuelSheet({ them, query, note, onClose }) {
   const { t, L } = useI18n();
   const [d, setD] = useState(null); // null loading · {error} · data
   useEffect(() => {
@@ -3228,13 +3231,26 @@ function DuelSheet({ them, query, onClose }) {
               <span className="tsz-11 font-semibold" style={{ color: `${INK}77` }}>
                 {t("duelLast")}
               </span>
+              {/* newest first: the first dot (on the right in Arabic) is the latest game */}
               {d.last.map((x, i) => (
-                <span key={i} className="w-6 h-6 rounded-full flex items-center justify-center tsz-11 font-bold" style={x === "w" ? { background: "#366135", color: CREAM } : { background: `${INK}14`, color: `${INK}88` }}>
-                  {x === "w" ? t("duelW") : t("duelL")}
+                <span key={i} className="flex flex-col items-center" style={{ marginTop: i === 0 ? 14 : 0 }}>
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center tsz-11 font-bold" style={x === "w" ? { background: "#366135", color: CREAM } : { background: `${INK}14`, color: `${INK}88` }}>
+                    {x === "w" ? t("duelW") : t("duelL")}
+                  </span>
+                  {i === 0 && (
+                    <span className="tsz-9 font-semibold leading-none mt-0.5" style={{ color: `${INK}77` }}>
+                      {t("duelNewest")}
+                    </span>
+                  )}
                 </span>
               ))}
             </div>
           </>
+        )}
+        {note && (
+          <div className="tsz-11 mt-3" style={{ color: `${INK}88` }}>
+            {note}
+          </div>
         )}
         <button onClick={onClose} className={`w-full py-3 mt-5 tsz-15 ${btn}`} style={btnPrimary}>
           {t("lbOk")}
@@ -3249,7 +3265,8 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
   const [copied, setCopied] = useState(false);
   // Tap another real player (online, with an account) to see your head-to-head.
   const [duelWith, setDuelWith] = useState(null);
-  const canDuel = (p) => isOnline && !!meId && p.id !== meId && !p.isBot && !!seatUserIds?.[p.id];
+  // Only once this game's result is saved, so the sheet (fetched fresh on open) includes it.
+  const canDuel = (p) => isOnline && resDone && !!meId && p.id !== meId && !p.isBot && !!seatUserIds?.[p.id];
   const isAr = L.isAr;
   const num = (n) => (isAr ? arDigits(n) : String(n));
   const standings = [...game.players].sort((a, b) => (a.id === game.winner ? -1 : b.id === game.winner ? 1 : a.hand.length - b.hand.length));
@@ -3267,8 +3284,9 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
   // the player's own result (online): points, or why it didn't count, plus the head-to-head line.
   // Loaded after the screen is up; the server writes it in the same save that set the winner.
   const [res, setRes] = useState(null);
+  const [resDone, setResDone] = useState(!isOnline || !AUTH_ENABLED);
   useEffect(() => {
-    if (!isOnline || !AUTH_ENABLED || !game.analyticsId) return;
+    if (!isOnline || !AUTH_ENABLED || !game.analyticsId) return setResDone(true);
     let alive = true;
     (async () => {
       for (let attempt = 0; attempt < 4 && alive; attempt++) {
@@ -3278,18 +3296,24 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
           const r = await fetch(`/api/my-result?gameId=${encodeURIComponent(game.analyticsId)}`, { headers, cache: "no-store" });
           if (r.status === 200) {
             const body = await r.json();
-            if (alive) setRes(body);
+            if (alive) {
+              setRes(body);
+              setResDone(true);
+            }
             return;
           }
+          if (!headers.Authorization) break;
         } catch {}
         await new Promise((ok) => setTimeout(ok, 1500));
       }
+      if (alive) setResDone(true);
     })();
     return () => {
       alive = false;
     };
   }, [game.analyticsId, isOnline]);
-  const notCountedKey = res && !res.counted ? NO_RANK_REASON[res.reason] : null;
+  // a game that didn't count says so (integrity flags get a neutral line, never an accusation)
+  const notCountedKey = res && !res.counted ? NO_RANK_REASON[res.reason] || "noRankGeneric" : null;
 
   const durationMs = game.endedAtMs && game.startedAtMs ? game.endedAtMs - game.startedAtMs : null;
   const dur = durationMs > 0 ? `${Math.floor(durationMs / 60000)}:${String(Math.round(durationMs / 1000) % 60).padStart(2, "0")}` : null;
@@ -3498,7 +3522,14 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
           }
         />
       )}
-      {duelWith && <DuelSheet them={nameOf(duelWith)} query={`with=${encodeURIComponent(seatUserIds[duelWith.id])}`} onClose={() => setDuelWith(null)} />}
+      {duelWith && (
+        <DuelSheet
+          them={nameOf(duelWith)}
+          query={`with=${encodeURIComponent(seatUserIds[duelWith.id])}`}
+          note={res && !res.counted ? t("duelNotCounted") : null}
+          onClose={() => setDuelWith(null)}
+        />
+      )}
     </div>
   );
 }
@@ -5511,7 +5542,7 @@ function OnlineMenu({ myName, setMyName, onCreate, onJoin, onBack, error }) {
   );
 }
 
-function OnlineLobby({ room, myId, onStart, onAddBot, onRemoveBot, onBack }) {
+function OnlineLobby({ room, myId, onStart, starting, onAddBot, onRemoveBot, onBack }) {
   const { t, tb, L } = useI18n();
   const [copied, setCopied] = useState(false);
   const isHost = room.hostId === myId;
@@ -5588,7 +5619,7 @@ function OnlineLobby({ room, myId, onStart, onAddBot, onRemoveBot, onBack }) {
           </div>
         )}
         {isHost ? (
-          <button onClick={onStart} disabled={room.lobby.length < 2} className={`w-full py-3.5 tsz-15 flex items-center justify-center gap-2 mt-2 ${btn}`} style={btnPrimary}>
+          <button onClick={onStart} disabled={room.lobby.length < 2 || starting} className={`w-full py-3.5 tsz-15 flex items-center justify-center gap-2 mt-2 ${btn}`} style={btnPrimary}>
             <Sparkles className="w-5 h-5" style={{ color: GOLD }} /> {t("startGame")}
           </button>
         ) : (
@@ -5721,6 +5752,12 @@ function OnlineFlow({ onBack }) {
         });
         if (res.status === 409) {
           const body = await res.json().catch(() => ({}));
+          if (body?.error === "already_started") {
+            // the room already has its game: show that one, quietly
+            pendingOptimisticRoomRef.current = null;
+            if (activeRoomCodeRef.current === code) pollRoom();
+            return false;
+          }
           if (body?.error === "stale") {
             // Someone else's move landed first. Drop ours, show the current game, ask for a redo.
             pendingOptimisticRoomRef.current = null;
@@ -5738,12 +5775,14 @@ function OnlineFlow({ onBack }) {
         // Even when a newer save is queued, it was built on this one, so it is based on this version.
         stampRoom(updated);
         if (typeof updated?.updatedAt === "string") baseUpdatedAtRef.current = updated.updatedAt;
-        if (mutationVersion !== roomMutationRef.current) return;
+        if (mutationVersion !== roomMutationRef.current) return true;
         pendingOptimisticRoomRef.current = null;
         adoptRoom(updated);
+        return true;
       } catch (e) {
         pendingOptimisticRoomRef.current = null;
         setError(t("errSave"));
+        return false;
       }
     };
     const p = saveChainRef.current.then(send);
@@ -6009,12 +6048,22 @@ function OnlineFlow({ onBack }) {
     await saveRoomTo(roomCode, { ...room, lobby: room.lobby.filter((p) => p.id !== botId) });
   }
 
+  // Starting is once per room. The button locks on the first tap; the server also refuses a second
+  // deal for a started room, and the start analytics go out only for the deal it accepted.
+  const startingRef = useRef(false);
+  const [starting, setStarting] = useState(false);
   async function startOnlineGame() {
-    if (!room || room.hostId !== myId || room.lobby.length < 2) return;
+    if (!room || room.hostId !== myId || room.lobby.length < 2 || room.started || startingRef.current) return;
+    startingRef.current = true;
+    setStarting(true);
     const g = createInitialGame(room.lobby, room.perPlayer);
-    sendGameStarted(g, roomCode);
-    sendDealSnapshot(g, roomCode);
-    await saveRoomTo(roomCode, { ...room, started: true, game: g });
+    const ok = await saveRoomTo(roomCode, { ...room, started: true, game: g });
+    if (ok) {
+      sendGameStarted(g, roomCode);
+      sendDealSnapshot(g, roomCode);
+    }
+    startingRef.current = false;
+    setStarting(false);
   }
 
   async function dispatchGame(newGame) {
@@ -6045,7 +6094,7 @@ function OnlineFlow({ onBack }) {
     return <OnlineMenu myName={myName} setMyName={setMyName} onCreate={createRoom} onJoin={joinRoom} onBack={onBack} error={error} />;
   }
   if (onlinePhase === "lobby" && room) {
-    return <OnlineLobby room={room} myId={myId} onStart={startOnlineGame} onAddBot={addBot} onRemoveBot={removeBot} onBack={exitToMenu} />;
+    return <OnlineLobby room={room} myId={myId} onStart={startOnlineGame} starting={starting} onAddBot={addBot} onRemoveBot={removeBot} onBack={exitToMenu} />;
   }
   if (onlinePhase === "play" && room && room.game) {
     return (

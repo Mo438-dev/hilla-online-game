@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 
   let duel: { name: string; me: number; them: number } | null = null;
   const others = (rows ?? []).filter((r) => r.user_id !== user.id);
-  if (mine.humans === 2 && others.length === 1) {
+  if (mine.counted && mine.humans === 2 && others.length === 1) {
     try {
       const { data: prof } = await supabase.from('profiles').select('nickname, hidden').eq('user_id', others[0].user_id).maybeSingle();
       if (prof?.nickname && !prof.hidden) {

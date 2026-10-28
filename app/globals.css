@@ -55,6 +55,10 @@ input:not([type="range"]):not([type="checkbox"]),
 textarea,
 select {
   font-size: max(16px, 1em);
+  /* typing must always work, whatever an ancestor sets for selection or touch */
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: manipulation;
 }
 
 .app-fixed {

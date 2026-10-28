@@ -16,7 +16,12 @@ export default function AppHeight() {
 // cancelled. Applies to every screen (home, leaderboard, lobby, game table).
 export function NoPinchZoom() {
   useEffect(() => {
-    const stop = (e: Event) => e.preventDefault();
+    // never interfere with typing: a gesture that starts on a field is left alone
+    const stop = (e: Event) => {
+      const el = e.target as HTMLElement | null;
+      if (el && el.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+      e.preventDefault();
+    };
     document.addEventListener('gesturestart', stop, { passive: false });
     document.addEventListener('gesturechange', stop, { passive: false });
     return () => {
