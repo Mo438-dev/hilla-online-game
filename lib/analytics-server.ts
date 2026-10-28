@@ -69,6 +69,17 @@ function sanitizeItems(v: unknown, max: number): AnalyticsEventRow['items'] {
   return out.length > 0 ? out : null;
 }
 
+// Allowed payload fields for the delta-14 app events.
+const APP_EVENT_FIELDS: Record<string, Record<string, 'text' | 'int'>> = {
+  premove_cancelled: { reason: 'text' },
+  cards_received: { kind: 'text' },
+  duel_opened: { source: 'text' },
+  share_clicked: { source: 'text' },
+  survey_step: { step: 'int', how: 'text' },
+};
+// Events that can happen outside a game (home, leaderboard, account sheet).
+const NO_GAME_EVENTS = new Set(['auth_rate_limited', 'leaderboard_opened', 'resume_shown', 'resume_tapped', 'username_set', 'duel_opened', 'share_clicked']);
+
 // payload is allowlisted per event type; everything else is dropped.
 function sanitizePayload(eventType: string, v: unknown): Record<string, unknown> | null {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
@@ -120,6 +131,15 @@ function sanitizePayload(eventType: string, v: unknown): Record<string, unknown>
       .filter((s) => s !== null);
     return standings.length ? { standings } : null;
   }
+  // delta-14 app events: a few short fields each
+  if (APP_EVENT_FIELDS[eventType]) {
+    const out: Record<string, unknown> = {};
+    for (const [k, kind] of Object.entries(APP_EVENT_FIELDS[eventType])) {
+      const val = kind === 'int' ? asInt(p[k]) : asText(p[k]);
+      if (val !== null) out[k] = val;
+    }
+    return Object.keys(out).length ? out : null;
+  }
   if (eventType === 'player_identity') {
     const pid = asText(p.client_pid);
     return pid ? { client_pid: pid } : null;
@@ -133,12 +153,12 @@ export function sanitizeEvent(raw: unknown): AnalyticsEventRow | null {
   const eventId = asText(e.event_id);
   const eventType = asText(e.event_type) as AnalyticsEventType | null;
   if (!eventId || !eventType || !ANALYTICS_EVENT_TYPES.includes(eventType)) return null;
-  // auth_rate_limited happens before any game exists; every other event needs one.
-  const noGame = eventType === 'auth_rate_limited';
-  if (!noGame && !isUuid(e.game_id)) return null;
+  // a few app events happen outside a game; every other event needs one
+  const gameId = isUuid(e.game_id) ? (e.game_id as string) : null;
+  if (!gameId && !NO_GAME_EVENTS.has(eventType)) return null;
   return {
     event_id: eventId,
-    game_id: noGame ? null : (e.game_id as string),
+    game_id: gameId,
     room_code: asText(e.room_code),
     player_id: asText(e.player_id),
     player_name: asText(e.player_name),
@@ -184,11 +204,15 @@ export async function insertEvents(rawEvents: unknown[]): Promise<{ accepted: nu
   return { accepted: rows.length };
 }
 
+const APP_BUILD = (process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 12) || null;
+
 type GameStartedBody = {
   gameId: string;
   roomCode?: string | null;
   rulesetVersion?: string;
-  players?: Array<{ id?: string; name?: string; isBot?: boolean }>;
+  mode?: string;
+  cardsPerPlayer?: number;
+  players?: Array<{ id?: string; name?: string; isBot?: boolean; seat?: number }>;
   firstCoord?: { type?: string; region?: string | null; itemCount?: number } | null;
 };
 
@@ -210,6 +234,9 @@ export async function recordGameStarted(body: GameStartedBody) {
         human_count: players.length - bots,
         bot_count: bots,
         completed: false,
+        mode: body.mode === 'online' || body.mode === 'local' ? body.mode : roomCode ? 'online' : 'local',
+        cards_per_player: asInt(body.cardsPerPlayer),
+        app_build: APP_BUILD,
       },
       { onConflict: 'id', ignoreDuplicates: true }
     );
@@ -222,6 +249,7 @@ export async function recordGameStarted(body: GameStartedBody) {
         player_name: asText(p.name),
         is_bot: !!p.isBot,
         won: false,
+        seat: asInt(p.seat),
       }))
       .filter((p) => p.player_id !== null);
     const { error: playersError } = await supabase
@@ -279,7 +307,52 @@ type GameFinishedBody = {
   winnerIsBot?: boolean;
   totalTurns?: number;
   totalRounds?: number;
+  coordRounds?: number;
+  durationMs?: number;
+  players?: Array<{ id?: string; cardsLeft?: number; inactive?: boolean; timesTargeted?: number }>;
 };
+
+// Per-seat play numbers, totalled from the game's own events (bots included): items and rares played,
+// actions by type, blocks used, missed turns. Safe to run more than once; the seat reports re-run it so
+// events that arrived after the finish are counted too.
+async function fillSeatStatsFromEvents(gameId: string) {
+  const supabase = getSupabaseAdmin();
+  const { data: events, error } = await supabase
+    .from('game_events')
+    .select('player_id, event_type, action_type, items, skip_reason')
+    .eq('game_id', gameId)
+    .in('event_type', ['items_played', 'action_played', 'block_used', 'turn_skipped']);
+  if (error) throw new Error(error.message);
+  const seats = new Map<string, { items: number; rares: number; actions: Record<string, number>; blocks: number; missed: number; inactive: boolean }>();
+  const seat = (id: string) => {
+    if (!seats.has(id)) seats.set(id, { items: 0, rares: 0, actions: {}, blocks: 0, missed: 0, inactive: false });
+    return seats.get(id)!;
+  };
+  for (const e of events ?? []) {
+    if (!e.player_id) continue;
+    const s = seat(e.player_id);
+    if (e.event_type === 'items_played') {
+      const items = Array.isArray(e.items) ? e.items : [];
+      s.items += items.length;
+      s.rares += items.filter((i: any) => i?.rarity === 'rare').length;
+    } else if (e.event_type === 'action_played' && e.action_type) {
+      s.actions[e.action_type] = (s.actions[e.action_type] || 0) + 1;
+    } else if (e.event_type === 'block_used') {
+      s.blocks += 1;
+    } else if (e.event_type === 'turn_skipped') {
+      s.missed += 1;
+      if (e.skip_reason === 'timeout_inactive') s.inactive = true;
+    }
+  }
+  for (const [playerId, s] of seats) {
+    await supabase
+      .from('game_players')
+      .update({ items_played: s.items, rares_played: s.rares, actions_played: s.actions, blocks_used: s.blocks, missed_turns: s.missed })
+      .eq('game_id', gameId)
+      .eq('player_id', playerId);
+    if (s.inactive) await supabase.from('game_players').update({ became_inactive: true }).eq('game_id', gameId).eq('player_id', playerId);
+  }
+}
 
 export async function recordGameFinished(body: GameFinishedBody) {
   if (!isUuid(body.gameId)) return;
@@ -308,6 +381,9 @@ export async function recordGameFinished(body: GameFinishedBody) {
         total_turns: asInt(body.totalTurns),
         total_rounds: asInt(body.totalRounds),
         completed: true,
+        ended_reason: 'win',
+        duration_ms: asInt(body.durationMs) ?? durationSeconds * 1000,
+        coord_rounds: asInt(body.coordRounds),
       })
       .eq('id', body.gameId)
       .is('ended_at', null);
@@ -322,6 +398,21 @@ export async function recordGameFinished(body: GameFinishedBody) {
         .eq('player_id', winnerId);
       if (wonError) throw new Error(wonError.message);
     }
+
+    // where each seat finished: place by cards left (ties share), plus targeting and inactivity
+    const players = Array.isArray(body.players) ? body.players.slice(0, 6) : [];
+    for (const p of players) {
+      const id = asText(p.id);
+      const left = asInt(p.cardsLeft);
+      if (!id || left === null) continue;
+      const place = 1 + players.filter((o) => (asInt(o.cardsLeft) ?? 0) < left).length;
+      await supabase
+        .from('game_players')
+        .update({ cards_left: left, place, times_targeted: asInt(p.timesTargeted) ?? 0, became_inactive: !!p.inactive })
+        .eq('game_id', body.gameId)
+        .eq('player_id', id);
+    }
+    await fillSeatStatsFromEvents(body.gameId);
 
     await insertEvents([
       {
@@ -357,7 +448,48 @@ type FeedbackBody = {
   clarity?: number;
   playAgain?: boolean;
   comment?: string;
+  stepsAnswered?: number;
+  skippedAtStep?: number | null;
 };
+
+const SEAT_PLATFORMS = new Set(['ios', 'android', 'desktop']);
+type SeatBody = {
+  gameId?: string;
+  playerId?: string;
+  premovesSet?: number;
+  premovesPlayed?: number;
+  reactionsSent?: number;
+  platform?: string;
+  standalone?: boolean;
+  lang?: string;
+};
+
+// What one phone knows about its own seat at the end of a game, plus coarse device info.
+export async function recordSeat(body: SeatBody) {
+  if (!isUuid(body.gameId)) return;
+  const playerId = asText(body.playerId);
+  if (!playerId) return;
+  try {
+    const supabase = getSupabaseAdmin();
+    const lang = asText(body.lang);
+    const { error } = await supabase
+      .from('game_players')
+      .update({
+        premoves_set: asInt(body.premovesSet),
+        premoves_played: asInt(body.premovesPlayed),
+        reactions_sent: asInt(body.reactionsSent),
+        platform: typeof body.platform === 'string' && SEAT_PLATFORMS.has(body.platform) ? body.platform : null,
+        standalone: asBool(body.standalone),
+        lang: lang && ['ar', 'en', 'es'].includes(lang) ? lang : null,
+      })
+      .eq('game_id', body.gameId)
+      .eq('player_id', playerId);
+    if (error) throw new Error(error.message);
+    await fillSeatStatsFromEvents(body.gameId);
+  } catch (error) {
+    logAnalyticsError('recordSeat', error);
+  }
+}
 
 // Optional post-game survey. First submission per (game, player) wins;
 // duplicates are ignored. Comment is length-capped, everything sanitized.
@@ -373,7 +505,14 @@ export async function recordFeedback(body: FeedbackBody) {
   const clarity = rating(body.clarity);
   const playAgain = asBool(body.playAgain);
   const comment = typeof body.comment === 'string' ? body.comment.slice(0, 280).trim() || null : null;
-  if (fun === null && clarity === null && playAgain === null && !comment) return;
+  const step = (v: unknown) => {
+    const n = asInt(v);
+    return n !== null && n >= 0 && n <= 4 ? n : null;
+  };
+  const stepsAnswered = step(body.stepsAnswered);
+  const skippedAtStep = step(body.skippedAtStep);
+  // a skip with nothing answered still records how far they got
+  if (fun === null && clarity === null && playAgain === null && !comment && stepsAnswered === null) return;
   try {
     const supabase = getSupabaseAdmin();
     const { error } = await supabase.from('game_feedback').upsert(
@@ -385,6 +524,8 @@ export async function recordFeedback(body: FeedbackBody) {
         clarity,
         play_again: playAgain,
         comment,
+        steps_answered: stepsAnswered,
+        skipped_at_step: skippedAtStep,
       },
       { onConflict: 'game_id,player_id', ignoreDuplicates: true }
     );

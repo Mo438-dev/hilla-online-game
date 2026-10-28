@@ -26,6 +26,18 @@ export const ANALYTICS_EVENT_TYPES = [
   // Leaderboard / integrity
   'state_rejected', // server refused a room save (written by the server, payload.reason)
   'auth_rate_limited', // anonymous sign-in hit Supabase's rate limit (no game, no personal data)
+  // delta-14
+  'premove_set',
+  'premove_played',
+  'premove_cancelled',
+  'cards_received',
+  'duel_opened',
+  'share_clicked',
+  'resume_shown',
+  'resume_tapped',
+  'leaderboard_opened',
+  'username_set',
+  'survey_step',
 ] as const;
 
 export type AnalyticsEventType = (typeof ANALYTICS_EVENT_TYPES)[number];

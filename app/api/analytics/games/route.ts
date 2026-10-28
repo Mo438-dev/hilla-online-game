@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import { NextResponse } from 'next/server';
-import { recordGameStarted, recordGameFinished } from '@/lib/analytics-server';
+import { recordGameStarted, recordGameFinished, recordSeat } from '@/lib/analytics-server';
 
 // Session lifecycle sink: creates the game_sessions/game_players rows at
 // game start and finalizes them once at game end. Idempotent on both sides
@@ -15,6 +15,8 @@ export async function POST(request: Request) {
       await recordGameStarted(body as never);
     } else if (body.type === 'finished') {
       await recordGameFinished(body as never);
+    } else if (body.type === 'seat') {
+      await recordSeat(body as never);
     }
     return NextResponse.json({ ok: true });
   } catch {
