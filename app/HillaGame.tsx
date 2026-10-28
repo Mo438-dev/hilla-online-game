@@ -3044,13 +3044,14 @@ const arDigits = (v) => String(v).replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d
 // End-of-game survey, one question at a time. Same answers production already stores (fun 1–5,
 // rules clarity 1–5, play again yes/no, optional comment), so old and new answers stay comparable.
 // Skipping saves nothing.
-function FeedbackCard({ onSubmit }) {
+function FeedbackCard({ onSubmit, onStep }) {
   const { t } = useI18n();
   const [step, setStep] = useState(0); // 0 fun · 1 rules · 2 again · 3 comment · 4 thanks · -1 skipped
   const [ans, setAns] = useState({ fun: 0, rules: 0, again: null, comment: "" });
   if (step === -1) return null;
   const next = (patch) => {
     setAns((a) => ({ ...a, ...patch }));
+    onStep?.(step, "answered");
     setStep((st) => st + 1);
   };
   const faces = ["😴", "😐", "🙂", "😄", "🤩"];
@@ -3077,7 +3078,16 @@ function FeedbackCard({ onSubmit }) {
                 <span key={i} className="rounded-full" style={{ width: i === step ? 14 : 6, height: 6, background: i <= step ? BRAND : `${INK}22`, transition: "width .25s" }} />
               ))}
             </span>
-            <button onClick={() => setStep(-1)} className="tsz-11 font-semibold" style={{ color: `${INK}66` }}>
+            <button
+              onClick={() => {
+                // analytics only: how far they got; the answers themselves are not saved on a skip
+                onSubmit?.({ fun: 0, rules: 0, again: null, comment: "" }, { stepsAnswered: step, skippedAtStep: step });
+                onStep?.(step, "skipped");
+                setStep(-1);
+              }}
+              className="tsz-11 font-semibold"
+              style={{ color: `${INK}66` }}
+            >
               {t("fbSkip")}
             </button>
           </span>
@@ -3106,7 +3116,8 @@ function FeedbackCard({ onSubmit }) {
             <textarea value={ans.comment} onChange={(e) => setAns({ ...ans, comment: e.target.value.slice(0, 280) })} rows={2} placeholder={t("fbCommentPh")} className="w-full mt-3 rounded-xl px-3 py-2 hstart" style={{ background: `${INK}06`, border: `1.5px solid ${INK}14`, resize: "none", color: INK }} />
             <button
               onClick={() => {
-                onSubmit?.(ans);
+                onSubmit?.(ans, { stepsAnswered: 4, skippedAtStep: null });
+                onStep?.(3, "answered");
                 setStep(4);
               }}
               className={`w-full mt-2 py-2.5 tsz-14 ${btn}`}
@@ -3368,6 +3379,7 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
   const pieceTitle = iWon ? t("winPieceMine") : t("winPieceOf", { name: nameOf(winner) });
 
   function share() {
+    sendAppEvent("share_clicked", game.analyticsId || null, { payload: { source: "win" } });
     const lines = [
       t("shareRecap"),
       ...standings.map((p, i) => `${["🥇", "🥈", "🥉"][i] || `${i + 1}.`} ${nameOf(p)}${i ? ` (${cardsWord(p.hand.length)})` : ""}`),
@@ -3422,7 +3434,13 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
         {standings.map((p, i) => {
           const n = Math.min(5, p.hand.length);
           return (
-            <div key={p.id} onClick={() => canDuel(p) && setDuelWith(p)} className={`rounded-2xl pt-3 pb-2 flex flex-col items-center win-rise ${canDuel(p) ? "cursor-pointer hpress-97" : ""}`} style={{ animationDelay: `${180 + i * 90}ms`, background: i === 0 ? CREAM : `${CREAM}99`, boxShadow: i === 0 ? `0 0 0 2px ${GOLD}` : `0 0 0 1px ${INK}12` }}>
+            <div
+              key={p.id}
+              onClick={() => {
+                if (!canDuel(p)) return;
+                sendAppEvent("duel_opened", game.analyticsId || null, { payload: { source: "win" } });
+                setDuelWith(p);
+              }} className={`rounded-2xl pt-3 pb-2 flex flex-col items-center win-rise ${canDuel(p) ? "cursor-pointer hpress-97" : ""}`} style={{ animationDelay: `${180 + i * 90}ms`, background: i === 0 ? CREAM : `${CREAM}99`, boxShadow: i === 0 ? `0 0 0 2px ${GOLD}` : `0 0 0 1px ${INK}12` }}>
               <div className="relative" style={{ width: 84, height: 52 }}>
                 {i === 0 ? (
                   <span className="absolute inset-0 flex items-center justify-center" style={{ fontSize: 30 }}>
@@ -3537,7 +3555,7 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
 
       {game.analyticsId && seat && (
         <FeedbackCard
-          onSubmit={(a) =>
+          onSubmit={(a, progress) =>
             sendFeedback({
               gameId: game.analyticsId,
               playerId: seat.id,
@@ -3546,8 +3564,10 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
               clarity: a.rules || null,
               playAgain: a.again,
               comment: a.comment,
+              ...progress,
             })
           }
+          onStep={(step, how) => sendAppEvent("survey_step", game.analyticsId, { player_id: seat.id, payload: { step, how } })}
         />
       )}
       {duelWith && (
@@ -3690,6 +3710,12 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   const reducedMotion = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   const [finaleDone, setFinaleDone] = useState(reducedMotion);
   useEffect(() => {
+    window.__hullaGameId = game.analyticsId || null; // read by the error reporter in layout
+    return () => {
+      window.__hullaGameId = null;
+    };
+  }, [game.analyticsId]);
+  useEffect(() => {
     if (!game.winner) setFinaleDone(reducedMotion());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game.winner]);
@@ -3713,6 +3739,8 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   }, [turnSound]);
   const [premoveOn, setPremoveOn] = useState(loadPremove);
   const [pre, setPre] = useState([]); // premoved item card ids, on this device only
+  // what only this phone knows about its seat, reported once at the end of the game (analytics)
+  const seatCountRef = useRef({ premovesSet: 0, premovesPlayed: 0, reactionsSent: 0 });
   const [recv, setRecv] = useState(null); // cards that just arrived from an action, for ReceivedFX
   const [newIds, setNewIds] = useState([]); // those cards get a «جديد» tag in the hand for a while
   useEffect(() => {
@@ -4097,6 +4125,9 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
         })
       );
       sendGameFinished(game, roomCode || null);
+      // each phone reports its own seat: online my seat; on a phone shared by people or vs bots, every human seat
+      const mySeats = isOnline ? [myId] : game.players.filter((p) => !p.isBot).map((p) => p.id);
+      for (const seatId of mySeats) sendSeatStats(game, roomCode || null, seatId, seatCountRef.current, L.code);
     }
     if (events.length) track(events);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -4410,6 +4441,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
 
     // Online a reaction is re-applied on the latest room if another save lands first, so it's never
     // dropped and can never undo someone's move.
+    seatCountRef.current.reactionsSent += 1;
     if (isOnline && onReact) return onReact(emoji, single);
     dispatch(rSendReaction(rWakePlayer(game, me.id), me.id, emoji, single));
   }
@@ -4592,6 +4624,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     const cards = entry.cardIds.map((id) => me?.hand.find((c) => c.id === id)).filter(Boolean);
     if (!cards.length) return;
     setRecv({ key: ev.id, kind: entry.kind, fromName: entry.fromName, cards });
+    sendAppEvent("cards_received", game.analyticsId || null, { player_id: recvMeId, cards_played_count: cards.length, payload: { kind: entry.kind } });
     setNewIds(entry.cardIds);
     haptic?.([12, 60, 12]);
     const a = setTimeout(() => setRecv(null), 2700);
@@ -4614,6 +4647,10 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   // Premove only makes sense when this screen belongs to one player: online, or one human vs bots.
   const canPremove = premoveOn && !isMyTurn && !game.winner && viewer && !viewer.isBot && (isOnline || !!soloHuman);
   function togglePre(cardId) {
+    if (!pre.includes(cardId)) {
+      seatCountRef.current.premovesSet += 1;
+      sendAppEvent("premove_set", game.analyticsId || null, { player_id: viewer.id, turn_number: game.turnSerial ?? 0 });
+    }
     setPre((s) => (s.includes(cardId) ? s.filter((x) => x !== cardId) : [...s, cardId]));
   }
   // A premoved card left the hand before my turn (اقدع / عطني وأعطيك): drop the premove and say so.
@@ -4622,6 +4659,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     if (pre.some((id) => !viewer.hand.some((c) => c.id === id))) {
       setPre([]);
       setErrMsg(t("premoveCancelled"));
+      sendAppEvent("premove_cancelled", game.analyticsId || null, { player_id: viewer.id, payload: { reason: "card_left_hand" } });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewer?.hand]);
@@ -4632,7 +4670,13 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     const tm = setTimeout(() => {
       const ids = pre;
       setPre([]);
-      playItemIds(ids, () => setErrMsg(t("premoveCancelled")));
+      const played = playItemIds(ids, () => setErrMsg(t("premoveCancelled")));
+      if (played) seatCountRef.current.premovesPlayed += 1;
+      sendAppEvent(played ? "premove_played" : "premove_cancelled", game.analyticsId || null, {
+        player_id: viewer.id,
+        turn_number: game.turnSerial ?? 0,
+        ...(played ? { cards_played_count: ids.length } : { payload: { reason: "no_longer_fits" } }),
+      });
     }, 500);
     return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -6745,6 +6789,9 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
   const board = useHomeBoard(nick);
   const resume = useResumableRoom();
   const resumeCode = resume?.roomCode || null;
+  useEffect(() => {
+    if (resumeCode) sendAppEvent("resume_shown", null, { room_code: resumeCode });
+  }, [resumeCode]);
   // the «كمّل لعبتك» pill takes room above the cards, so they shrink a little to keep 667px fitting
   const cardScale = useCardScale() * (resumeCode ? 0.9 : 1);
   const say = (text) => setToast({ id: Date.now(), text });
@@ -6801,6 +6848,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
               onClick={() =>
                 play("resume", () => {
                   writeOnlineSession(resume); // the online flow rejoins from this, as on a reload
+                  sendAppEvent("resume_tapped", null, { room_code: resume.roomCode });
                   onOnline();
                 })
               } className="mb-2 tsz-12 font-bold rounded-full px-4 py-1.5 hilla-pop" style={{ background: BRAND, color: CREAM, boxShadow: `0 0 0 2px ${GOLD}` }}>
@@ -6989,6 +7037,7 @@ function ScoringSheet({ onClose }) {
 
 function LeaderboardScreen({ onBack, onPlayOnline }) {
   const { t, L } = useI18n();
+  useEffect(() => sendAppEvent("leaderboard_opened", null, {}), []);
   // «ربعك» (friends) is the board; «الكل» (everyone) opens only when LEADERBOARD_OPEN is on
   const [scope, setScope] = useState("friends");
   const [globalTapped, setGlobalTapped] = useState(false);
@@ -7173,7 +7222,11 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
                     </span>
                     <div
                       dir={L.dir}
-                      onClick={() => row && !isMe(row) && setDuelWith(row)}
+                      onClick={() => {
+                        if (!row || isMe(row)) return;
+                        sendAppEvent("duel_opened", null, { payload: { source: "leaderboard" } });
+                        setDuelWith(row);
+                      }}
                       className={`tsz-13 font-bold truncate w-full text-center ${row && !isMe(row) ? "cursor-pointer" : ""}`}
                       style={{ color: row && isMe(row) ? BRAND : INK }}
                     >
@@ -7216,7 +7269,11 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
                 return (
                   <div
                     key={`${row.rank}-${row.nickname}`}
-                    onClick={() => !mine && setDuelWith(row)}
+                    onClick={() => {
+                      if (mine) return;
+                      sendAppEvent("duel_opened", null, { payload: { source: "leaderboard" } });
+                      setDuelWith(row);
+                    }}
                     className={`flex items-center px-3 py-2.5 ${mine ? "" : "cursor-pointer"}`}
                     style={{ borderBottom: `1px solid ${INK}0c`, background: mine ? `${GOLD}33` : "transparent" }}
                   >
