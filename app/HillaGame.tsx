@@ -809,6 +809,7 @@ function rResolvePendingAction(game) {
   if (pa.actionType === "drawTwo") {
     const { game: g2, drawn } = drawFromPile(g, 2);
     g = addToHand(g2, pa.targetId, drawn);
+    g = { ...g, receivedEvent: { id: uid(), entries: [{ toId: pa.targetId, fromName: pa.actorName, kind: "drawTwo", cardIds: drawn.map((c) => c.id) }] } };
     g = pushLog(g, `${pa.actorName} استخدم اقدع على ${target.name}: سحب ${drawn.length} كرت.`);
   } else if (pa.actionType === "stealTwo") {
     const actorHand = g.players.find((p) => p.id === pa.actorId).hand;
@@ -816,6 +817,7 @@ function rResolvePendingAction(game) {
     const ids = shuffle(actorHand).slice(0, n).map((c) => c.id);
     const { game: g2, removed } = removeFromHand(g, pa.actorId, ids);
     g = addToHand(g2, pa.targetId, removed);
+    g = { ...g, receivedEvent: { id: uid(), entries: [{ toId: pa.targetId, fromName: pa.actorName, kind: "stealTwo", cardIds: removed.map((c) => c.id) }] } };
     g = pushLog(g, `${target.name} فزع من ${pa.actorName} وأخذ ${removed.length} كرت.`);
   } else if (pa.actionType === "giveTake") {
     const { game: g2, removed: given } = removeFromHand(g, pa.actorId, pa.giveIds);
@@ -827,6 +829,18 @@ function rResolvePendingAction(game) {
     const { game: g3, removed: taken } = removeFromHand(g2, pa.targetId, takeIds);
     let g4 = addToHand(g3, pa.actorId, taken);
     g = addToHand(g4, pa.targetId, given);
+    // Display-only (like blockEvent): who just received which cards, for the received-cards effect.
+    // Both sides receive something here: the target gets the gift, the actor what was taken.
+    g = {
+      ...g,
+      receivedEvent: {
+        id: uid(),
+        entries: [
+          { toId: pa.targetId, fromName: pa.actorName, kind: "giveTakeGot", cardIds: given.map((c) => c.id) },
+          { toId: pa.actorId, fromName: target.name, kind: "giveTakeTook", cardIds: taken.map((c) => c.id) },
+        ],
+      },
+    };
     g = pushLog(g, `${pa.actorName} بادل كروت مع ${target.name} (عطني وأعطيك).`);
   }
   g = countTargeted(g, pa.targetId);
@@ -992,6 +1006,7 @@ const I18N = {
     premove: "Premove", premoveTag: "Ready", premoveHint: "Pick cards now — they're played when your turn starts", premoveBar: "Premove ready · played when your turn starts", premoveClear: "Cancel premove", premoveCancelled: "Your premove was cancelled — it no longer fits",
     winPlaceLine: "You came {place} · {left}", winnerTag: "Winner", winPieceMine: "The piece you won with", winPieceOf: "The piece {name} won with", winHome: "Home", awDur: "Game time", awRounds: "Rounds", awCards: "Cards played", awRares: "Rares played", awTarget: "Most targeted", awTargetTie: "Tied for most targeted", awTieN: "{n} players", awEach: "each", winLastCard: "Last card!", winFinaleMe: "You're out of cards!", winFinaleOf: "{name} is out of cards!", winDuel: "Head-to-head: you {a} · {name} {b}", winDuelTap: "Head-to-head", fbTitle: "Your opinion matters · optional", fbSkip: "Skip", fbQFun: "How fun was the game?", fbQRules: "Were the rules clear?", fbQAgain: "Would you play again?", fbQComment: "Anything to tell us?", fbYes: "Sure 😍", fbNo: "No 😅", fbCommentPh: "Comment (optional)", fbSend: "Send", fbThanks: "Thank you! 🙏", duelTitle: "Head-to-head", duelWins: "wins", duelTied: "All square", duelLeadMe: "You're ahead", duelLeadThem: "{name} is ahead", duelGames: "From {n} games you played together this season", duelLast: "Last games:", duelW: "W", duelL: "L", duelNone: "You haven't played together this season", lbDuelHint: "Tap anyone to see your head-to-head",
     duelNewest: "latest", duelNotCounted: "This game didn't count, so it isn't in your head-to-head.", noRankGeneric: "This game didn't count for the leaderboard",
+    newTag: "New", recv_giveTakeGot: "{name} gave you these", recv_giveTakeTook: "You took these from {name}", recv_stealTwo: "{name} handed you these", recv_drawTwo: "{name} made you draw these",
     sdTagline: "Every region has its outfit", sdOnline: "Online", sdOnlineSub: "With friends", sdLocal: "Same device", sdLocalSub: "Or vs bots", sdRank: "Leaderboard", sdRankSub: "Coming soon", sdRankSoon: "The leaderboard is coming soon", sdGuest: "Guest", sdSaveShort: "Sign in to save your points", sdPickName: "What should we call you?", sdChangeName: "Change your name", sdNamePh: "Your leaderboard name", sdNameRule: "2 to 16 characters · shown on the leaderboard", sdSave: "Save", sdEdit: "Edit", sdHello: "Hi {name}", sdGuestTitle: "You're playing as a guest", sdGuestBody: "Save your account so your name and points stay if you change phones", sdGoogle: "Continue with Google", sdEmail: "Continue with email", sdAuthSoon: "Sign-in arrives with the leaderboard", sdLang: "Language",
     madeBy: "Designed by Saudi hands 🇸🇦", credit: "A Princess Nourah University student, for Core Studio",
     errCreate: "Couldn't create the room, try again.", addBot: "🤖 Add a bot", removeBot: "Remove bot",
@@ -1068,6 +1083,7 @@ const I18N = {
     premove: "Jugada anticipada", premoveTag: "Lista", premoveHint: "Elige cartas ahora: se juegan al empezar tu turno", premoveBar: "Jugada anticipada lista · se juega al empezar tu turno", premoveClear: "Cancelar jugada anticipada", premoveCancelled: "Tu jugada anticipada se canceló: ya no encaja",
     winPlaceLine: "Quedaste {place} · {left}", winnerTag: "Ganador", winPieceMine: "La pieza con la que ganaste", winPieceOf: "La pieza con la que ganó {name}", winHome: "Inicio", awDur: "Duración", awRounds: "Rondas", awCards: "Cartas jugadas", awRares: "Raras jugadas", awTarget: "Más atacado", awTargetTie: "Empate en más atacados", awTieN: "{n} jugadores", awEach: "cada uno", winLastCard: "¡Última carta!", winFinaleMe: "¡Te quedaste sin cartas!", winFinaleOf: "¡{name} se quedó sin cartas!", winDuel: "Cara a cara: tú {a} · {name} {b}", winDuelTap: "Cara a cara", fbTitle: "Tu opinión importa · opcional", fbSkip: "Omitir", fbQFun: "¿Qué tan divertida fue la partida?", fbQRules: "¿Las reglas eran claras?", fbQAgain: "¿Volverías a jugar?", fbQComment: "¿Algo que contarnos?", fbYes: "Claro 😍", fbNo: "No 😅", fbCommentPh: "Comentario (opcional)", fbSend: "Enviar", fbThanks: "¡Gracias! 🙏", duelTitle: "Cara a cara", duelWins: "victorias", duelTied: "Empatados", duelLeadMe: "Vas por delante", duelLeadThem: "{name} va por delante", duelGames: "De {n} partidas que jugaron juntos esta temporada", duelLast: "Últimas partidas:", duelW: "V", duelL: "D", duelNone: "No han jugado juntos esta temporada", lbDuelHint: "Toca a cualquiera para ver su cara a cara",
     duelNewest: "último", duelNotCounted: "Esta partida no contó, así que no está en su cara a cara.", noRankGeneric: "Esta partida no contó para la clasificación",
+    newTag: "Nueva", recv_giveTakeGot: "{name} te dio estas", recv_giveTakeTook: "Le quitaste estas a {name}", recv_stealTwo: "{name} te pasó estas", recv_drawTwo: "{name} te hizo robar estas",
     sdTagline: "Cada región tiene su traje", sdOnline: "En línea", sdOnlineSub: "Con amigos", sdLocal: "Mismo dispositivo", sdLocalSub: "O contra bots", sdRank: "Clasificación", sdRankSub: "Muy pronto", sdRankSoon: "La clasificación llega pronto", sdGuest: "Invitado", sdSaveShort: "Inicia sesión para guardar tus puntos", sdPickName: "¿Cómo te llamamos?", sdChangeName: "Cambia tu nombre", sdNamePh: "Tu nombre en la clasificación", sdNameRule: "De 2 a 16 caracteres · se muestra en la clasificación", sdSave: "Guardar", sdEdit: "Editar", sdHello: "Hola {name}", sdGuestTitle: "Juegas como invitado", sdGuestBody: "Guarda tu cuenta para no perder tu nombre y tus puntos si cambias de móvil", sdGoogle: "Continuar con Google", sdEmail: "Continuar con correo", sdAuthSoon: "El inicio de sesión llega con la clasificación", sdLang: "Idioma",
     madeBy: "Diseñado por manos saudíes 🇸🇦", credit: "Estudiante de la Universidad Princesa Nourah, para Core Studio",
     errCreate: "No se pudo crear la sala, inténtalo de nuevo.", addBot: "🤖 Añadir un bot", removeBot: "Quitar bot",
@@ -1141,6 +1157,7 @@ Object.assign(I18N.ar, {
   premove: "حركة مسبقة", premoveTag: "جاهز", premoveHint: "اختر كروتك الحين، وتنلعب أول ما يجي دورك", premoveBar: "حركتك المسبقة جاهزة · تنلعب أول ما يجي دورك", premoveClear: "إلغاء الحركة المسبقة", premoveCancelled: "انلغت حركتك المسبقة، ما عادت تنفع",
   winPlaceLine: "جيت {place} · {left}", winnerTag: "الفائز", winPieceMine: "القطعة اللي فزت فيها", winPieceOf: "القطعة اللي فاز فيها {name}", winHome: "الرئيسية", awDur: "مدة المباراة", awRounds: "جولات", awCards: "كروت انلعبت", awRares: "نوادر انلعبت", awTarget: "الأكثر استهدافًا", awTargetTie: "تعادلوا في الاستهداف", awTieN: "{n} لاعبين", awEach: "لكل واحد", winLastCard: "آخر كرت!", winFinaleMe: "خلّصت كروتك!", winFinaleOf: "{name} خلّص كروته!", winDuel: "المواجهة: أنت {a} · {name} {b}", winDuelTap: "المواجهة", fbTitle: "رأيك يهمنا · اختياري", fbSkip: "تخطي", fbQFun: "كم كانت المباراة ممتعة؟", fbQRules: "القوانين كانت واضحة؟", fbQAgain: "تلعبها مرة ثانية؟", fbQComment: "عندك شي تقوله؟", fbYes: "أكيد 😍", fbNo: "لا 😅", fbCommentPh: "تعليق (اختياري)", fbSend: "أرسل", fbThanks: "شكرًا لك! 🙏", duelTitle: "المواجهة", duelWins: "فوز", duelTied: "متعادلين", duelLeadMe: "الأفضلية لك", duelLeadThem: "الأفضلية لـ{name}", duelGames: "من {n} مباريات لعبتوها مع بعض هذا الموسم", duelLast: "آخر المباريات:", duelW: "ف", duelL: "خ", duelNone: "ما لعبتوا مع بعض هذا الموسم", lbDuelHint: "اضغط على أي واحد تشوف مواجهتكم",
   duelNewest: "الأحدث", duelNotCounted: "هالمباراة ما انحسبت، فما هي داخلة في المواجهة.", noRankGeneric: "ما انحسبت هالمباراة في الترتيب",
+  newTag: "جديد", recv_giveTakeGot: "{name} عطاك هذي", recv_giveTakeTook: "أخذت هذي من {name}", recv_stealTwo: "{name} فزع لك بهذي", recv_drawTwo: "{name} قدعك وسحبت هذي",
   sdTagline: "كل منطقة لها حُلّة", sdOnline: "أونلاين", sdOnlineSub: "مع أصحابك", sdLocal: "نفس الجهاز", sdLocalSub: "أو ضد البوتات", sdRank: "الترتيب", sdRankSub: "قريبًا", sdRankSoon: "الترتيب جاي قريب", sdGuest: "ضيف", sdSaveShort: "سجّل واحفظ نقاطك", sdPickName: "وش نسمّيك؟", sdChangeName: "غيّر اسمك", sdNamePh: "اسمك في الترتيب", sdNameRule: "من ٢ إلى ١٦ حرف · يطلع للناس في الترتيب", sdSave: "احفظ", sdEdit: "غيّر", sdHello: "أهلًا {name}", sdGuestTitle: "حسابك ضيف", sdGuestBody: "احفظه عشان ما يضيع اسمك ونقاطك لو غيّرت جوالك", sdGoogle: "كمّل بقوقل", sdEmail: "كمّل بالإيميل", sdAuthSoon: "تسجيل الدخول يجي مع الترتيب", sdLang: "اللغة",
   madeBy: "صُممت بأيدي سعودية 🇸🇦", credit: "طالبة جامعة الأميرة نورة، لمقرر Core Studio",
   errCreate: "تعذر إنشاء الغرفة، حاول مجددًا.", addBot: "🤖 أضف بوت", removeBot: "أزل البوت",
@@ -2158,6 +2175,8 @@ const GlobalFont = () => (
     .win-pop { animation: win-pop .45s ease both; }
     @keyframes win-pop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
     .win-out { animation: win-out .35s ease forwards; }
+    .recv-out { animation: recv-out .45s cubic-bezier(.5,0,.8,.4) forwards; }
+    @keyframes recv-out { to { opacity: 0; transform: translateY(38vh) scale(.55); } }
     @keyframes win-out { to { opacity: 0; transform: scale(1.04); } }
     @media (prefers-reduced-motion: reduce) { .win-rise, .win-card-in, .win-pop { animation: none; } }
     .sd-card { transition: transform .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s; }
@@ -3533,6 +3552,35 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
   );
 }
 
+// Cards that just arrived from someone else's action: they fly in over the table with who sent
+// them, then drop toward the hand, where they keep a «جديد» tag for a few seconds.
+function ReceivedFX({ data }) {
+  const { t, L } = useI18n();
+  const [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    const a = setTimeout(() => setLeaving(true), 2300);
+    return () => clearTimeout(a);
+  }, []);
+  if (!data) return null;
+  const line = t("recv_" + data.kind, { name: L.name(data.fromName || "") });
+  return (
+    <div className={`fixed inset-x-0 flex flex-col items-center pointer-events-none ${leaving ? "recv-out" : "hilla-fade"}`} style={{ top: "28%", zIndex: 85 }}>
+      <div className="rounded-full px-4 py-1.5 tsz-14 font-bold win-pop" style={{ background: INK, color: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 12px 24px -10px rgba(0,0,0,.5)` }}>
+        {line}
+      </div>
+      <div className="flex gap-2 mt-3">
+        {data.cards.map((c, i) => (
+          <div key={c.id} className="win-card-in" style={{ animationDelay: `${120 + i * 110}ms` }}>
+            <div style={{ borderRadius: 96 * 0.11, boxShadow: "0 18px 30px -12px rgba(0,0,0,.5)" }}>
+              {c.kind === "item" ? <ItemCard card={c} size={96} showDesc={false} /> : <ActionCard card={c} size={84} showDesc={false} />}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PostGameSurvey({ game, myId, isOnline }) {
   const { t } = useI18n();
   const [fun, setFun] = useState(0);
@@ -3656,6 +3704,8 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   }, [turnSound]);
   const [premoveOn, setPremoveOn] = useState(loadPremove);
   const [pre, setPre] = useState([]); // premoved item card ids, on this device only
+  const [recv, setRecv] = useState(null); // cards that just arrived from an action, for ReceivedFX
+  const [newIds, setNewIds] = useState([]); // those cards get a «جديد» tag in the hand for a while
   useEffect(() => {
     try {
       window.localStorage.setItem(PREMOVE_STORE, premoveOn ? "on" : "off");
@@ -4521,6 +4571,37 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   const showThinkingPanel = multiHumanLocal && current.isBot;
   const handActive = isMyTurn && !current.isBot;
 
+  // Show what just arrived in my hand from someone's action. One screen = one player only (online,
+  // or one human vs bots): on a shared phone it would show cards to the wrong person.
+  const recvMeId = isOnline ? myId : soloHuman ? soloHuman.id : null;
+  useEffect(() => {
+    const ev = game.receivedEvent;
+    if (!ev || !recvMeId) return;
+    const entry = ev.entries.find((e) => e.toId === recvMeId && e.cardIds.length);
+    if (!entry) return;
+    const me = game.players.find((p) => p.id === recvMeId);
+    const cards = entry.cardIds.map((id) => me?.hand.find((c) => c.id === id)).filter(Boolean);
+    if (!cards.length) return;
+    setRecv({ key: ev.id, kind: entry.kind, fromName: entry.fromName, cards });
+    setNewIds(entry.cardIds);
+    haptic?.([12, 60, 12]);
+    const a = setTimeout(() => setRecv(null), 2700);
+    // as the cards drop toward the hand, slide the hand row so the first new one is in view
+    const c = setTimeout(() => {
+      const el = document.querySelector(`[data-cid="${entry.cardIds[0]}"]`);
+      try {
+        el?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      } catch {}
+    }, 2350);
+    const b = setTimeout(() => setNewIds([]), 7000);
+    return () => {
+      clearTimeout(a);
+      clearTimeout(b);
+      clearTimeout(c);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game.receivedEvent?.id]);
+
   // Premove only makes sense when this screen belongs to one player: online, or one human vs bots.
   const canPremove = premoveOn && !isMyTurn && !game.winner && viewer && !viewer.isBot && (isOnline || !!soloHuman);
   function togglePre(cardId) {
@@ -4561,8 +4642,13 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     }
     const onPick = (id) => (handActive ? toggleSelect(id) : canPremove ? togglePre(id) : null);
     const node = (c, i) => (
-      <div key={c.id} className="hilla-deal pt-4 relative" style={{ animationDelay: `${Math.min(i, 12) * 28}ms` }}>
+      <div key={c.id} data-cid={c.id} className="hilla-deal pt-4 relative" style={{ animationDelay: `${Math.min(i, 12) * 28}ms` }}>
         <ItemCard card={c} size={cardSize} selected={handActive ? selected.includes(c.id) : pre.includes(c.id)} onClick={() => onPick(c.id)} />
+        {newIds.includes(c.id) && !(!handActive && pre.includes(c.id)) && (
+          <span className="absolute left-1/2 tsz-10 font-bold rounded-full px-2 py-0.5 hilla-pop" style={{ top: 4, transform: "translateX(-50%)", background: "#366135", color: CREAM, boxShadow: `0 0 0 2px ${CREAM}` }}>
+            {t("newTag")}
+          </span>
+        )}
         {!handActive && pre.includes(c.id) && (
           <span className="absolute left-1/2 tsz-10 font-bold rounded-full px-2 py-0.5" style={{ top: 4, transform: "translateX(-50%)", background: GOLD, color: "#3A2608", boxShadow: `0 0 0 2px ${CREAM}` }}>
             {t("premoveTag")}
@@ -4660,6 +4746,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
         <DiamondLattice thickness={10} />
 
         <EduToast key={eduToast?.id || "edu-none"} data={eduToast} />
+        {recv && <ReceivedFX key={recv.key} data={recv} />}
         {hapticNode}
         <BlockFlashToast key={freshBlockEvent?.id || "none"} data={freshBlockEvent} />
         <ReactionFX trigger={game.reactionEvent} myId={myId} isOnline={isOnline} />
@@ -4949,8 +5036,13 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                     </div>
                     <div className="hilla-hand flex gap-2 overflow-x-auto -mx-3 px-3 pb-4 -mb-2">
                       {actionCards.map((c, i) => (
-                        <div key={c.id} className="hilla-deal pt-2" style={{ animationDelay: `${i * 28}ms` }}>
+                        <div key={c.id} data-cid={c.id} className="hilla-deal pt-2 relative" style={{ animationDelay: `${i * 28}ms` }}>
                           <ActionCard card={c} size={Math.round(cardSize * 0.86)} disabled={!handActive || game.actionUsedThisTurn} onClick={() => startAction(c.id)} />
+                          {newIds.includes(c.id) && (
+                            <span className="absolute left-1/2 tsz-10 font-bold rounded-full px-2 py-0.5 hilla-pop" style={{ top: -2, transform: "translateX(-50%)", background: "#366135", color: CREAM, boxShadow: `0 0 0 2px ${CREAM}` }}>
+                              {t("newTag")}
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
