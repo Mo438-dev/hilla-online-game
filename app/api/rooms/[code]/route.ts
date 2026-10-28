@@ -57,6 +57,7 @@ export async function PUT(request: Request, { params }: { params: { code: string
     if (!result.ok) {
       if (result.reason === 'not_found') return NextResponse.json({ error: 'not_found' }, { status: 404 });
       if (result.reason === 'stale') return NextResponse.json({ error: 'stale' }, { status: 409 });
+      if (result.reason === 'already_started') return NextResponse.json({ error: 'already_started' }, { status: 409 });
       return NextResponse.json({ error: result.rejected ? 'state_rejected' : 'busy', reason: result.reason }, { status: 409 });
     }
 

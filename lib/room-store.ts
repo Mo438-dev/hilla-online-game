@@ -304,6 +304,12 @@ export async function guardedSaveRoom(code: string, incoming: RoomDoc, baseUpdat
       next.game = { ...(next.game as any), pendingAction: { ...nextPa, startedAt } };
     }
 
+    // Starting is once per room: a second deal (a double-tapped start, a stale tab) is refused outright,
+    // whatever INTEGRITY_ENFORCE says, so the first deal can't be overwritten.
+    if (prev.started && prev.game && (next.game as any)?.analyticsId !== (prev.game as any)?.analyticsId) {
+      return { ok: false, reason: 'already_started' };
+    }
+
     let check: { ok: true } | { ok: false; reason: string } = { ok: true };
     if (prev.started && prev.game) {
       check = next.started && next.game ? checkTransition(prev.game, next.game) : { ok: false, reason: 'game_removed' };
