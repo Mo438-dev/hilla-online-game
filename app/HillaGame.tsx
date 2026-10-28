@@ -224,6 +224,11 @@ function readOnlineSession() {
   }
 }
 
+// The tab's session (above) drives the automatic rejoin on reload and is cleared when the player
+// leaves the game screen. The «كمّل لعبتك» pill on home also needs to know about a seat after that
+// (back to home, app closed, connection lost), so the same record is kept on the device too.
+const LAST_ONLINE_KEY = "hilla_last_online_v1";
+
 function writeOnlineSession(session) {
   if (typeof window === "undefined") return;
   try {
@@ -231,6 +236,25 @@ function writeOnlineSession(session) {
   } catch {
     /* ignore storage failures */
   }
+  try {
+    if (session?.roomCode && session?.myId) localStorage.setItem(LAST_ONLINE_KEY, JSON.stringify(session));
+  } catch {}
+}
+
+function readLastOnline() {
+  if (typeof window === "undefined") return null;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(LAST_ONLINE_KEY) || "null");
+    return parsed?.roomCode && parsed?.myId ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function forgetLastOnline() {
+  try {
+    localStorage.removeItem(LAST_ONLINE_KEY);
+  } catch {}
 }
 
 function clearOnlineSession() {
@@ -248,6 +272,7 @@ function pickRandomBotNames(n) {
 
 const BLOCK_WINDOW_SEC = 15; // long enough to actually read the action and decide
 const BLOCK_WINDOW_MS = BLOCK_WINDOW_SEC * 1000;
+const BLOCK_WINDOW_SOLO_SEC = 10; // one human vs bots: nobody to hide anything from, so wait less
 // When everyone who could block has passed, the action still stays on screen at least this long
 // (from the moment it appeared) so people can read what happened. Not applied when no human can
 // intervene at all (bots only) — that case already uses the short 2.5s window.
@@ -633,6 +658,10 @@ function rPlayItems(game, playerId, cardIds) {
   let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, ids);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed] };
   g1 = bumpItemStats(g1, cards);
+  // end screen: remember each player's last item (the winner's is "the piece they won with")
+  if (g1.stats) {
+    g1 = { ...g1, stats: { ...g1.stats, lastItemById: { ...(g1.stats.lastItemById || {}), [playerId]: cards[cards.length - 1] } } };
+  }
   g1 = pushLog(g1, `${player.name} وضع: ${cards.map((c) => c.name).join("، ")}.`);
   g1 = checkWin(g1, playerId);
   // Turn does NOT end here — the caller is responsible for calling rEndTurn right after a
@@ -961,6 +990,7 @@ const I18N = {
     lbSeasonLine: "Season {y} · {n} days left", lbInvite: "Invite friends", lbColPlayer: "Player", lbColWinsGames: "W / G", lbColPoints: "Pts", noRankLocal: "🏆 Same-device games and games against bots don't count for the leaderboard. Points are for online games with real players.", noRankWin: "Same-device games don't count for the leaderboard", noRankBots: "Didn't count: it was only with bots", noRankShort: "Didn't count: the game was too short", noRankDaily: "Didn't count: you've reached today's game limit", noRankLobby: "You need a second real player for points to count",
     blockTooLate: "Too late",
     premove: "Premove", premoveTag: "Ready", premoveHint: "Pick cards now — they're played when your turn starts", premoveBar: "Premove ready · played when your turn starts", premoveClear: "Cancel premove", premoveCancelled: "Your premove was cancelled — it no longer fits",
+    winPlaceLine: "You came {place} · {left}", winnerTag: "Winner", winPieceMine: "The piece you won with", winPieceOf: "The piece {name} won with", winHome: "Home", awDur: "Game time", awRounds: "Rounds", awCards: "Cards played", awRares: "Rares played", awTarget: "Most targeted", awTargetTie: "Tied for most targeted", awTieN: "{n} players", awEach: "each", winLastCard: "Last card!", winFinaleMe: "You're out of cards!", winFinaleOf: "{name} is out of cards!", winDuel: "Head-to-head: you {a} · {name} {b}", winDuelTap: "Head-to-head", fbTitle: "Your opinion matters · optional", fbSkip: "Skip", fbQFun: "How fun was the game?", fbQRules: "Were the rules clear?", fbQAgain: "Would you play again?", fbQComment: "Anything to tell us?", fbYes: "Sure 😍", fbNo: "No 😅", fbCommentPh: "Comment (optional)", fbSend: "Send", fbThanks: "Thank you! 🙏", duelTitle: "Head-to-head", duelWins: "wins", duelTied: "All square", duelLeadMe: "You're ahead", duelLeadThem: "{name} is ahead", duelGames: "From {n} games you played together this season", duelLast: "Last games:", duelW: "W", duelL: "L", duelNone: "You haven't played together this season", lbDuelHint: "Tap anyone to see your head-to-head",
     sdTagline: "Every region has its outfit", sdOnline: "Online", sdOnlineSub: "With friends", sdLocal: "Same device", sdLocalSub: "Or vs bots", sdRank: "Leaderboard", sdRankSub: "Coming soon", sdRankSoon: "The leaderboard is coming soon", sdGuest: "Guest", sdSaveShort: "Sign in to save your points", sdPickName: "What should we call you?", sdChangeName: "Change your name", sdNamePh: "Your leaderboard name", sdNameRule: "2 to 16 characters · shown on the leaderboard", sdSave: "Save", sdEdit: "Edit", sdHello: "Hi {name}", sdGuestTitle: "You're playing as a guest", sdGuestBody: "Save your account so your name and points stay if you change phones", sdGoogle: "Continue with Google", sdEmail: "Continue with email", sdAuthSoon: "Sign-in arrives with the leaderboard", sdLang: "Language",
     madeBy: "Designed by Saudi hands 🇸🇦", credit: "A Princess Nourah University student, for Core Studio",
     errCreate: "Couldn't create the room, try again.", addBot: "🤖 Add a bot", removeBot: "Remove bot",
@@ -1035,6 +1065,7 @@ const I18N = {
     lbSeasonLine: "Temporada {y} · quedan {n} días", lbInvite: "Invita a tus amigos", lbColPlayer: "Jugador", lbColWinsGames: "V / P", lbColPoints: "Pts", noRankLocal: "🏆 Las partidas en el mismo dispositivo y contra bots no cuentan para la clasificación. Los puntos son para partidas en línea con jugadores reales.", noRankWin: "Las partidas en el mismo dispositivo no cuentan para la clasificación", noRankBots: "No contó: solo había bots", noRankShort: "No contó: la partida fue muy corta", noRankDaily: "No contó: llegaste al límite diario de partidas", noRankLobby: "Necesitas un segundo jugador real para que cuenten los puntos",
     blockTooLate: "Demasiado tarde",
     premove: "Jugada anticipada", premoveTag: "Lista", premoveHint: "Elige cartas ahora: se juegan al empezar tu turno", premoveBar: "Jugada anticipada lista · se juega al empezar tu turno", premoveClear: "Cancelar jugada anticipada", premoveCancelled: "Tu jugada anticipada se canceló: ya no encaja",
+    winPlaceLine: "Quedaste {place} · {left}", winnerTag: "Ganador", winPieceMine: "La pieza con la que ganaste", winPieceOf: "La pieza con la que ganó {name}", winHome: "Inicio", awDur: "Duración", awRounds: "Rondas", awCards: "Cartas jugadas", awRares: "Raras jugadas", awTarget: "Más atacado", awTargetTie: "Empate en más atacados", awTieN: "{n} jugadores", awEach: "cada uno", winLastCard: "¡Última carta!", winFinaleMe: "¡Te quedaste sin cartas!", winFinaleOf: "¡{name} se quedó sin cartas!", winDuel: "Cara a cara: tú {a} · {name} {b}", winDuelTap: "Cara a cara", fbTitle: "Tu opinión importa · opcional", fbSkip: "Omitir", fbQFun: "¿Qué tan divertida fue la partida?", fbQRules: "¿Las reglas eran claras?", fbQAgain: "¿Volverías a jugar?", fbQComment: "¿Algo que contarnos?", fbYes: "Claro 😍", fbNo: "No 😅", fbCommentPh: "Comentario (opcional)", fbSend: "Enviar", fbThanks: "¡Gracias! 🙏", duelTitle: "Cara a cara", duelWins: "victorias", duelTied: "Empatados", duelLeadMe: "Vas por delante", duelLeadThem: "{name} va por delante", duelGames: "De {n} partidas que jugaron juntos esta temporada", duelLast: "Últimas partidas:", duelW: "V", duelL: "D", duelNone: "No han jugado juntos esta temporada", lbDuelHint: "Toca a cualquiera para ver su cara a cara",
     sdTagline: "Cada región tiene su traje", sdOnline: "En línea", sdOnlineSub: "Con amigos", sdLocal: "Mismo dispositivo", sdLocalSub: "O contra bots", sdRank: "Clasificación", sdRankSub: "Muy pronto", sdRankSoon: "La clasificación llega pronto", sdGuest: "Invitado", sdSaveShort: "Inicia sesión para guardar tus puntos", sdPickName: "¿Cómo te llamamos?", sdChangeName: "Cambia tu nombre", sdNamePh: "Tu nombre en la clasificación", sdNameRule: "De 2 a 16 caracteres · se muestra en la clasificación", sdSave: "Guardar", sdEdit: "Editar", sdHello: "Hola {name}", sdGuestTitle: "Juegas como invitado", sdGuestBody: "Guarda tu cuenta para no perder tu nombre y tus puntos si cambias de móvil", sdGoogle: "Continuar con Google", sdEmail: "Continuar con correo", sdAuthSoon: "El inicio de sesión llega con la clasificación", sdLang: "Idioma",
     madeBy: "Diseñado por manos saudíes 🇸🇦", credit: "Estudiante de la Universidad Princesa Nourah, para Core Studio",
     errCreate: "No se pudo crear la sala, inténtalo de nuevo.", addBot: "🤖 Añadir un bot", removeBot: "Quitar bot",
@@ -1100,12 +1131,13 @@ Object.assign(I18N.ar, {
   tagline: "لعبة مطابقة الأزياء التقليدية السعودية",
   playLocal: "العب على نفس الجهاز", playOnline: "العب أونلاين (كود غرفة)",
   sdErr_length: "من ٢ إلى ١٦ حرف.", sdErr_chars: "حروف وأرقام ومسافات و _ و - بس.", sdErr_blocked: "اختر اسم ثاني.", sdErr_taken: "هذا الاسم مأخوذ.", sdErr_too_fast: "انتظر شوي قبل ما تغيّره مرة ثانية.",
-  lbTitle: "الترتيب", lbThisSeason: "هذا الموسم", lbAll: "الكل", lbSeason: "موسم {y}", lbDaysLeft: "باقي {n} يوم", lbAllTime: "كل المواسم", lbRule: "٣ نقاط للفوز و+١ عن كل لاعب فوق الاثنين، ونقطة لإكمال اللعبة", lbEmpty: "ما فيه نتائج للحين. العب أونلاين مع أصحابك وكن أول واحد!", lbError: "ما قدرنا نجيب الترتيب.", lbRetry: "حاول مرة ثانية", lbPts: "{n} نقطة", lbGamesWins: "{g} لعبة · {w} فوز", lbToNext: "باقي لك {p} نقطة توصل للمركز {r}", lbLoading: "نجيب الترتيب…", winPoints: "+{n} نقطة في الترتيب",
+  lbTitle: "الترتيب", lbThisSeason: "هذا الموسم", lbAll: "الكل", lbSeason: "موسم {y}", lbDaysLeft: "باقي {n} يوم", lbAllTime: "كل المواسم", lbRule: "٣ نقاط للفوز و+١ عن كل لاعب فوق الاثنين، ونقطة لإكمال اللعبة", lbEmpty: "ما فيه نتائج للحين. العب أونلاين مع أصحابك وكن أول واحد!", lbError: "ما قدرنا نجيب الترتيب.", lbRetry: "حاول مرة ثانية", lbPts: "{n} نقطة", lbGamesWins: "{g} لعبة · {w} فوز", lbToNext: "باقي لك {p} نقطة توصل للمركز {r}", lbLoading: "نجيب الترتيب…", winPoints: "+{n} {pw} في الترتيب",
   chipPoints: "{p} · المركز {r}", chipPlayOnline: "العب أونلاين وابدأ تجمع نقاط", lbLeader: "{name} في الصدارة", lbLeaderYou: "أنت المتصدر 👑", resumeGame: "كمّل لعبتك · غرفة {code}", lbYourSpot: "مكانك هنا؟", lbStatRank: "مركزك", lbStatPoints: "نقاطك", lbStatGames: "ألعابك", lbStatWins: "فوزك",
   ptsWord: "نقطة", lbFriends: "ربعك", lbSoonTag: "قريبًا", lbFriendsNote: "ربعك هم اللي لعبت معهم أونلاين", lbGlobalSoon: "الترتيب العام قريب. للحين تنافس ربعك.", lbHowTitle: "كيف تنحسب النقاط؟", lbHowWin: "الفوز", lbHowFinish: "إكمال المباراة", lbHowExtra: "كل لاعب فوق الاثنين (للفائز)", lbHowNote: "تنحسب مباريات الأونلاين اللي فيها لاعبين حقيقيين اثنين أو أكثر. المباريات مع البوتات أو على نفس الجهاز ما تنحسب. ربعك هم كل اللي لعبت معهم، والموسم سنة هجرية كاملة.", lbOk: "تمام", lbNoFriendsTitle: "ما عندك ربع للحين", lbNoFriendsBody: "العب أونلاين مع ربعك، وكل واحد لعبت معه يطلع هنا وتتنافسون على النقاط.", lbPlayOnline: "العب أونلاين",
   lbSeasonLine: "موسم {y} · باقي {n} يوم", lbInvite: "نادِ ربعك", lbColPlayer: "اللاعب", lbColWinsGames: "فوز / لعب", lbColPoints: "نقاط", noRankLocal: "🏆 مباريات نفس الجهاز ومع البوتات ما تنحسب في الترتيب. النقاط بس للأونلاين مع لاعبين حقيقيين.", noRankWin: "مباريات نفس الجهاز ما تنحسب في الترتيب", noRankBots: "ما انحسبت: كانت مع بوتات بس", noRankShort: "ما انحسبت: المباراة كانت قصيرة", noRankDaily: "ما انحسبت: وصلت حد المباريات اليومي", noRankLobby: "تحتاج لاعب حقيقي ثاني عشان تنحسب النقاط",
   blockTooLate: "فات الوقت",
   premove: "حركة مسبقة", premoveTag: "جاهز", premoveHint: "اختر كروتك الحين، وتنلعب أول ما يجي دورك", premoveBar: "حركتك المسبقة جاهزة · تنلعب أول ما يجي دورك", premoveClear: "إلغاء الحركة المسبقة", premoveCancelled: "انلغت حركتك المسبقة، ما عادت تنفع",
+  winPlaceLine: "جيت {place} · {left}", winnerTag: "الفائز", winPieceMine: "القطعة اللي فزت فيها", winPieceOf: "القطعة اللي فاز فيها {name}", winHome: "الرئيسية", awDur: "مدة المباراة", awRounds: "جولات", awCards: "كروت انلعبت", awRares: "نوادر انلعبت", awTarget: "الأكثر استهدافًا", awTargetTie: "تعادلوا في الاستهداف", awTieN: "{n} لاعبين", awEach: "لكل واحد", winLastCard: "آخر كرت!", winFinaleMe: "خلّصت كروتك!", winFinaleOf: "{name} خلّص كروته!", winDuel: "المواجهة: أنت {a} · {name} {b}", winDuelTap: "المواجهة", fbTitle: "رأيك يهمنا · اختياري", fbSkip: "تخطي", fbQFun: "كم كانت المباراة ممتعة؟", fbQRules: "القوانين كانت واضحة؟", fbQAgain: "تلعبها مرة ثانية؟", fbQComment: "عندك شي تقوله؟", fbYes: "أكيد 😍", fbNo: "لا 😅", fbCommentPh: "تعليق (اختياري)", fbSend: "أرسل", fbThanks: "شكرًا لك! 🙏", duelTitle: "المواجهة", duelWins: "فوز", duelTied: "متعادلين", duelLeadMe: "الأفضلية لك", duelLeadThem: "الأفضلية لـ{name}", duelGames: "من {n} مباريات لعبتوها مع بعض هذا الموسم", duelLast: "آخر المباريات:", duelW: "ف", duelL: "خ", duelNone: "ما لعبتوا مع بعض هذا الموسم", lbDuelHint: "اضغط على أي واحد تشوف مواجهتكم",
   sdTagline: "كل منطقة لها حُلّة", sdOnline: "أونلاين", sdOnlineSub: "مع أصحابك", sdLocal: "نفس الجهاز", sdLocalSub: "أو ضد البوتات", sdRank: "الترتيب", sdRankSub: "قريبًا", sdRankSoon: "الترتيب جاي قريب", sdGuest: "ضيف", sdSaveShort: "سجّل واحفظ نقاطك", sdPickName: "وش نسمّيك؟", sdChangeName: "غيّر اسمك", sdNamePh: "اسمك في الترتيب", sdNameRule: "من ٢ إلى ١٦ حرف · يطلع للناس في الترتيب", sdSave: "احفظ", sdEdit: "غيّر", sdHello: "أهلًا {name}", sdGuestTitle: "حسابك ضيف", sdGuestBody: "احفظه عشان ما يضيع اسمك ونقاطك لو غيّرت جوالك", sdGoogle: "كمّل بقوقل", sdEmail: "كمّل بالإيميل", sdAuthSoon: "تسجيل الدخول يجي مع الترتيب", sdLang: "اللغة",
   madeBy: "صُممت بأيدي سعودية 🇸🇦", credit: "طالبة جامعة الأميرة نورة، لمقرر Core Studio",
   errCreate: "تعذر إنشاء الغرفة، حاول مجددًا.", addBot: "🤖 أضف بوت", removeBot: "أزل البوت",
@@ -2112,6 +2144,15 @@ const GlobalFont = () => (
     .hilla-deal { animation: hilla-deal .38s cubic-bezier(.2,.8,.2,1) backwards; }
     .hilla-coord-in { animation: hilla-coord-in .55s cubic-bezier(.2,.8,.2,1) backwards; transform-origin: 50% 60%; }
     .hilla-drop { animation: hilla-drop .46s cubic-bezier(.2,.9,.3,1.12) backwards; }
+    .win-rise { animation: win-rise .5s cubic-bezier(.2,.8,.2,1) both; }
+    @keyframes win-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+    .win-card-in { animation: win-card-in .7s cubic-bezier(.2,.9,.25,1.2) both; }
+    @keyframes win-card-in { from { opacity: 0; transform: translateY(80px) scale(.5) rotate(-12deg); } to { opacity: 1; transform: none; } }
+    .win-pop { animation: win-pop .45s ease both; }
+    @keyframes win-pop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+    .win-out { animation: win-out .35s ease forwards; }
+    @keyframes win-out { to { opacity: 0; transform: scale(1.04); } }
+    @media (prefers-reduced-motion: reduce) { .win-rise, .win-card-in, .win-pop { animation: none; } }
     .sd-card { transition: transform .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s; }
     /* Home cards: tossed onto the table, then a slow sway. Animates the separate translate/rotate
        properties so the card's own transform (its tilt and tap lift) is left alone. */
@@ -2251,7 +2292,11 @@ function pendingWindowMs(game) {
   const humanBlocker = game.players.some(
     (p) => p.id !== pa.actorId && !p.isBot && p.hand.some((c) => c.kind === "action" && c.actionType === "block")
   );
-  return humanTarget || humanBlocker ? BLOCK_WINDOW_MS : 2500;
+  if (!(humanTarget || humanBlocker)) return 2500;
+  // Only one human at the table: the full 15s exists to hide who holds لا ما تقدر from other
+  // people, which doesn't matter against bots.
+  const humans = game.players.filter((p) => !p.isBot).length;
+  return humans <= 1 ? BLOCK_WINDOW_SOLO_SEC * 1000 : BLOCK_WINDOW_MS;
 }
 
 // F2 — win celebration: CSS-only confetti in the four region colours plus gold and the brand red.
@@ -2963,6 +3008,497 @@ function pickPriorityMoveToast(entries, currentGame, prevGame, shownTurnToastKey
 
 // Optional post-game survey (V2 analytics). Shown only on the winner screen,
 // fully skippable, fire-and-forget — can never interrupt or break gameplay.
+const PLACE_AR = ["الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس"];
+const arDigits = (v) => String(v).replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d]);
+
+// End-of-game survey, one question at a time. Same answers production already stores (fun 1–5,
+// rules clarity 1–5, play again yes/no, optional comment), so old and new answers stay comparable.
+// Skipping saves nothing.
+function FeedbackCard({ onSubmit }) {
+  const { t } = useI18n();
+  const [step, setStep] = useState(0); // 0 fun · 1 rules · 2 again · 3 comment · 4 thanks · -1 skipped
+  const [ans, setAns] = useState({ fun: 0, rules: 0, again: null, comment: "" });
+  if (step === -1) return null;
+  const next = (patch) => {
+    setAns((a) => ({ ...a, ...patch }));
+    setStep((st) => st + 1);
+  };
+  const faces = ["😴", "😐", "🙂", "😄", "🤩"];
+  const scale = (key) => (
+    <div className="flex justify-center gap-2 mt-3" dir="ltr">
+      {faces.map((f, i) => (
+        <button key={i} onClick={() => next({ [key]: i + 1 })} className="w-11 h-11 rounded-full flex items-center justify-center hpress-97" style={{ fontSize: 24, background: `${INK}08` }} aria-label={String(i + 1)}>
+          {f}
+        </button>
+      ))}
+    </div>
+  );
+  const q = [t("fbQFun"), t("fbQRules"), t("fbQAgain"), t("fbQComment")][step];
+  return (
+    <div data-feedback className="mt-6 mx-auto max-w-xs rounded-2xl px-4 pt-3 pb-4 relative win-rise" style={{ animationDelay: "900ms", background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}66` }}>
+      {step < 4 && (
+        <div className="flex items-center justify-between">
+          <span className="tsz-11 font-bold" style={{ color: `${INK}77` }}>
+            {t("fbTitle")}
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="flex gap-1">
+              {[0, 1, 2, 3].map((i) => (
+                <span key={i} className="rounded-full" style={{ width: i === step ? 14 : 6, height: 6, background: i <= step ? BRAND : `${INK}22`, transition: "width .25s" }} />
+              ))}
+            </span>
+            <button onClick={() => setStep(-1)} className="tsz-11 font-semibold" style={{ color: `${INK}66` }}>
+              {t("fbSkip")}
+            </button>
+          </span>
+        </div>
+      )}
+      <div key={step} className="hilla-pop">
+        {step < 4 && (
+          <div className="tsz-15 font-bold mt-3" style={{ color: INK }}>
+            {q}
+          </div>
+        )}
+        {step === 0 && scale("fun")}
+        {step === 1 && scale("rules")}
+        {step === 2 && (
+          <div className="flex justify-center gap-2 mt-3">
+            <button onClick={() => next({ again: true })} className={`px-5 py-2 tsz-14 ${btn}`} style={{ background: "#36613522", color: "#2C5A2B" }}>
+              {t("fbYes")}
+            </button>
+            <button onClick={() => next({ again: false })} className={`px-5 py-2 tsz-14 ${btn}`} style={{ background: `${BRAND}14`, color: BRAND }}>
+              {t("fbNo")}
+            </button>
+          </div>
+        )}
+        {step === 3 && (
+          <>
+            <textarea value={ans.comment} onChange={(e) => setAns({ ...ans, comment: e.target.value.slice(0, 280) })} rows={2} placeholder={t("fbCommentPh")} className="w-full mt-3 rounded-xl px-3 py-2 hstart" style={{ background: `${INK}06`, border: `1.5px solid ${INK}14`, resize: "none", color: INK }} />
+            <button
+              onClick={() => {
+                onSubmit?.(ans);
+                setStep(4);
+              }}
+              className={`w-full mt-2 py-2.5 tsz-14 ${btn}`}
+              style={btnPrimary}
+            >
+              {t("fbSend")}
+            </button>
+          </>
+        )}
+        {step === 4 && (
+          <div className="tsz-15 font-bold py-2" style={{ color: BRAND }}>
+            {t("fbThanks")}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// The beat between the last play and the results: the table stays, dimmed, and the winning card
+// lands in the middle with who just ran out of cards. Calls onDone when it's finished.
+function WinFinale({ game, meId, isOnline, onDone }) {
+  const { t, L } = useI18n();
+  const [leaving, setLeaving] = useState(false);
+  const winner = game.players.find((p) => p.id === game.winner);
+  const rank = { rare: 3, medium: 2, common: 1 };
+  const piece =
+    game.stats?.lastItemById?.[game.winner] ||
+    [...(game.discardPile || [])].reverse().filter((c) => c.kind === "item").sort((a, b) => (rank[b.rarity] || 0) - (rank[a.rarity] || 0))[0];
+  const localHumans = game.players.filter((p) => !p.isBot).length;
+  const isMe = !!meId && winner?.id === meId;
+  const name = winner ? (isOnline || winner.isBot || localHumans > 1 ? L.name(winner.name) : t("you")) : "";
+  useEffect(() => {
+    // everyone sees the winner together: bring the page back to the top first
+    try {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {
+      window.scrollTo(0, 0);
+    }
+    const a = setTimeout(() => setLeaving(true), 1700);
+    const b = setTimeout(onDone, 2050);
+    return () => {
+      clearTimeout(a);
+      clearTimeout(b);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <div className={`app-fixed flex flex-col items-center justify-center ${leaving ? "win-out" : "hilla-fade"}`} style={{ zIndex: 90, background: "rgba(35,31,32,.62)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)" }}>
+      <div className="tsz-14 font-bold win-pop" style={{ color: GOLD, animationDelay: "150ms" }}>
+        {t("winLastCard")}
+      </div>
+      {piece && (
+        <div className="win-card-in mt-3 p-6">
+          {/* box-shadow, not filter: iOS clips a drop-shadow filter on an element that's animating */}
+          <div style={{ borderRadius: 160 * 0.11, boxShadow: "0 26px 44px -14px rgba(0,0,0,.55)" }}>
+            <ItemCard card={piece} size={160} showDesc={false} />
+          </div>
+        </div>
+      )}
+      <div className="display-font font-bold mt-4 px-6 text-center win-pop" style={{ color: CREAM, fontSize: 26, lineHeight: 1.2, animationDelay: "550ms" }}>
+        👑 {isMe ? t("winFinaleMe") : t("winFinaleOf", { name })}
+      </div>
+    </div>
+  );
+}
+
+// Head-to-head: only the games the two of you played together this season (GET /api/duel).
+// query is "with=<userId>" (win screen) or "nick=<nickname>" (leaderboard).
+function DuelSheet({ them, query, onClose }) {
+  const { t, L } = useI18n();
+  const [d, setD] = useState(null); // null loading · {error} · data
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const res = await fetch(`/api/duel?${query}`, { headers, cache: "no-store" });
+        const body = res.ok ? await res.json() : { error: true };
+        if (alive) setD(body);
+      } catch {
+        if (alive) setD({ error: true });
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [query]);
+  const ok = d && !d.error;
+  const side = (name, pts, mine) => (
+    <div className="flex-1 flex flex-col items-center min-w-0">
+      <NameAvatar name={mine ? t("you") : name} size={54} ring={mine ? GOLD : "#A3A9B1"} />
+      <div className="tsz-14 font-bold mt-2 truncate" style={{ maxWidth: 120, color: mine ? BRAND : INK }}>
+        {mine ? t("you") : name}
+      </div>
+      <div className="tsz-11 font-semibold" style={{ color: `${INK}88`, visibility: ok ? "visible" : "hidden" }}>
+        {L.points(pts || 0)}
+      </div>
+    </div>
+  );
+  const lead = !ok ? "" : d.myWins === d.theirWins ? t("duelTied") : d.myWins > d.theirWins ? t("duelLeadMe") : t("duelLeadThem", { name: them });
+  return (
+    <Sheet onBackdrop={onClose} maxW={340} z={95}>
+      <div className="text-center">
+        <div className="tsz-12 font-bold" style={{ color: `${INK}77` }}>
+          {t("duelTitle")}
+        </div>
+        <div className="flex items-center mt-3">
+          {side(them, ok ? d.myPts : 0, true)}
+          <div className="flex flex-col items-center px-1">
+            <div dir="ltr" className="display-font font-bold leading-none" style={{ fontSize: 44, color: BRAND }}>
+              {/* your number sits on your side: the right in Arabic, the left otherwise */}
+              {ok ? (L.dir === "rtl" ? `${L.num(d.theirWins)} – ${L.num(d.myWins)}` : `${L.num(d.myWins)} – ${L.num(d.theirWins)}`) : "…"}
+            </div>
+            <div className="tsz-11 font-semibold mt-1" style={{ color: `${INK}88` }}>
+              {t("duelWins")}
+            </div>
+          </div>
+          {side(them, ok ? d.theirPts : 0, false)}
+        </div>
+        {d === null && (
+          <div className="tsz-12 mt-4" style={{ color: `${INK}88` }}>
+            {t("lbLoading")}
+          </div>
+        )}
+        {d?.error && (
+          <div className="tsz-12 mt-4" style={{ color: `${INK}88` }}>
+            {t("lbError")}
+          </div>
+        )}
+        {ok && d.games === 0 && (
+          <div className="tsz-12 mt-4" style={{ color: `${INK}88` }}>
+            {t("duelNone")}
+          </div>
+        )}
+        {ok && d.games > 0 && (
+          <>
+            <div className="tsz-13 font-bold mt-4" style={{ color: BRAND }}>
+              {lead}
+            </div>
+            <div className="tsz-12 mt-1" style={{ color: `${INK}88` }}>
+              {t("duelGames", { n: L.num(d.games) })}
+            </div>
+            <div className="flex items-center justify-center gap-1.5 mt-3">
+              <span className="tsz-11 font-semibold" style={{ color: `${INK}77` }}>
+                {t("duelLast")}
+              </span>
+              {d.last.map((x, i) => (
+                <span key={i} className="w-6 h-6 rounded-full flex items-center justify-center tsz-11 font-bold" style={x === "w" ? { background: "#366135", color: CREAM } : { background: `${INK}14`, color: `${INK}88` }}>
+                  {x === "w" ? t("duelW") : t("duelL")}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+        <button onClick={onClose} className={`w-full py-3 mt-5 tsz-15 ${btn}`} style={btnPrimary}>
+          {t("lbOk")}
+        </button>
+      </div>
+    </Sheet>
+  );
+}
+
+function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) {
+  const { t, L } = useI18n();
+  const [copied, setCopied] = useState(false);
+  // Tap another real player (online, with an account) to see your head-to-head.
+  const [duelWith, setDuelWith] = useState(null);
+  const canDuel = (p) => isOnline && !!meId && p.id !== meId && !p.isBot && !!seatUserIds?.[p.id];
+  const isAr = L.isAr;
+  const num = (n) => (isAr ? arDigits(n) : String(n));
+  const standings = [...game.players].sort((a, b) => (a.id === game.winner ? -1 : b.id === game.winner ? 1 : a.hand.length - b.hand.length));
+  const winner = standings[0];
+  const iWon = !!meId && winner.id === meId;
+  const myPlace = meId ? standings.findIndex((p) => p.id === meId) : -1;
+  const me = myPlace >= 0 ? standings[myPlace] : null;
+  const localHumans = game.players.filter((p) => !p.isBot).length;
+  const nameOf = (p) => (p.id === meId ? t("you") : isOnline || p.isBot || localHumans > 1 ? L.name(p.name) : t("you"));
+  const placeName = (i) => (isAr ? PLACE_AR[i] : L.code === "es" ? `${i + 1}.º` : ["1st", "2nd", "3rd", "4th", "5th", "6th"][i]);
+  const myLeft = (n) => (isAr ? (n === 1 ? "بقى لك كرت واحد" : n === 2 ? "بقى لك كرتين" : n <= 10 ? `بقى لك ${num(n)} كروت` : `بقى لك ${num(n)} كرت`) : L.cardsLeft(n));
+  const cardsWord = (n) => (isAr ? (n === 1 ? "كرت" : n === 2 ? "كرتين" : `${num(n)} ${n >= 3 && n <= 10 ? "كروت" : "كرت"}`) : L.cardsLeft(n));
+  const initialOf = (p) => [...nameOf(p)][0];
+
+  // the player's own result (online): points, or why it didn't count, plus the head-to-head line.
+  // Loaded after the screen is up; the server writes it in the same save that set the winner.
+  const [res, setRes] = useState(null);
+  useEffect(() => {
+    if (!isOnline || !AUTH_ENABLED || !game.analyticsId) return;
+    let alive = true;
+    (async () => {
+      for (let attempt = 0; attempt < 4 && alive; attempt++) {
+        try {
+          const headers = await authHeaders();
+          if (!headers.Authorization) return;
+          const r = await fetch(`/api/my-result?gameId=${encodeURIComponent(game.analyticsId)}`, { headers, cache: "no-store" });
+          if (r.status === 200) {
+            const body = await r.json();
+            if (alive) setRes(body);
+            return;
+          }
+        } catch {}
+        await new Promise((ok) => setTimeout(ok, 1500));
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [game.analyticsId, isOnline]);
+  const notCountedKey = res && !res.counted ? NO_RANK_REASON[res.reason] : null;
+
+  const durationMs = game.endedAtMs && game.startedAtMs ? game.endedAtMs - game.startedAtMs : null;
+  const dur = durationMs > 0 ? `${Math.floor(durationMs / 60000)}:${String(Math.round(durationMs / 1000) % 60).padStart(2, "0")}` : null;
+  const byId = game.stats?.targetedByPlayerId || {};
+  const maxT = Math.max(0, ...Object.values(byId));
+  const targeted = maxT > 0 ? game.players.filter((p) => byId[p.id] === maxT) : [];
+  const nums = [
+    dur && { icon: "⏱", l: t("awDur"), v: num(dur) },
+    { icon: "🔄", l: t("awRounds"), v: num(game.coordRounds ?? 0) },
+    { icon: "🃏", l: t("awCards"), v: num(game.stats?.itemsPlayed || 0) },
+    { icon: "💎", l: t("awRares"), v: num(game.stats?.rareItemsPlayed || 0) },
+  ].filter(Boolean);
+  // nobody stands out when everyone was hit the same number of times: skip the line then
+  const target = targeted.length > 0 && targeted.length < game.players.length ? targeted : null;
+  const tie = target && target.length > 1;
+  const timesTxt = (n) => (isAr ? (n === 1 ? "مرة واحدة" : n === 2 ? "مرتين" : `${num(n)} ${n <= 10 ? "مرات" : "مرة"}`) : `×${n}`);
+  const targetNames = !target ? "" : target.length <= 2 ? target.map(nameOf).join(isAr ? " و" : " & ") : t("awTieN", { n: num(target.length) });
+
+  // the winning piece: the last item the winner played (fallback: the rarest item in the played pile)
+  const rank = { rare: 3, medium: 2, common: 1 };
+  const piece =
+    game.stats?.lastItemById?.[winner.id] ||
+    [...(game.discardPile || [])].reverse().filter((c) => c.kind === "item").sort((a, b) => (rank[b.rarity] || 0) - (rank[a.rarity] || 0))[0];
+  const pieceTitle = iWon ? t("winPieceMine") : t("winPieceOf", { name: nameOf(winner) });
+
+  function share() {
+    const lines = [
+      t("shareRecap"),
+      ...standings.map((p, i) => `${["🥇", "🥈", "🥉"][i] || `${i + 1}.`} ${nameOf(p)}${i ? ` (${cardsWord(p.hand.length)})` : ""}`),
+      ...nums.map((a) => `${a.icon} ${a.l}: ${a.v}`),
+    ].join("\n");
+    try {
+      if (navigator.share) navigator.share({ text: lines });
+      else {
+        navigator.clipboard.writeText(lines);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      }
+    } catch {}
+  }
+
+  const seat = isOnline ? game.players.find((p) => p.id === myId && !p.isBot) : game.players.find((p) => !p.isBot);
+
+  return (
+    <div className="mt-6 text-center">
+      {iWon && <Confetti />}
+      <div className="win-rise">
+        <div className="display-font font-bold leading-none" style={{ color: BRAND, fontSize: fs(46) }}>
+          {iWon ? t("youWon") : t("wonName", { name: nameOf(winner) })}
+        </div>
+        {me && !iWon && (
+          <div className="tsz-14 font-semibold mt-2" style={{ color: `${INK}99` }}>
+            {t("winPlaceLine", { place: placeName(myPlace), left: myLeft(me.hand.length) })}
+          </div>
+        )}
+        {isOnline && res?.counted ? (
+          <div className="inline-flex items-center gap-2 mt-3 rounded-full px-4 py-1.5 tsz-14 font-bold" style={{ background: `${GOLD}40`, color: "#5A3F0C", boxShadow: `0 0 0 1.5px ${GOLD}` }}>
+            {t("winPoints", { n: num(res.points), pw: res.points >= 3 && res.points <= 10 ? "نقاط" : "نقطة" })}
+          </div>
+        ) : isOnline && notCountedKey ? (
+          <div className="tsz-11 font-semibold mt-2" style={{ color: `${INK}88` }}>
+            {t(notCountedKey)}
+          </div>
+        ) : !isOnline ? (
+          <div className="tsz-11 font-semibold mt-2" style={{ color: `${INK}77` }}>
+            {t("noRankWin")}
+          </div>
+        ) : null}
+        {isOnline && res?.duel && (
+          <div className="tsz-13 font-semibold mt-2" style={{ color: `${INK}99` }}>
+            {t("winDuel", { name: res.duel.name, a: num(res.duel.me), b: num(res.duel.them) })}
+          </div>
+        )}
+      </div>
+
+      {/* standings: what each player still held; the winner's hand is empty */}
+      <div className="mt-5 mx-auto max-w-sm grid gap-2 px-3" style={{ gridTemplateColumns: `repeat(${Math.min(3, standings.length)}, 1fr)` }}>
+        {standings.map((p, i) => {
+          const n = Math.min(5, p.hand.length);
+          return (
+            <div key={p.id} onClick={() => canDuel(p) && setDuelWith(p)} className={`rounded-2xl pt-3 pb-2 flex flex-col items-center win-rise ${canDuel(p) ? "cursor-pointer hpress-97" : ""}`} style={{ animationDelay: `${180 + i * 90}ms`, background: i === 0 ? CREAM : `${CREAM}99`, boxShadow: i === 0 ? `0 0 0 2px ${GOLD}` : `0 0 0 1px ${INK}12` }}>
+              <div className="relative" style={{ width: 84, height: 52 }}>
+                {i === 0 ? (
+                  <span className="absolute inset-0 flex items-center justify-center" style={{ fontSize: 30 }}>
+                    👑
+                  </span>
+                ) : (
+                  Array.from({ length: n }, (_, k) => (
+                    <div key={k} className="absolute" style={{ left: 42 - 15 + (k - (n - 1) / 2) * 10, top: 4, transform: `rotate(${(k - (n - 1) / 2) * 9}deg)`, transformOrigin: "50% 120%" }}>
+                      <CardBack size={30} tall />
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="tsz-13 font-bold mt-1 truncate px-1" style={{ maxWidth: "100%", color: p.id === meId ? BRAND : INK }}>
+                {nameOf(p)}
+              </div>
+              <div className="tsz-11 font-semibold" style={{ color: i === 0 ? GOLD_DK : `${INK}88` }}>
+                {i === 0 ? t("winnerTag") : cardsWord(p.hand.length)}
+              </div>
+              {canDuel(p) && (
+                <div className="tsz-10 font-semibold mt-0.5" style={{ color: `${INK}55` }}>
+                  {t("winDuelTap")} ‹
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* the match in numbers, then the most-targeted line */}
+      <div className="mt-5 mx-auto max-w-xs win-rise" style={{ animationDelay: "480ms" }}>
+        <div className="rounded-2xl py-3 flex" style={{ background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}55` }}>
+          {nums.map((a, k) => (
+            <div key={a.l} className="flex-1 text-center px-1" style={{ borderInlineStart: k ? `1px solid ${INK}10` : "none" }}>
+              <div className="tsz-14">{a.icon}</div>
+              <div className="tsz-15 font-bold mt-0.5" style={{ color: BRAND }}>
+                {a.v}
+              </div>
+              <div className="tsz-10 font-semibold leading-tight" style={{ color: `${INK}88` }}>
+                {a.l}
+              </div>
+            </div>
+          ))}
+        </div>
+        {target && (
+          <div className="mt-2 rounded-2xl px-3 py-2 flex items-center gap-2 hstart" style={{ background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}55` }}>
+            {tie ? (
+              <span className="flex flex-shrink-0" style={{ paddingInlineStart: 6 }}>
+                {target.slice(0, 3).map((p) => (
+                  <span key={p.id} className="w-8 h-8 rounded-full flex items-center justify-center tsz-13 font-bold" style={{ marginInlineStart: -6, background: BRAND, color: CREAM, boxShadow: `0 0 0 2px ${CREAM}` }}>
+                    {initialOf(p)}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              <span className="w-9 h-9 rounded-full flex items-center justify-center tsz-15 flex-shrink-0" style={{ background: `${BRAND}14` }}>
+                🎯
+              </span>
+            )}
+            <span className="flex-1 min-w-0">
+              <span className="block tsz-11 font-semibold" style={{ color: `${INK}88` }}>
+                {tie ? `🎯 ${t("awTargetTie")}` : t("awTarget")}
+              </span>
+              <span className="block tsz-14 font-bold truncate" style={{ color: BRAND }}>
+                {targetNames}
+              </span>
+            </span>
+            <span className="tsz-12 font-bold rounded-full px-2.5 py-1 flex-shrink-0" style={{ background: `${INK}0a`, color: `${INK}99` }}>
+              {timesTxt(maxT)}
+              {tie ? ` ${t("awEach")}` : ""}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* the piece the winner finished with */}
+      {piece && (
+        <div className="mt-3 mx-auto max-w-xs rounded-2xl p-3 flex items-center gap-3 hstart win-rise" style={{ animationDelay: "580ms", background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}55` }}>
+          <ItemCard card={piece} size={72} />
+          <div className="flex-1 min-w-0">
+            <div className="tsz-11 font-semibold" style={{ color: `${INK}88` }}>
+              {pieceTitle}
+            </div>
+            <div className="display-font font-bold tsz-17 leading-tight" style={{ color: BRAND }}>
+              {L.item(piece.name)}
+            </div>
+            {L.itemDesc(piece.name) && (
+              <div className="tsz-11 mt-0.5 leading-snug" style={{ color: `${INK}99` }}>
+                {L.itemDesc(piece.name)}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* actions */}
+      <div className="mt-5 mx-auto max-w-xs win-rise" style={{ animationDelay: "680ms" }}>
+        <button onClick={onExit} className={`w-full py-3 tsz-15 ${btn}`} style={btnPrimary}>
+          {t("playAgain")}
+        </button>
+        <div className="flex gap-2 mt-2">
+          <button onClick={share} className={`flex-1 py-2.5 tsz-14 flex items-center justify-center gap-1.5 ${btn}`} style={btnGhost}>
+            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />} {copied ? t("copied") : t("share")}
+          </button>
+          {onGoHome && (
+            <button onClick={onGoHome} className={`flex-1 py-2.5 tsz-14 ${btn}`} style={btnGhost}>
+              {t("winHome")}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {game.analyticsId && seat && (
+        <FeedbackCard
+          onSubmit={(a) =>
+            sendFeedback({
+              gameId: game.analyticsId,
+              playerId: seat.id,
+              clientPid: getClientPid(),
+              fun: a.fun || null,
+              clarity: a.rules || null,
+              playAgain: a.again,
+              comment: a.comment,
+            })
+          }
+        />
+      )}
+      {duelWith && <DuelSheet them={nameOf(duelWith)} query={`with=${encodeURIComponent(seatUserIds[duelWith.id])}`} onClose={() => setDuelWith(null)} />}
+    </div>
+  );
+}
+
 function PostGameSurvey({ game, myId, isOnline }) {
   const { t } = useI18n();
   const [fun, setFun] = useState(0);
@@ -3057,8 +3593,15 @@ function PostGameSurvey({ game, myId, isOnline }) {
   );
 }
 
-function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onClaimTimeout, onDeclineBlock, onBlock, dispatch, onExit, onGoHome }) {
+function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onClaimTimeout, onDeclineBlock, onBlock, onReact, seatUserIds, dispatch, onExit, onGoHome }) {
   const { t, tb, L } = useI18n();
+  // Win finale plays once per finished game; skipped for reduced motion.
+  const reducedMotion = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const [finaleDone, setFinaleDone] = useState(reducedMotion);
+  useEffect(() => {
+    if (!game.winner) setFinaleDone(reducedMotion());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game.winner]);
   const [selected, setSelected] = useState([]);
   const [needTarget, setNeedTarget] = useState(null);
   const [giveStep, setGiveStep] = useState(null);
@@ -3104,61 +3647,76 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   const seatRowRef = useRef(null);
   const seatTouchRef = useRef(false);
   const seatIdleTimerRef = useRef(null);
-  const seatProgrammaticUntilRef = useRef(0);
   const seatUserScrollAtRef = useRef(0);
   const activeSeatId = game.players[game.currentPlayerIndex]?.id;
 
-  const centerActiveSeat = useCallback(
-    (onlyIfHidden) => {
-      const row = seatRowRef.current;
-      const el = seatRefs.current[activeSeatId];
-      if (!row || !el || row.scrollWidth <= row.clientWidth + 1) return;
-      const r = row.getBoundingClientRect();
-      const e = el.getBoundingClientRect();
-      const fullyVisible = e.left >= r.left + 4 && e.right <= r.right - 4;
-      if (onlyIfHidden && fullyVisible) return;
-      const delta = e.left + e.width / 2 - (r.left + r.width / 2);
-      if (Math.abs(delta) < 2) return;
-      seatProgrammaticUntilRef.current = Date.now() + 700;
-      try {
-        row.scrollBy({ left: delta, behavior: "smooth" });
-      } catch {
-        row.scrollLeft += delta;
-      }
-    },
-    [activeSeatId]
-  );
+  // Smooth-scroll the row so the active seat sits in the middle. Only the finger (touch / mouse
+  // drag / wheel) counts as the player scrolling; scroll events alone don't, because a smooth glide
+  // on iOS can run longer than any fixed window and used to be mistaken for the player, which left
+  // the row stopped half-way.
+  const centerActiveSeat = useCallback(() => {
+    const row = seatRowRef.current;
+    const el = seatRefs.current[activeSeatId];
+    if (!row || !el || row.scrollWidth <= row.clientWidth + 1) return;
+    const r = row.getBoundingClientRect();
+    const e = el.getBoundingClientRect();
+    const delta = e.left + e.width / 2 - (r.left + r.width / 2);
+    if (Math.abs(delta) < 2) return;
+    try {
+      row.scrollBy({ left: delta, behavior: "smooth" });
+    } catch {
+      row.scrollLeft += delta;
+    }
+  }, [activeSeatId]);
 
-  // New turn → glide to the active seat (unless the player is holding the row right now).
+  const centerActiveSeatRef = useRef(null);
+  centerActiveSeatRef.current = centerActiveSeat;
 
-
+  // After the player lets go, wait until they've been hands-off for a moment, then glide back.
   const scheduleSeatReturn = useCallback(() => {
     clearTimeout(seatIdleTimerRef.current);
     seatIdleTimerRef.current = setTimeout(() => {
       if (seatTouchRef.current) return;
-      if (Date.now() - (seatUserScrollAtRef.current || 0) < 700) return scheduleSeatReturn(); // still gliding
-      centerActiveSeat(true);
-    }, 900);
+      if (Date.now() - (seatUserScrollAtRef.current || 0) < 800) return scheduleSeatReturn(); // momentum still going
+      centerActiveSeat();
+    }, 1000);
   }, [centerActiveSeat]);
+
+  // Seats change width during play (card counts, the active highlight). If the player isn't
+  // touching the row, re-centre so the active seat never ends up a few pixels off.
   useEffect(() => {
-    if (seatTouchRef.current || Date.now() - (seatUserScrollAtRef.current || 0) < 900) {
+    const inner = seatRowRef.current?.firstElementChild;
+    if (!inner || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      if (seatTouchRef.current || Date.now() - (seatUserScrollAtRef.current || 0) < 800) return;
+      clearTimeout(seatIdleTimerRef.current);
+      seatIdleTimerRef.current = setTimeout(() => centerActiveSeatRef.current?.(), 120);
+    });
+    ro.observe(inner);
+    return () => ro.disconnect();
+  }, [game.players.length, !!game.winner]);
+
+  // New turn → glide to the active seat, unless the player is holding / just flicked the row.
+  useEffect(() => {
+    if (seatTouchRef.current || Date.now() - (seatUserScrollAtRef.current || 0) < 800) {
       scheduleSeatReturn();
       return;
     }
-    const t0 = setTimeout(() => centerActiveSeat(false), 60);
+    const t0 = setTimeout(centerActiveSeat, 60);
     return () => clearTimeout(t0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSeatId, centerActiveSeat]);
   useEffect(() => () => clearTimeout(seatIdleTimerRef.current), []);
 
-  // Touch: the finger is "down" from touchstart until touchend/touchcancel. We deliberately ignore
-  // pointercancel here — mobile browsers fire it the moment native panning takes over, while the
-  // finger is still on the glass, which used to make the row fight the user.
+  const userTouchedRow = () => {
+    seatUserScrollAtRef.current = Date.now();
+    clearTimeout(seatIdleTimerRef.current);
+  };
   const seatRowHandlers = {
     onPointerDown: (e) => {
       if (e.pointerType !== "mouse") return;
       seatTouchRef.current = true;
-      clearTimeout(seatIdleTimerRef.current);
+      userTouchedRow();
     },
     onPointerUp: (e) => {
       if (e.pointerType !== "mouse") return;
@@ -3167,23 +3725,29 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     },
     onTouchStart: () => {
       seatTouchRef.current = true;
-      clearTimeout(seatIdleTimerRef.current);
+      userTouchedRow();
     },
+    onTouchMove: userTouchedRow,
     onTouchEnd: (e) => {
       if (e.touches && e.touches.length > 0) return; // another finger still down
       seatTouchRef.current = false;
+      userTouchedRow();
       scheduleSeatReturn();
     },
     onTouchCancel: () => {
       seatTouchRef.current = false;
       scheduleSeatReturn();
     },
-    // flicks / wheel / momentum: each user scroll event pushes the return back
+    onWheel: () => {
+      userTouchedRow();
+      scheduleSeatReturn();
+    },
+    // momentum after a flick: only counts while the player touched the row recently
     onScroll: () => {
-      if (Date.now() < seatProgrammaticUntilRef.current) return;
-      seatUserScrollAtRef.current = Date.now();
-      clearTimeout(seatIdleTimerRef.current);
-      if (!seatTouchRef.current) scheduleSeatReturn();
+      if (Date.now() - (seatUserScrollAtRef.current || 0) < 800) {
+        seatUserScrollAtRef.current = Date.now();
+        if (!seatTouchRef.current) scheduleSeatReturn();
+      }
     },
   };
   const coordRef = useRef(null);
@@ -3751,6 +4315,9 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
       single = true;
     }
 
+    // Online a reaction is re-applied on the latest room if another save lands first, so it's never
+    // dropped and can never undo someone's move.
+    if (isOnline && onReact) return onReact(emoji, single);
     dispatch(rSendReaction(rWakePlayer(game, me.id), me.id, emoji, single));
   }
 
@@ -4020,9 +4587,11 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   return (
     <div
       dir={L.dir}
-      className="hilla-root app-screen w-full px-3 pb-24"
+      className="hilla-root app-screen w-full px-3"
       style={{
         ...pageBg,
+        // room for the floating emoji button; on the end screen only as much as it needs
+        paddingBottom: winnerPlayer && finaleDone ? (isOnline ? 76 : 24) : 96,
         paddingTop: "max(12px, calc(env(safe-area-inset-top) + 6px))",
         color: INK,
         paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)",
@@ -4062,23 +4631,14 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
         <ReactionFX trigger={game.reactionEvent} myId={myId} isOnline={isOnline} />
         {!winnerPlayer &&
           Object.entries(seatReacts).map(([pid, r]) => <SeatBubble key={r.id} anchor={seatRefs.current[pid]} text={r.text} />)}
-        <ReactionButton onReact={sendReaction} />
+        {/* after the game, reactions only matter online (there's someone to see them) */}
+        {!(winnerPlayer && finaleDone && !isOnline) && <ReactionButton onReact={sendReaction} />}
 
-        {winnerPlayer ? (
-          <div className="mt-8 text-center">
-            <Confetti />
-            <div className="relative mx-auto mb-4 hilla-float" style={{ width: 120 }}>
-              <CardBack size={120} tall style={{ boxShadow: "0 20px 40px -14px rgba(60,30,10,.6)" }} />
-            </div>
-            <div className="display-font font-bold leading-none" style={{ color: BRAND, fontSize: fs(46) }}>
-              {(isOnline ? winnerPlayer.id === myId : soloHuman ? winnerPlayer.id === soloHuman.id : false) ? t("youWon") : t("wonName", { name: L.name(winnerPlayer.name) })}
-            </div>
-            <WinStats game={game} myId={myId} isOnline={isOnline} />
-            <button onClick={onExit} className={`mt-5 px-8 py-3 tsz-15 ${btn}`} style={btnPrimary}>
-              {t("playAgain")}
-            </button>
-            <PostGameSurvey game={game} myId={myId} isOnline={isOnline} />
-          </div>
+        {winnerPlayer && !finaleDone && (
+          <WinFinale key={game.winner} game={game} meId={isOnline ? myId : soloHuman ? soloHuman.id : null} isOnline={isOnline} onDone={() => setFinaleDone(true)} />
+        )}
+        {winnerPlayer && finaleDone ? (
+          <WinView game={game} myId={myId} isOnline={isOnline} meId={isOnline ? myId : soloHuman ? soloHuman.id : null} seatUserIds={seatUserIds} onExit={onExit} onGoHome={onGoHome} />
         ) : (
           <>
             {/* seats */}
@@ -5255,6 +5815,39 @@ function OnlineFlow({ onBack }) {
     return "late";
   }
 
+  // Emoji reaction online: applied on top of the latest room (re-fetched after a 409), so it never
+  // overwrites or undoes a move and never shows an error. Gives up quietly after a few tries.
+  async function reactOnline(code, emoji, single) {
+    let base = room;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        try {
+          const res = await fetch(`/api/rooms/${code}`, { cache: "no-store" });
+          if (!res.ok) return;
+          base = await res.json();
+        } catch {
+          return;
+        }
+      }
+      if (!base?.game || !base.game.players.some((p) => p.id === myId)) return;
+      const next = rSendReaction(rWakePlayer(base.game, myId), myId, emoji, single);
+      try {
+        const res = await fetch(`/api/rooms/${code}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ room: { ...base, game: next }, baseUpdatedAt: attempt === 0 ? baseUpdatedAtRef.current : base.updatedAt }),
+        });
+        if (res.status === 409) continue;
+        if (!res.ok) return;
+        const updated = await res.json();
+        if (activeRoomCodeRef.current === code) adoptRoom(updated);
+        return;
+      } catch {
+        return;
+      }
+    }
+  }
+
   async function claimTimeout(code, nextGame, expected) {
     try {
       const res = await fetch(`/api/rooms/${code}/timeout`, {
@@ -5462,6 +6055,8 @@ function OnlineFlow({ onBack }) {
         onClaimTimeout={(nextGame, expected) => claimTimeout(roomCode, nextGame, expected)}
         onDeclineBlock={(paId) => declineBlockOnline(roomCode, paId)}
         onBlock={(blockerId, paId) => blockOnline(roomCode, blockerId, paId)}
+        onReact={(emoji, single) => reactOnline(roomCode, emoji, single)}
+        seatUserIds={Object.fromEntries((room.lobby || []).map((p) => [p.id, p.userId || null]))}
         dispatch={dispatchGame}
         onExit={exitToMenu}
         onGoHome={exitToHome}
@@ -5868,23 +6463,28 @@ function useHomeBoard(nick) {
 // own rejoin (the online session) and checks the room is still in play with this seat in it; tapping
 // it opens the online flow, which restores from that same session.
 function useResumableRoom() {
-  const [code, setCode] = useState(null);
+  const [resume, setResume] = useState(null);
   useEffect(() => {
-    const saved = readOnlineSession();
+    const saved = readOnlineSession() || readLastOnline();
     if (!saved) return;
     let alive = true;
     fetch(`/api/rooms/${saved.roomCode}`, { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => (res.status === 404 ? "gone" : res.ok ? res.json() : null))
       .then((doc) => {
-        const seat = doc?.started ? doc.game?.players?.find((p) => p.id === saved.myId) : null;
-        if (alive && seat && !doc.game.winner) setCode(saved.roomCode);
+        if (doc === null) return; // network trouble: keep the record, try again next time
+        const seat = doc !== "gone" && doc?.started ? doc.game?.players?.find((p) => p.id === saved.myId) : null;
+        if (seat && !doc.game.winner) {
+          if (alive) setResume(saved);
+        } else if (doc === "gone" || doc?.game?.winner || (doc?.started && !seat)) {
+          forgetLastOnline(); // finished, expired or no longer my seat
+        }
       })
       .catch(() => {});
     return () => {
       alive = false;
     };
   }, []);
-  return code;
+  return resume;
 }
 
 // Card group size: 1.0 at 667px tall up to 1.08 at 844px+ (more clips the side cards at 390px wide).
@@ -5906,7 +6506,8 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
   const [profile, setProfile] = useState(false);
   const [haptic, hapticNode] = useIosHaptic();
   const board = useHomeBoard(nick);
-  const resumeCode = useResumableRoom();
+  const resume = useResumableRoom();
+  const resumeCode = resume?.roomCode || null;
   // the «كمّل لعبتك» pill takes room above the cards, so they shrink a little to keep 667px fitting
   const cardScale = useCardScale() * (resumeCode ? 0.9 : 1);
   const say = (text) => setToast({ id: Date.now(), text });
@@ -5959,7 +6560,13 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
       <div className="relative flex-1 min-h-0 flex flex-col items-center justify-evenly">
         <div className="flex flex-col items-center">
           {resumeCode && (
-            <button onClick={() => play("resume", onOnline)} className="mb-2 tsz-12 font-bold rounded-full px-4 py-1.5 hilla-pop" style={{ background: BRAND, color: CREAM, boxShadow: `0 0 0 2px ${GOLD}` }}>
+            <button
+              onClick={() =>
+                play("resume", () => {
+                  writeOnlineSession(resume); // the online flow rejoins from this, as on a reload
+                  onOnline();
+                })
+              } className="mb-2 tsz-12 font-bold rounded-full px-4 py-1.5 hilla-pop" style={{ background: BRAND, color: CREAM, boxShadow: `0 0 0 2px ${GOLD}` }}>
               {t("resumeGame", { code: resumeCode })}
             </button>
           )}
@@ -6132,6 +6739,7 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
   const [scope, setScope] = useState("friends");
   const [globalTapped, setGlobalTapped] = useState(false);
   const [howOpen, setHowOpen] = useState(false);
+  const [duelNick, setDuelNick] = useState(null);
   const [state, setState] = useState({ status: "loading" });
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -6309,7 +6917,12 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
                     <span className="w-9 h-9 rounded-full flex items-center justify-center tsz-15 font-bold mb-1" style={{ background: row ? BRAND : `${INK}22`, color: CREAM, boxShadow: `0 0 0 2px ${CREAM}, 0 0 0 3.5px ${MEDAL[place - 1]}` }}>
                       {initial}
                     </span>
-                    <div dir={L.dir} className="tsz-13 font-bold truncate w-full text-center" style={{ color: row && isMe(row) ? BRAND : INK }}>
+                    <div
+                      dir={L.dir}
+                      onClick={() => row && !isMe(row) && setDuelNick(row.nickname)}
+                      className={`tsz-13 font-bold truncate w-full text-center ${row && !isMe(row) ? "cursor-pointer" : ""}`}
+                      style={{ color: row && isMe(row) ? BRAND : INK }}
+                    >
                       {row ? row.nickname : meOnPodium ? t("lbInvite") : t("lbYourSpot")}
                     </div>
                     <div dir={L.dir} className="tsz-11 font-semibold mb-1" style={{ color: `${INK}99`, visibility: row ? "visible" : "hidden" }}>
@@ -6341,12 +6954,18 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
                 <span className="hend" style={{ width: 44 }}>
                   {t("lbColPoints")}
                 </span>
+                <span style={{ width: 14 }} />
               </div>
               {top.map((row) => {
                 const mine = isMe(row);
                 const ring = row.rank <= 3 ? MEDAL[row.rank - 1] : `${GOLD}88`;
                 return (
-                  <div key={`${row.rank}-${row.nickname}`} className="flex items-center px-3 py-2.5" style={{ borderBottom: `1px solid ${INK}0c`, background: mine ? `${GOLD}33` : "transparent" }}>
+                  <div
+                    key={`${row.rank}-${row.nickname}`}
+                    onClick={() => !mine && setDuelNick(row.nickname)}
+                    className={`flex items-center px-3 py-2.5 ${mine ? "" : "cursor-pointer"}`}
+                    style={{ borderBottom: `1px solid ${INK}0c`, background: mine ? `${GOLD}33` : "transparent" }}
+                  >
                     <span className="tsz-13 font-bold" style={{ width: 28, color: row.rank <= 3 ? MEDAL[row.rank - 1] : `${INK}88` }}>
                       {L.num(row.rank)}
                     </span>
@@ -6361,10 +6980,18 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
                     <span className="tsz-14 font-bold hend" style={{ width: 44, color: BRAND }}>
                       {L.num(row.points)}
                     </span>
+                    <span className="tsz-12 hend" style={{ width: 14, color: mine ? "transparent" : `${INK}44` }}>
+                      ‹
+                    </span>
                   </div>
                 );
               })}
             </div>
+            {top.some((row) => !isMe(row)) && (
+              <div className="tsz-11 text-center mt-1.5 flex-shrink-0" style={{ color: `${INK}77` }}>
+                {t("lbDuelHint")}
+              </div>
+            )}
 
             {me && !meListed && (
               <div className="mt-2 flex-shrink-0">
@@ -6380,6 +7007,7 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
         )}
       </div>
       {howOpen && <ScoringSheet onClose={() => setHowOpen(false)} />}
+      {duelNick && <DuelSheet them={duelNick} query={`nick=${encodeURIComponent(duelNick)}`} onClose={() => setDuelNick(null)} />}
     </div>
   );
 }
