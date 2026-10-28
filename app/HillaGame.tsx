@@ -2141,6 +2141,10 @@ const GlobalFont = () => (
     .hilla-hand { scroll-snap-type: x proximity; scrollbar-width: none; }
     .hilla-hand::-webkit-scrollbar { display: none; }
     .hilla-hand > * { scroll-snap-align: start; }
+    /* Seat row: scrolls freely, no snapping and no padding at its ends, so the first and last seats
+       sit at the row's edges and the code (centerActiveSeat) is the only thing that moves it. */
+    .seat-row { scrollbar-width: none; }
+    .seat-row::-webkit-scrollbar { display: none; }
     .hilla-deal { animation: hilla-deal .38s cubic-bezier(.2,.8,.2,1) backwards; }
     .hilla-coord-in { animation: hilla-coord-in .55s cubic-bezier(.2,.8,.2,1) backwards; transform-origin: 50% 60%; }
     .hilla-drop { animation: hilla-drop .46s cubic-bezier(.2,.9,.3,1.12) backwards; }
@@ -4642,7 +4646,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
         ) : (
           <>
             {/* seats */}
-            <div ref={seatRowRef} {...seatRowHandlers} className="hilla-hand flex overflow-x-auto -mx-3 px-4 pt-2 pb-5 -mb-2">
+            <div ref={seatRowRef} {...seatRowHandlers} className="seat-row flex overflow-x-auto -mx-3 pt-2 pb-5 -mb-2">
               <div className="flex gap-1.5 mx-auto">
               {game.players.map((p, i) => (
                 <div key={p.id} ref={(el) => (seatRefs.current[p.id] = el)}>
