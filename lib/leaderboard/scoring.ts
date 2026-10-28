@@ -13,7 +13,7 @@ export const MIN_HUMANS = 2;
 export const MIN_DURATION_MS = 90_000;
 export const MIN_TURNS_PER_HUMAN = 2;
 export const DAILY_CAP = 15; // counted games per player per Riyadh day
-export const SAME_GROUP_DAILY_CAP = 3; // counted games per day for the exact same set of humans
+export const SAME_GROUP_DAILY_CAP = 10; // counted games per day for the exact same set of humans
 
 export function pointsFor(won: boolean, finished: boolean, humans: number): number {
   if (won) return WIN_POINTS + PER_EXTRA_HUMAN * Math.max(0, humans - 2);

@@ -2,8 +2,10 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export type Duel = { games: number; myWins: number; theirWins: number; myPts: number; theirPts: number; last: ('w' | 'l')[] };
 
-// Head-to-head between two accounts: only the counted games they both played in, this season.
-// last = up to 5 most recent, from the first player's side ("w" when they won).
+// Head-to-head between two accounts this season. Games, wins and the last results cover every
+// finished online game they both played in, counted or not (the daily limits are for the leaderboard,
+// not for their record). Points are the leaderboard's, so they come from counted games only.
+// last = up to 5 most recent, newest first, from the first player's side ("w" when they won).
 export async function headToHead(meId: string, themId: string): Promise<Duel> {
   const empty: Duel = { games: 0, myWins: 0, theirWins: 0, myPts: 0, theirPts: 0, last: [] };
   if (!meId || !themId || meId === themId) return empty;
@@ -13,9 +15,8 @@ export async function headToHead(meId: string, themId: string): Promise<Duel> {
   if (!season) return empty;
   const { data: rows, error } = await supabase
     .from('game_results')
-    .select('game_id, user_id, won, points, finished_at')
+    .select('game_id, user_id, won, points, counted, finished_at')
     .in('user_id', [meId, themId])
-    .eq('counted', true)
     .gte('finished_at', season.starts_at)
     .lt('finished_at', season.ends_at);
   if (error) throw error;
@@ -33,8 +34,8 @@ export async function headToHead(meId: string, themId: string): Promise<Duel> {
     games: shared.length,
     myWins: shared.filter((g) => g.mine.won).length,
     theirWins: shared.filter((g) => g.theirs.won).length,
-    myPts: shared.reduce((n, g) => n + g.mine.points, 0),
-    theirPts: shared.reduce((n, g) => n + g.theirs.points, 0),
+    myPts: shared.reduce((n, g) => n + (g.mine.counted ? g.mine.points : 0), 0),
+    theirPts: shared.reduce((n, g) => n + (g.theirs.counted ? g.theirs.points : 0), 0),
     last: shared.slice(0, 5).map((g) => (g.mine.won ? 'w' : 'l'))
   };
 }
