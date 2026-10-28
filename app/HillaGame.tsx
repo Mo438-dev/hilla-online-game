@@ -3,8 +3,9 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Volume2, VolumeX, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut, RefreshCw, Type, Menu, HelpCircle, X, Smile } from "lucide-react";
 import { HILLA_ART as ART } from "@/lib/art-manifest";
-import { ensureGuest, authHeaders, saveNicknameRemote, syncNickname, linkGoogle, GOOGLE_ENABLED, AUTH_ENABLED } from "@/lib/supabase-browser";
-import { newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished, sendDealSnapshot, getClientPid, sendFeedback } from "@/lib/analytics-client";
+import { ensureGuest, authHeaders, saveNicknameRemote, syncNickname, saveProfile, usernameAvailable, linkGoogle, GOOGLE_ENABLED, AUTH_ENABLED } from "@/lib/supabase-browser";
+import { deviceInfo } from "@/lib/device";
+import { sendAppEvent, sendSeatStats, reportClientError, newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished, sendDealSnapshot, getClientPid, sendFeedback } from "@/lib/analytics-client";
 
 /* ---------------------------------- PALETTE ---------------------------------- */
 // Sampled from the designer's identity file (هوية حلة).
@@ -1007,6 +1008,7 @@ const I18N = {
     winPlaceLine: "You came {place} · {left}", winnerTag: "Winner", winPieceMine: "The piece you won with", winPieceOf: "The piece {name} won with", winHome: "Home", awDur: "Game time", awRounds: "Rounds", awCards: "Cards played", awRares: "Rares played", awTarget: "Most targeted", awTargetTie: "Tied for most targeted", awTieN: "{n} players", awEach: "each", winLastCard: "Last card!", winFinaleMe: "You're out of cards!", winFinaleOf: "{name} is out of cards!", winDuel: "Head-to-head: you {a} · {name} {b}", winDuelTap: "Head-to-head", fbTitle: "Your opinion matters · optional", fbSkip: "Skip", fbQFun: "How fun was the game?", fbQRules: "Were the rules clear?", fbQAgain: "Would you play again?", fbQComment: "Anything to tell us?", fbYes: "Sure 😍", fbNo: "No 😅", fbCommentPh: "Comment (optional)", fbSend: "Send", fbThanks: "Thank you! 🙏", duelTitle: "Head-to-head", duelWins: "wins", duelTied: "All square", duelLeadMe: "You're ahead", duelLeadThem: "{name} is ahead", duelGames: "From {n} games you played together this season", duelLast: "Last games:", duelW: "W", duelL: "L", duelNone: "You haven't played together this season", lbDuelHint: "Tap anyone to see your head-to-head",
     duelNewest: "latest", duelNotCounted: "This game didn't count, so it isn't in your head-to-head.", noRankGeneric: "This game didn't count for the leaderboard",
     newTag: "New", recv_giveTakeGot: "{name} gave you these", recv_giveTakeTook: "You took these from {name}", recv_stealTwo: "{name} handed you these", recv_drawTwo: "{name} made you draw these",
+    sdNameLabel: "Your name", sdNameRule2: "2 to 16 characters · others can have the same name", sdUserLabel: "Username", sdUserRule: "English letters, numbers and _ · 3 to 15 · can't be taken by anyone else", sdUserFree: "Available", sdUserTaken: "Taken, try another", sdUserReserved: "That name is reserved, try another", sdUserChars: "Only English letters, numbers and _, starting with a letter", sdUserLength: "3 to 15 characters", sdUserCooldown: "You can change it once every 30 days", sdUserCooldownLeft: "You can change your username in {n} days",
     sdTagline: "Every region has its outfit", sdOnline: "Online", sdOnlineSub: "With friends", sdLocal: "Same device", sdLocalSub: "Or vs bots", sdRank: "Leaderboard", sdRankSub: "Coming soon", sdRankSoon: "The leaderboard is coming soon", sdGuest: "Guest", sdSaveShort: "Sign in to save your points", sdPickName: "What should we call you?", sdChangeName: "Change your name", sdNamePh: "Your leaderboard name", sdNameRule: "2 to 16 characters · shown on the leaderboard", sdSave: "Save", sdEdit: "Edit", sdHello: "Hi {name}", sdGuestTitle: "You're playing as a guest", sdGuestBody: "Save your account so your name and points stay if you change phones", sdGoogle: "Continue with Google", sdEmail: "Continue with email", sdAuthSoon: "Sign-in arrives with the leaderboard", sdLang: "Language",
     madeBy: "Designed by Saudi hands 🇸🇦", credit: "A Princess Nourah University student, for Core Studio",
     errCreate: "Couldn't create the room, try again.", addBot: "🤖 Add a bot", removeBot: "Remove bot",
@@ -1084,6 +1086,7 @@ const I18N = {
     winPlaceLine: "Quedaste {place} · {left}", winnerTag: "Ganador", winPieceMine: "La pieza con la que ganaste", winPieceOf: "La pieza con la que ganó {name}", winHome: "Inicio", awDur: "Duración", awRounds: "Rondas", awCards: "Cartas jugadas", awRares: "Raras jugadas", awTarget: "Más atacado", awTargetTie: "Empate en más atacados", awTieN: "{n} jugadores", awEach: "cada uno", winLastCard: "¡Última carta!", winFinaleMe: "¡Te quedaste sin cartas!", winFinaleOf: "¡{name} se quedó sin cartas!", winDuel: "Cara a cara: tú {a} · {name} {b}", winDuelTap: "Cara a cara", fbTitle: "Tu opinión importa · opcional", fbSkip: "Omitir", fbQFun: "¿Qué tan divertida fue la partida?", fbQRules: "¿Las reglas eran claras?", fbQAgain: "¿Volverías a jugar?", fbQComment: "¿Algo que contarnos?", fbYes: "Claro 😍", fbNo: "No 😅", fbCommentPh: "Comentario (opcional)", fbSend: "Enviar", fbThanks: "¡Gracias! 🙏", duelTitle: "Cara a cara", duelWins: "victorias", duelTied: "Empatados", duelLeadMe: "Vas por delante", duelLeadThem: "{name} va por delante", duelGames: "De {n} partidas que jugaron juntos esta temporada", duelLast: "Últimas partidas:", duelW: "V", duelL: "D", duelNone: "No han jugado juntos esta temporada", lbDuelHint: "Toca a cualquiera para ver su cara a cara",
     duelNewest: "último", duelNotCounted: "Esta partida no contó, así que no está en su cara a cara.", noRankGeneric: "Esta partida no contó para la clasificación",
     newTag: "Nueva", recv_giveTakeGot: "{name} te dio estas", recv_giveTakeTook: "Le quitaste estas a {name}", recv_stealTwo: "{name} te pasó estas", recv_drawTwo: "{name} te hizo robar estas",
+    sdNameLabel: "Tu nombre", sdNameRule2: "De 2 a 16 caracteres · otros pueden tener el mismo nombre", sdUserLabel: "Usuario", sdUserRule: "Letras inglesas, números y _ · 3 a 15 · nadie más puede tenerlo", sdUserFree: "Disponible", sdUserTaken: "Ocupado, prueba otro", sdUserReserved: "Ese nombre está reservado, prueba otro", sdUserChars: "Solo letras inglesas, números y _, empezando por una letra", sdUserLength: "De 3 a 15 caracteres", sdUserCooldown: "Puedes cambiarlo una vez cada 30 días", sdUserCooldownLeft: "Podrás cambiar tu usuario en {n} días",
     sdTagline: "Cada región tiene su traje", sdOnline: "En línea", sdOnlineSub: "Con amigos", sdLocal: "Mismo dispositivo", sdLocalSub: "O contra bots", sdRank: "Clasificación", sdRankSub: "Muy pronto", sdRankSoon: "La clasificación llega pronto", sdGuest: "Invitado", sdSaveShort: "Inicia sesión para guardar tus puntos", sdPickName: "¿Cómo te llamamos?", sdChangeName: "Cambia tu nombre", sdNamePh: "Tu nombre en la clasificación", sdNameRule: "De 2 a 16 caracteres · se muestra en la clasificación", sdSave: "Guardar", sdEdit: "Editar", sdHello: "Hola {name}", sdGuestTitle: "Juegas como invitado", sdGuestBody: "Guarda tu cuenta para no perder tu nombre y tus puntos si cambias de móvil", sdGoogle: "Continuar con Google", sdEmail: "Continuar con correo", sdAuthSoon: "El inicio de sesión llega con la clasificación", sdLang: "Idioma",
     madeBy: "Diseñado por manos saudíes 🇸🇦", credit: "Estudiante de la Universidad Princesa Nourah, para Core Studio",
     errCreate: "No se pudo crear la sala, inténtalo de nuevo.", addBot: "🤖 Añadir un bot", removeBot: "Quitar bot",
@@ -1158,6 +1161,7 @@ Object.assign(I18N.ar, {
   winPlaceLine: "جيت {place} · {left}", winnerTag: "الفائز", winPieceMine: "القطعة اللي فزت فيها", winPieceOf: "القطعة اللي فاز فيها {name}", winHome: "الرئيسية", awDur: "مدة المباراة", awRounds: "جولات", awCards: "كروت انلعبت", awRares: "نوادر انلعبت", awTarget: "الأكثر استهدافًا", awTargetTie: "تعادلوا في الاستهداف", awTieN: "{n} لاعبين", awEach: "لكل واحد", winLastCard: "آخر كرت!", winFinaleMe: "خلّصت كروتك!", winFinaleOf: "{name} خلّص كروته!", winDuel: "المواجهة: أنت {a} · {name} {b}", winDuelTap: "المواجهة", fbTitle: "رأيك يهمنا · اختياري", fbSkip: "تخطي", fbQFun: "كم كانت المباراة ممتعة؟", fbQRules: "القوانين كانت واضحة؟", fbQAgain: "تلعبها مرة ثانية؟", fbQComment: "عندك شي تقوله؟", fbYes: "أكيد 😍", fbNo: "لا 😅", fbCommentPh: "تعليق (اختياري)", fbSend: "أرسل", fbThanks: "شكرًا لك! 🙏", duelTitle: "المواجهة", duelWins: "فوز", duelTied: "متعادلين", duelLeadMe: "الأفضلية لك", duelLeadThem: "الأفضلية لـ{name}", duelGames: "من {n} مباريات لعبتوها مع بعض هذا الموسم", duelLast: "آخر المباريات:", duelW: "ف", duelL: "خ", duelNone: "ما لعبتوا مع بعض هذا الموسم", lbDuelHint: "اضغط على أي واحد تشوف مواجهتكم",
   duelNewest: "الأحدث", duelNotCounted: "هالمباراة ما انحسبت، فما هي داخلة في المواجهة.", noRankGeneric: "ما انحسبت هالمباراة في الترتيب",
   newTag: "جديد", recv_giveTakeGot: "{name} عطاك هذي", recv_giveTakeTook: "أخذت هذي من {name}", recv_stealTwo: "{name} فزع لك بهذي", recv_drawTwo: "{name} قدعك وسحبت هذي",
+  sdNameLabel: "اسمك", sdNameRule2: "من ٢ إلى ١٦ حرف · عادي يكون نفس اسم أحد ثاني", sdUserLabel: "اسم المستخدم", sdUserRule: "حروف إنجليزي وأرقام و _ · من ٣ إلى ١٥ · ما يتكرر", sdUserFree: "متاح", sdUserTaken: "مأخوذ، جرّب غيره", sdUserReserved: "هذا الاسم محجوز، جرّب غيره", sdUserChars: "حروف إنجليزي وأرقام و _ بس، ويبدأ بحرف", sdUserLength: "من ٣ إلى ١٥ حرف", sdUserCooldown: "تقدر تغيّره مرة كل ٣٠ يوم", sdUserCooldownLeft: "تقدر تغيّر اسم المستخدم بعد {n} يوم",
   sdTagline: "كل منطقة لها حُلّة", sdOnline: "أونلاين", sdOnlineSub: "مع أصحابك", sdLocal: "نفس الجهاز", sdLocalSub: "أو ضد البوتات", sdRank: "الترتيب", sdRankSub: "قريبًا", sdRankSoon: "الترتيب جاي قريب", sdGuest: "ضيف", sdSaveShort: "سجّل واحفظ نقاطك", sdPickName: "وش نسمّيك؟", sdChangeName: "غيّر اسمك", sdNamePh: "اسمك في الترتيب", sdNameRule: "من ٢ إلى ١٦ حرف · يطلع للناس في الترتيب", sdSave: "احفظ", sdEdit: "غيّر", sdHello: "أهلًا {name}", sdGuestTitle: "حسابك ضيف", sdGuestBody: "احفظه عشان ما يضيع اسمك ونقاطك لو غيّرت جوالك", sdGoogle: "كمّل بقوقل", sdEmail: "كمّل بالإيميل", sdAuthSoon: "تسجيل الدخول يجي مع الترتيب", sdLang: "اللغة",
   madeBy: "صُممت بأيدي سعودية 🇸🇦", credit: "طالبة جامعة الأميرة نورة، لمقرر Core Studio",
   errCreate: "تعذر إنشاء الغرفة، حاول مجددًا.", addBot: "🤖 أضف بوت", removeBot: "أزل البوت",
@@ -3198,6 +3202,11 @@ function DuelSheet({ them, query, note, onClose }) {
       <div className="tsz-14 font-bold mt-2 truncate" style={{ maxWidth: 120, color: mine ? BRAND : INK }}>
         {mine ? t("you") : name}
       </div>
+      {ok && (mine ? d.meUser : d.themUser) && (
+        <div className="tsz-10 truncate" dir="ltr" style={{ maxWidth: 120, color: `${INK}66` }}>
+          @{mine ? d.meUser : d.themUser}
+        </div>
+      )}
       <div className="tsz-11 font-semibold" style={{ color: `${INK}88`, visibility: ok ? "visible" : "hidden" }}>
         {L.points(pts || 0)}
       </div>
@@ -6446,14 +6455,53 @@ function AccountChip({ nick, line, onClick }) {
 
 // Account sheet. Name: pick one as a guest, edit any time. Saving the account (Google / email
 // code) is production-only (Supabase linkIdentity / updateUser + verifyOtp).
-function ProfileSheet({ nick, onSaveNick, onClose, onSignIn }) {
+// Account sheet: the display name («اسمك», can repeat) and the username («اسم المستخدم», a unique
+// English @handle, checked live on the server). A player without a username lands in edit mode.
+const cleanUser = (v) => v.trim().toLowerCase().replace(/^@/, "");
+function userShape(v) {
+  const u = cleanUser(v);
+  if (!u) return "empty";
+  if (!/^[a-z][a-z0-9_]*$/.test(u)) return "chars";
+  if (u.length < 3 || u.length > 15) return "length";
+  return "shape_ok";
+}
+
+function ProfileSheet({ nick, username, onSaveProfile, onClose, onSignIn }) {
   const { t, L } = useI18n();
-  const [editing, setEditing] = useState(!nick);
+  const [editing, setEditing] = useState(() => !nick || (AUTH_ENABLED && !username));
   const [draft, setDraft] = useState(nick || "");
+  const [uDraft, setUDraft] = useState(username || "");
+  const [uStat, setUStat] = useState(username ? "ok" : "empty"); // empty | chars | length | checking | ok | taken | reserved
   const [saveErr, setSaveErr] = useState("");
   const [busy, setBusy] = useState(false);
   const ok = nickValid(draft);
   const initial = nick ? [...nick][0] : [...t("sdGuest")][0];
+
+  // live check, debounced: shape on the device, availability on the server
+  useEffect(() => {
+    const u = cleanUser(uDraft);
+    const shape = userShape(uDraft);
+    if (shape !== "shape_ok") return setUStat(shape);
+    if (u === username) return setUStat("ok");
+    setUStat("checking");
+    let alive = true;
+    const tm = setTimeout(async () => {
+      const res = await usernameAvailable(u);
+      if (!alive) return;
+      setUStat(res.ok ? "ok" : res.reason === "taken" ? "taken" : res.reason === "reserved" ? "reserved" : res.reason === "chars" ? "chars" : res.reason === "length" ? "length" : "empty");
+    }, 300);
+    return () => {
+      alive = false;
+      clearTimeout(tm);
+    };
+  }, [uDraft, username]);
+
+  const needUser = AUTH_ENABLED;
+  const canSave = ok && (!needUser || uStat === "ok") && !busy;
+  const uHint =
+    uStat === "taken" ? t("sdUserTaken") : uStat === "reserved" ? t("sdUserReserved") : uStat === "chars" ? t("sdUserChars") : uStat === "length" ? t("sdUserLength") : uStat === "ok" && cleanUser(uDraft) !== username ? t("sdUserFree") : t("sdUserRule");
+  const uBad = ["taken", "reserved", "chars", "length"].includes(uStat);
+
   return (
     <Sheet onBackdrop={onClose} maxW={380} z={90}>
       <div dir={L.dir} className="text-center">
@@ -6462,56 +6510,98 @@ function ProfileSheet({ nick, onSaveNick, onClose, onSignIn }) {
         </span>
         {editing ? (
           <form
-            className="mt-3"
+            className="mt-3 hstart"
             onSubmit={async (e) => {
               e.preventDefault();
-              if (!ok || busy) return;
+              if (!canSave) return;
               setBusy(true);
-              const err = await onSaveNick(cleanNick(draft));
+              const err = await onSaveProfile(cleanNick(draft), cleanUser(uDraft));
               setBusy(false);
               if (err) {
-                setSaveErr(t(`sdErr_${err}`));
+                setSaveErr(err);
                 return;
               }
               setSaveErr("");
               setEditing(false);
             }}
           >
-            <div className="tsz-13 font-bold mb-1.5" style={{ color: INK }}>
-              {nick ? t("sdChangeName") : t("sdPickName")}
+            <label className="block tsz-13 font-bold mb-1" style={{ color: INK }}>
+              {t("sdNameLabel")}
+            </label>
+            <input
+              id="hulla-nick"
+              value={draft}
+              maxLength={24}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder={t("sdNamePh")}
+              className="w-full rounded-xl px-3 py-2.5 hstart focus:outline-none"
+              style={{ background: "#fff", color: INK, boxShadow: `inset 0 0 0 1.5px ${ok ? GOLD : INK + "22"}` }}
+            />
+            <div className="tsz-10 mt-1" style={{ color: `${INK}77` }}>
+              {t("sdNameRule2")}
             </div>
-            <div className="flex gap-2">
-              <input
-                id="hulla-nick"
-                value={draft}
-                autoFocus
-                maxLength={24}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder={t("sdNamePh")}
-                className="flex-1 min-w-0 rounded-xl px-3 py-2.5 tsz-14 hstart focus:outline-none"
-                style={{ background: "#fff", color: INK, boxShadow: `inset 0 0 0 1.5px ${ok ? GOLD : INK + "22"}` }}
-              />
-              <button type="submit" disabled={!ok} className={`px-4 tsz-13 ${btn}`} style={ok ? btnPrimary : { background: `${INK}12`, color: `${INK}55` }}>
-                {t("sdSave")}
-              </button>
-            </div>
-            <div className="tsz-10 mt-1 hstart" style={{ color: `${INK}77` }}>
-              {t("sdNameRule")}
-            </div>
+
+            {needUser && (
+              <>
+                <label className="block tsz-13 font-bold mt-3 mb-1" style={{ color: INK }}>
+                  {t("sdUserLabel")}
+                </label>
+                <div className="flex items-center rounded-xl overflow-hidden" dir="ltr" style={{ background: "#fff", boxShadow: `inset 0 0 0 1.5px ${uStat === "ok" ? "#366135" : uBad ? BRAND : INK + "22"}` }}>
+                  <span className="ps-3 tsz-16 font-bold" style={{ color: `${INK}55` }}>
+                    @
+                  </span>
+                  <input
+                    id="hulla-user"
+                    value={uDraft}
+                    maxLength={16}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    inputMode="text"
+                    onChange={(e) => setUDraft(e.target.value.toLowerCase().replace(/\s/g, ""))}
+                    placeholder="mohammed_w"
+                    className="flex-1 min-w-0 px-1 py-2.5 focus:outline-none"
+                    style={{ background: "transparent", color: INK, textAlign: "left" }}
+                  />
+                  <span className="pe-3 tsz-12 font-bold" style={{ color: uStat === "ok" ? "#366135" : BRAND }}>
+                    {uStat === "ok" ? "✓" : uBad ? "✗" : uStat === "checking" ? "…" : ""}
+                  </span>
+                </div>
+                <div className="tsz-10 mt-1" style={{ color: uBad ? BRAND : `${INK}77` }}>
+                  {uHint}
+                </div>
+                {username && (
+                  <div className="tsz-10 mt-0.5" style={{ color: `${INK}66` }}>
+                    {t("sdUserCooldown")}
+                  </div>
+                )}
+              </>
+            )}
             {saveErr && (
-              <div className="tsz-11 mt-1 font-semibold hstart" style={{ color: BRAND }}>
+              <div className="tsz-11 mt-2 font-semibold" style={{ color: BRAND }}>
                 {saveErr}
               </div>
             )}
+            <button type="submit" disabled={!canSave} className={`w-full mt-3 py-3 tsz-15 ${btn}`} style={canSave ? btnPrimary : { background: `${INK}12`, color: `${INK}55` }}>
+              {t("sdSave")}
+            </button>
           </form>
         ) : (
           <div className="mt-3 flex items-center justify-center gap-2">
-            <span className="display-font font-bold tsz-20" style={{ color: BRAND }}>
-              {nick}
+            <span className="flex flex-col items-center leading-tight">
+              <span className="display-font font-bold tsz-20" style={{ color: BRAND }}>
+                {nick}
+              </span>
+              {username && (
+                <span className="tsz-12 font-semibold" dir="ltr" style={{ color: `${INK}77` }}>
+                  @{username}
+                </span>
+              )}
             </span>
             <button
               onClick={() => {
                 setDraft(nick);
+                setUDraft(username || "");
                 setEditing(true);
               }}
               className="tsz-11 font-bold rounded-full px-2.5 py-1"
@@ -6646,7 +6736,7 @@ function useCardScale() {
   return f;
 }
 
-function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, nick, setNick }) {
+function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, nick, setNick, username, setUsername }) {
   const { t, L } = useI18n();
   const [toast, setToast] = useState(null);
   const [lift, setLift] = useState(null);
@@ -6751,13 +6841,30 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
       {profile && (
         <ProfileSheet
           nick={nick}
+          username={username}
           onClose={() => setProfile(false)}
-          onSaveNick={async (n) => {
-            // With accounts on, the server validates (unique, filtered); localStorage stays a cache.
-            const res = await saveNicknameRemote(n);
-            if (!res.ok && res.error !== "offline") return res.error;
-            setNick(res.ok ? res.nickname : n);
-            say(t("sdHello", { name: res.ok ? res.nickname : n }));
+          onSaveProfile={async (n, u) => {
+            // Without accounts (local dev) the name stays on this device only.
+            if (!AUTH_ENABLED) {
+              setNick(n);
+              say(t("sdHello", { name: n }));
+              return null;
+            }
+            const res = await saveProfile(n, u);
+            if (!res.ok) {
+              const e = res.error;
+              if (e === "cooldown") return t("sdUserCooldownLeft", { n: L.num(res.daysLeft || 30) });
+              if (e === "user_taken") return t("sdUserTaken");
+              if (e === "user_reserved") return t("sdUserReserved");
+              if (e === "user_chars") return t("sdUserChars");
+              if (e === "user_length") return t("sdUserLength");
+              if (e.startsWith("name_")) return t(`sdErr_${e.slice(5)}`);
+              return t("errSave");
+            }
+            setNick(res.nickname);
+            setUsername(res.username);
+            sendAppEvent("username_set", null, {});
+            say(t("sdHello", { name: res.nickname }));
             return null;
           }}
           onSignIn={async (provider) => {
@@ -6886,7 +6993,7 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
   const [scope, setScope] = useState("friends");
   const [globalTapped, setGlobalTapped] = useState(false);
   const [howOpen, setHowOpen] = useState(false);
-  const [duelNick, setDuelNick] = useState(null);
+  const [duelWith, setDuelWith] = useState(null); // a board row: by @username, or by name when it has none
   const [state, setState] = useState({ status: "loading" });
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -7066,7 +7173,7 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
                     </span>
                     <div
                       dir={L.dir}
-                      onClick={() => row && !isMe(row) && setDuelNick(row.nickname)}
+                      onClick={() => row && !isMe(row) && setDuelWith(row)}
                       className={`tsz-13 font-bold truncate w-full text-center ${row && !isMe(row) ? "cursor-pointer" : ""}`}
                       style={{ color: row && isMe(row) ? BRAND : INK }}
                     >
@@ -7109,7 +7216,7 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
                 return (
                   <div
                     key={`${row.rank}-${row.nickname}`}
-                    onClick={() => !mine && setDuelNick(row.nickname)}
+                    onClick={() => !mine && setDuelWith(row)}
                     className={`flex items-center px-3 py-2.5 ${mine ? "" : "cursor-pointer"}`}
                     style={{ borderBottom: `1px solid ${INK}0c`, background: mine ? `${GOLD}33` : "transparent" }}
                   >
@@ -7117,9 +7224,16 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
                       {L.num(row.rank)}
                     </span>
                     <NameAvatar name={row.nickname} size={28} ring={ring} />
-                    <span className="flex-1 ms-2 tsz-13 font-semibold truncate" style={{ color: mine ? BRAND : INK }}>
-                      {row.nickname}
-                      {mine ? ` · ${t("you")}` : ""}
+                    <span className="flex-1 ms-2 min-w-0 leading-tight">
+                      <span className="block tsz-13 font-semibold truncate" style={{ color: mine ? BRAND : INK }}>
+                        {row.nickname}
+                        {mine ? ` · ${t("you")}` : ""}
+                      </span>
+                      {row.username && (
+                        <span className="block tsz-10 truncate" dir="ltr" style={{ color: `${INK}66`, textAlign: L.dir === "rtl" ? "right" : "left" }}>
+                          @{row.username}
+                        </span>
+                      )}
                     </span>
                     <span dir="ltr" className="tsz-12" style={{ width: 64, textAlign: "center", color: `${INK}88` }}>
                       {L.isAr ? `${L.num(row.games)} / ${L.num(row.wins)}` : `${L.num(row.wins)} / ${L.num(row.games)}`}
@@ -7154,7 +7268,13 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
         )}
       </div>
       {howOpen && <ScoringSheet onClose={() => setHowOpen(false)} />}
-      {duelNick && <DuelSheet them={duelNick} query={`nick=${encodeURIComponent(duelNick)}`} onClose={() => setDuelNick(null)} />}
+      {duelWith && (
+        <DuelSheet
+          them={duelWith.nickname}
+          query={duelWith.username ? `user=${encodeURIComponent(duelWith.username)}` : `nick=${encodeURIComponent(duelWith.nickname)}`}
+          onClose={() => setDuelWith(null)}
+        />
+      )}
     </div>
   );
 }
@@ -7309,6 +7429,7 @@ function HillaApp() {
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [nick, setNickState] = useState(loadNick);
+  const [username, setUsername] = useState(null);
   const setNick = (n) => {
     setNickState(n);
     try {
@@ -7345,8 +7466,9 @@ function HillaApp() {
     ensureGuest(); // silent guest account for the leaderboard; a no-op until auth is configured
     // Make sure the leaderboard knows this player's name (a name saved only on the phone never
     // reached the server, so the player was missing from the board).
-    syncNickname(loadNick()).then((serverNick) => {
-      if (serverNick) setNick(serverNick);
+    syncNickname(loadNick()).then((p) => {
+      if (p?.nickname && p.nickname !== loadNick()) setNick(p.nickname);
+      if (p) setUsername(p.username);
     });
   }, []);
 
@@ -7371,6 +7493,8 @@ function HillaApp() {
           onInstall={() => setShowIconPicker(true)}
           nick={nick}
           setNick={setNick}
+          username={username}
+          setUsername={setUsername}
         />
         {showRules && <HowToPlay onClose={() => setShowRules(false)} bigText={false} />}
         {showIconPicker && (

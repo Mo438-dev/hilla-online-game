@@ -5,6 +5,7 @@
 // NEXT_PUBLIC_AUTH_GOOGLE=1 / NEXT_PUBLIC_AUTH_EMAIL=1, for when those providers are configured.
 // The browser only ever holds the public anon key; result rows are written by server routes.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { deviceInfo } from '@/lib/device';
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -80,19 +81,48 @@ export async function saveNicknameRemote(nickname: string): Promise<{ ok: true; 
 // A name typed before accounts existed (or while offline) only lives on the phone, so the leaderboard
 // can't list that player; if the server has none, send the phone's up. Returns the name to show, or
 // null when there's nothing to change (no account, offline, or the phone's name was refused).
-export async function syncNickname(localNick: string): Promise<string | null> {
+export async function syncNickname(localNick: string): Promise<{ nickname: string | null; username: string | null } | null> {
   const headers = await authHeaders();
   if (!headers.Authorization) return null;
   try {
-    const res = await fetch('/api/profile/nickname', { headers, cache: 'no-store' });
+    const d = deviceInfo();
+    const res = await fetch(`/api/profile?platform=${d.platform}&standalone=${d.standalone ? 1 : 0}`, { headers, cache: 'no-store' });
     if (!res.ok) return null;
-    const { nickname } = await res.json();
-    if (nickname) return nickname === localNick ? null : nickname;
-    if (!localNick) return null;
+    const { nickname, username } = await res.json();
+    if (nickname || !localNick) return { nickname: nickname ?? null, username: username ?? null };
     const saved = await saveNicknameRemote(localNick);
-    return saved.ok && saved.nickname !== localNick ? saved.nickname : null;
+    return { nickname: saved.ok ? saved.nickname : null, username: username ?? null };
   } catch {
     return null;
+  }
+}
+
+// Live check for the username field (debounced by the caller).
+export async function usernameAvailable(u: string): Promise<{ ok: boolean; reason?: string }> {
+  const headers = await authHeaders();
+  try {
+    const res = await fetch(`/api/profile/username-available?u=${encodeURIComponent(u)}`, { headers, cache: 'no-store' });
+    return await res.json();
+  } catch {
+    return { ok: false, reason: 'offline' };
+  }
+}
+
+// Save the display name and the username together. Returns {ok, nickname, username} or {ok:false,
+// error, daysLeft?} with the server's error code (name_*, user_*, user_taken, cooldown, offline).
+export async function saveProfile(nickname: string, username: string) {
+  const headers = await authHeaders();
+  if (!headers.Authorization) return { ok: false as const, error: 'offline' };
+  try {
+    const res = await fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify({ nickname, username, ...deviceInfo() })
+    });
+    const body = await res.json().catch(() => ({}));
+    return res.ok ? { ok: true as const, nickname: body.nickname as string, username: body.username as string } : { ok: false as const, error: body.error || 'offline', daysLeft: body.daysLeft };
+  } catch {
+    return { ok: false as const, error: 'offline' };
   }
 }
 
