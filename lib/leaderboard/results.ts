@@ -128,6 +128,9 @@ export async function writeResults(room: FinishedRoom) {
   const { error } = await supabase.from('game_results').upsert(rows, { onConflict: 'game_id,user_id', ignoreDuplicates: true });
   if (error) throw error;
 
+  // Profiles: when each player's first result landed.
+  await supabase.from('profiles').update({ first_game_at: new Date().toISOString() }).in('user_id', accounted.map((p) => userOf.get(p.id)!)).is('first_game_at', null);
+
   // Analytics: link the seats to accounts.
   for (const p of accounted) {
     await supabase.from('game_players').update({ user_id: userOf.get(p.id) }).eq('game_id', gameId).eq('player_id', p.id);

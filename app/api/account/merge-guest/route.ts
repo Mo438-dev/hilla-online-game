@@ -29,13 +29,19 @@ export async function POST(request: Request) {
       if (error) throw error;
     }
 
-    const { data: accProfile } = await supabase.from('profiles').select('nickname').eq('user_id', account.id).maybeSingle();
-    const { data: guestProfile } = await supabase.from('profiles').select('nickname, nickname_key').eq('user_id', guest.id).maybeSingle();
+    const { data: accProfile } = await supabase.from('profiles').select('nickname, username').eq('user_id', account.id).maybeSingle();
+    const { data: guestProfile } = await supabase.from('profiles').select('nickname, nickname_key, username, username_changed_at').eq('user_id', guest.id).maybeSingle();
 
     // Deleting the guest cascades its profile and any rows left behind (duplicates).
     const { error: delErr } = await supabase.auth.admin.deleteUser(guest.id);
     if (delErr) throw delErr;
 
+    // The username moves too when the account has none (the guest is deleted first, so it's free).
+    if (!accProfile?.username && guestProfile?.username) {
+      await supabase
+        .from('profiles')
+        .upsert({ user_id: account.id, username: guestProfile.username, username_changed_at: guestProfile.username_changed_at }, { onConflict: 'user_id' });
+    }
     if (!accProfile?.nickname && guestProfile?.nickname) {
       await supabase
         .from('profiles')

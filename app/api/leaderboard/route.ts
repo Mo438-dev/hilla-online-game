@@ -43,9 +43,9 @@ export async function GET(request: Request) {
     }
 
     const { data, error } = await supabase.rpc('leaderboard_rows', { p_from: from, p_to: to });
-    if (error) throw error;
-    const rows = ((data ?? []) as any[]).sort((a, b) => a.rank - b.rank || b.wins - a.wins);
-    const strip = (r: any) => ({ nickname: r.nickname, points: Number(r.points), games: Number(r.games), wins: Number(r.wins), rank: Number(r.rank) });
+    if (error) throw error;    const rows = ((data ?? []) as any[]).sort((a, b) => a.rank - b.rank || b.wins - a.wins);
+    const handles = await usernamesFor(supabase, rows.slice(0, limit).map((r) => r.user_id).concat(user ? [user.id] : []));
+    const strip = (r: any) => ({ nickname: r.nickname, username: handles.get(r.user_id) ?? null, points: Number(r.points), games: Number(r.games), wins: Number(r.wins), rank: Number(r.rank) });
 
     const mine = user ? rows.find((r) => r.user_id === user.id) : null;
     // «باقي لك ١٢ نقطة توصل للمركز ٤٠»: points to the next rank up.
@@ -93,9 +93,10 @@ async function friendsBoard(
   // their whole season (not only the shared games), summed per player
   const { data: results, error: e3 } = await inSeason(supabase.from('game_results').select('user_id, points, place').in('user_id', circle));
   if (e3) throw e3;
-  const { data: profiles, error: e4 } = await supabase.from('profiles').select('user_id, nickname, hidden').in('user_id', circle);
+  const { data: profiles, error: e4 } = await supabase.from('profiles').select('user_id, nickname, username, hidden').in('user_id', circle);
   if (e4) throw e4;
   const nick = new Map((profiles ?? []).filter((p: any) => p.nickname && !p.hidden).map((p: any) => [p.user_id, p.nickname]));
+  const handle = new Map((profiles ?? []).map((p: any) => [p.user_id, p.username ?? null]));
 
   const totals = new Map<string, { points: number; games: number; wins: number }>();
   for (const r of results ?? []) {
@@ -114,7 +115,7 @@ async function friendsBoard(
     rows.push({ user_id: id, nickname: nick.get(id)!, ...t, rank });
   });
 
-  const strip = (r: BoardRow) => ({ nickname: r.nickname, points: r.points, games: r.games, wins: r.wins, rank: r.rank });
+  const strip = (r: BoardRow) => ({ nickname: r.nickname, username: handle.get(r.user_id) ?? null, points: r.points, games: r.games, wins: r.wins, rank: r.rank });
   const me = rows.find((r) => r.user_id === userId) ?? null;
   const above = me ? [...rows].reverse().find((r) => r.points > me.points) : null;
   return {
@@ -125,4 +126,11 @@ async function friendsBoard(
     total: rows.length,
     friends: rows.filter((r) => r.user_id !== userId).length
   };
+}
+
+async function usernamesFor(supabase: ReturnType<typeof getSupabaseAdmin>, ids: string[]) {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (!unique.length) return new Map<string, string | null>();
+  const { data } = await supabase.from('profiles').select('user_id, username').in('user_id', unique);
+  return new Map((data ?? []).map((p: any) => [p.user_id, p.username ?? null]));
 }
