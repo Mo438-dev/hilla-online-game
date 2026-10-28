@@ -1,6 +1,9 @@
 -- حُلّة — delta-14: usernames + wider analytics. Run once in the Supabase SQL editor, after
 -- leaderboard-schema.sql. Safe to re-run. Additive only (new nullable columns, a new table, new
 -- indexes); no existing row is changed, except that display names stop having to be unique.
+-- All-or-nothing: if any statement fails, nothing is applied.
+
+begin;
 
 -- ---------------------------------------------------------------------------
 -- Usernames: a unique English handle (@mohammed_w). Display names («اسمك») can now repeat.
@@ -11,9 +14,38 @@ create unique index if not exists profiles_username_lower_idx on public.profiles
 alter table public.profiles drop constraint if exists profiles_username_format;
 alter table public.profiles add constraint profiles_username_format
   check (username is null or username ~ '^[a-z][a-z0-9_]{2,14}$');
--- display names may repeat now: drop the uniqueness on the normalised name (the column stays)
-alter table public.profiles drop constraint if exists profiles_nickname_key_key;
-drop index if exists public.profiles_nickname_key_key;
+-- display names may repeat now: drop ANY unique constraint or unique index on profiles.nickname_key,
+-- whatever it's called (the column stays, it's still used for lookups)
+do $$
+declare r record;
+begin
+  for r in
+    select con.conname
+    from pg_constraint con
+    join pg_attribute att on att.attrelid = con.conrelid and att.attnum = any (con.conkey)
+    where con.conrelid = 'public.profiles'::regclass and con.contype = 'u' and att.attname = 'nickname_key'
+  loop
+    execute format('alter table public.profiles drop constraint %I', r.conname);
+  end loop;
+  for r in
+    select ic.relname as indexname
+    from pg_index ix
+    join pg_class ic on ic.oid = ix.indexrelid
+    join pg_attribute att on att.attrelid = ix.indrelid and att.attnum = any (ix.indkey)
+    where ix.indrelid = 'public.profiles'::regclass and ix.indisunique and not ix.indisprimary and att.attname = 'nickname_key'
+  loop
+    execute format('drop index if exists public.%I', r.indexname);
+  end loop;
+  -- check: nothing unique may be left on nickname_key
+  if exists (
+    select 1
+    from pg_index ix
+    join pg_attribute att on att.attrelid = ix.indrelid and att.attnum = any (ix.indkey)
+    where ix.indrelid = 'public.profiles'::regclass and ix.indisunique and not ix.indisprimary and att.attname = 'nickname_key'
+  ) then
+    raise exception 'profiles.nickname_key is still unique';
+  end if;
+end $$;
 
 -- profile analytics (coarse device info only)
 alter table public.profiles add column if not exists created_platform text;      -- ios | android | desktop
@@ -53,6 +85,7 @@ alter table public.game_players add column if not exists reactions_sent integer;
 alter table public.game_players add column if not exists platform text;
 alter table public.game_players add column if not exists standalone boolean;
 alter table public.game_players add column if not exists lang text;
+create index if not exists game_players_user_idx on public.game_players (user_id);
 
 -- ---------------------------------------------------------------------------
 -- game_feedback: how far through the one-question-at-a-time survey people got
@@ -81,3 +114,5 @@ alter table public.client_errors enable row level security;
 revoke all on public.client_errors from anon, authenticated;
 grant all privileges on public.client_errors to service_role;
 grant usage, select on all sequences in schema public to service_role;
+
+commit;
