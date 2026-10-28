@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { IBM_Plex_Sans_Arabic, Markazi_Text } from 'next/font/google';
 import PWARegister from './pwa-register';
-import AppHeight, { NoPinchZoom } from './app-height';
+import AppHeight, { ErrorReporter, NoPinchZoom } from './app-height';
 import './globals.css';
 
 // Licensed web stand-ins for Thmanyah (which may not be embedded): Plex for UI, Markazi for titles.
@@ -68,6 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <PWARegister />
         <AppHeight />
         <NoPinchZoom />
+        <ErrorReporter />
       </body>
     </html>
   );

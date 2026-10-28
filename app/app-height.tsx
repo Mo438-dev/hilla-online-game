@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
+import { reportClientError } from '@/lib/analytics-client';
+import { AUTH_ENABLED, authHeaders } from '@/lib/supabase-browser';
 
 // Re-applies --app-h once React has mounted. The head script in layout.tsx sets it before first
 // paint, but if hydration falls back to client rendering, React resets <html>'s attributes and the
@@ -8,6 +10,32 @@ import { useEffect } from 'react';
 export default function AppHeight() {
   useEffect(() => {
     (window as any).__hullaSetAppH?.();
+  }, []);
+  return null;
+}
+
+// Uncaught errors and unhandled promise rejections on the player's device go to client_errors,
+// tagged with the game being played (GameBoard sets window.__hullaGameId). The reporter itself
+// caps how many it sends (a few per minute).
+export function ErrorReporter() {
+  useEffect(() => {
+    const send = async (message: string, stack: string | null) => {
+      try {
+        const headers = AUTH_ENABLED ? await authHeaders() : {};
+        reportClientError(message, stack, (window as any).__hullaGameId || null, headers);
+      } catch {}
+    };
+    const onError = (e: ErrorEvent) => send(e.message || 'error', e.error?.stack || null);
+    const onRejection = (e: PromiseRejectionEvent) => {
+      const r: any = e.reason;
+      send(r?.message || String(r || 'unhandledrejection'), r?.stack || null);
+    };
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onRejection);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onRejection);
+    };
   }, []);
   return null;
 }
