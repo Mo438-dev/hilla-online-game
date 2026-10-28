@@ -3526,7 +3526,6 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
         <DuelSheet
           them={nameOf(duelWith)}
           query={`with=${encodeURIComponent(seatUserIds[duelWith.id])}`}
-          note={res && !res.counted ? t("duelNotCounted") : null}
           onClose={() => setDuelWith(null)}
         />
       )}
@@ -6059,6 +6058,9 @@ function OnlineFlow({ onBack }) {
     const g = createInitialGame(room.lobby, room.perPlayer);
     const ok = await saveRoomTo(roomCode, { ...room, started: true, game: g });
     if (ok) {
+      // the server accepted this deal: go straight to the table instead of waiting for a poll
+      // (the lobby lingering on screen is what used to invite repeated taps)
+      setOnlinePhase("play");
       sendGameStarted(g, roomCode);
       sendDealSnapshot(g, roomCode);
     }
