@@ -3711,7 +3711,7 @@ function PostGameSurvey({ game, myId, isOnline }) {
   );
 }
 
-function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onClaimTimeout, onDeclineBlock, onBlock, onReact, seatUserIds, dispatch, onExit, onGoHome }) {
+function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onClaimTimeout, onDeclineBlock, onBlock, onSettle, onReact, seatUserIds, dispatch, onExit, onGoHome }) {
   const { t, tb, L } = useI18n();
   // Win finale plays once per finished game; skipped for reduced motion.
   const reducedMotion = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -4288,25 +4288,73 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline, roomUpdatedAt, game.turnSerial, game.turnStartedAt, game.pendingAction, game.digOptions, game.players[game.currentPlayerIndex]?.inactive]);
 
+  // If the actor was a bot, it has nothing left to decide once its action settles: end its turn too.
+  function afterSettle(g, actorId) {
+    if (g.winner) return g;
+    const actor = g.players.find((p) => p.id === actorId);
+    return actor && actor.isBot ? rEndTurn(g, actorId) : g;
+  }
+
   function settlePendingAction(computeGame, analyticsEvents) {
     const pa = game.pendingAction;
-    if (!pa || settledRef.current === pa.id) return;
+    if (!pa) return;
+    if (isOnline) return settleOnline(pa.id, computeGame, analyticsEvents);
+    if (settledRef.current === pa.id) return;
     settledRef.current = pa.id;
-    let g = computeGame();
-    // If the actor was a bot, it has nothing left to decide — end its turn right away.
-    if (!g.winner) {
-      const actor = g.players.find((p) => p.id === pa.actorId);
-      if (actor && actor.isBot) g = rEndTurn(g, pa.actorId);
-    }
+    const g = afterSettle(computeGame(game), pa.actorId);
     if (analyticsEvents) track(analyticsEvents);
     dispatch(g);
   }
 
-  // Block-window automation. Bot self-defense runs on the bot executor client; the timed
-  // auto-resolve runs on exactly one client — the human actor's own device (whose clock stamped
-  // startedAt, so it measures a true 10s window), or the host when the actor is a bot. The
-  // remaining time is derived from the persisted startedAt, so a re-render from polling never
-  // restarts the window.
+  // Online, any phone in the room can settle an action. It always works from the latest state, stops
+  // if that action is already gone, and the version check on the save lets exactly one phone win. A
+  // lost save clears the flag; the refetched state re-runs the check below, which retries if the
+  // action is still pending.
+  const gameRef = useRef(game);
+  gameRef.current = game;
+  const settlingRef = useRef(null);
+  async function settleOnline(paId, computeGame, analyticsEvents) {
+    const cur = gameRef.current;
+    if (!cur.pendingAction || cur.pendingAction.id !== paId) return;
+    if (settlingRef.current === paId) return; // our own save is in flight
+    settlingRef.current = paId;
+    const ok = await onSettle?.(afterSettle(computeGame(cur), cur.pendingAction.actorId));
+    if (!ok) settlingRef.current = null;
+    else if (analyticsEvents) track(analyticsEvents);
+  }
+
+  // Has the current action's window run out? The actor's phone (the host's, for a bot's action) goes
+  // first; everyone else follows 1.5s later as a backup, so a backgrounded phone can't hold it up.
+  // Returns the ms left, or null when there's nothing for this phone to do.
+  function checkPendingExpiry() {
+    const g = gameRef.current;
+    const pa = g.pendingAction;
+    if (!isOnline || !pa || g.winner || !viewer || viewer.isBot) return null;
+    const startedAt = typeof pa.startedAt === "number" ? pa.startedAt : serverNow();
+    const actor = g.players.find((p) => p.id === pa.actorId);
+    const primary = actor?.isBot ? !!isHost : pa.actorId === myId;
+    // #58: once every human who could block has passed, resolve early (after a short read).
+    // Otherwise wait out the window, plus a short grace so a last-second «لا ما تقدر» lands.
+    const windowMs = allHumanBlockersDeclined(g) ? PASS_MIN_READ_MS : pendingWindowMs(g) + BLOCK_GRACE_MS;
+    const left = windowMs + (primary ? 0 : 1500) - (serverNow() - startedAt);
+    if (left <= 0) settleOnline(pa.id, (cur) => rResolvePendingAction(cur));
+    return left;
+  }
+  const checkExpiryRef = useRef(null);
+  checkExpiryRef.current = checkPendingExpiry;
+  // iOS pauses timers in the background: check again as soon as the phone is back.
+  useEffect(() => {
+    if (!isOnline) return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible") checkExpiryRef.current?.();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [isOnline]);
+
+  // Block-window automation. Bot self-defense runs on the bot executor client. The timed auto-resolve
+  // is checkPendingExpiry online (any phone, on the server's clock) and a plain timer locally. The
+  // remaining time comes from the persisted startedAt, so a re-render from polling never restarts it.
   useEffect(() => {
     const pa = game.pendingAction;
     if (!pa) return;
@@ -4319,7 +4367,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
       const tm = setTimeout(
         () =>
           settlePendingAction(
-            () => rCancelWithBlock(game, targetBot.id),
+            (cur) => rCancelWithBlock(cur, targetBot.id),
             [
               mkEvent(game, "block_used", targetBot, {
                 event_id: `${game.analyticsId}-pa-${pa.id || "x"}-block-${targetBot.id}`,
@@ -4333,16 +4381,18 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
       return () => clearTimeout(tm);
     }
 
-    const isResolver = !isOnline || (actor?.isBot ? !!isHost : pa.actorId === myId);
-    if (!isResolver) return;
+    if (isOnline) {
+      // runs on every applied poll too, since each one brings a new game object
+      const left = checkPendingExpiry();
+      if (left == null || left <= 0) return;
+      const tm = setTimeout(() => checkExpiryRef.current?.(), left + 50);
+      return () => clearTimeout(tm);
+    }
     const startedAt = typeof pa.startedAt === "number" ? pa.startedAt : serverNow();
     const elapsed = serverNow() - startedAt;
     // #58: once every human who could block has passed, resolve early (after a short read).
-    // Otherwise wait out the window, plus a short grace online so a last-second «لا ما تقدر» lands.
-    const remaining = allHumanBlockersDeclined(game)
-      ? Math.max(250, PASS_MIN_READ_MS - elapsed)
-      : Math.max(0, pendingWindowMs(game) + (isOnline ? BLOCK_GRACE_MS : 0) - elapsed);
-    const tm = setTimeout(() => settlePendingAction(() => rResolvePendingAction(game)), remaining);
+    const remaining = allHumanBlockersDeclined(game) ? Math.max(250, PASS_MIN_READ_MS - elapsed) : Math.max(0, pendingWindowMs(game) - elapsed);
+    const tm = setTimeout(() => settlePendingAction((cur) => rResolvePendingAction(cur)), remaining);
     return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game, isOnline, isHost, botExecutor]);
@@ -4568,7 +4618,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     }
     const pa = game.pendingAction;
     if (isOnline && onBlock && pa) {
-      settledRef.current = pa.id; // this client won't also resolve it while the block is in flight
+      settlingRef.current = pa.id; // this client won't also resolve it while the block is in flight
       const events = [
         mkEvent(game, "block_used", blocker, {
           event_id: `${game.analyticsId}-pa-${pa.id || "x"}-block-${blockerId}`,
@@ -4577,6 +4627,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
         }),
       ];
       onBlock(blockerId, pa.id).then((result) => {
+        settlingRef.current = null;
         if (result === "applied") track(events);
         else if (result === "late") setErrMsg(t("blockTooLate"));
         else setErrMsg(t("errSave"));
@@ -4584,7 +4635,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
       return;
     }
     settlePendingAction(
-      () => rCancelWithBlock(game, blockerId),
+      (cur) => rCancelWithBlock(cur, blockerId),
       pa
         ? [
             mkEvent(game, "block_used", blocker, {
@@ -5926,13 +5977,22 @@ function OnlineFlow({ onBack }) {
     writeOnlineSession({ roomCode, myId, myName: myName.trim() });
   }, [roomCode, myId, myName]);
 
-  function saveRoomTo(code, doc) {
+  function noteServerClock(doc, sentAt) {
+    if (typeof doc?.serverNow !== "number") return;
+    // assume the server stamped serverNow halfway through the round trip, and smooth out the jitter
+    const sample = doc.serverNow - (sentAt + Date.now()) / 2;
+    serverClockOffset = serverClockOffset === 0 ? sample : serverClockOffset * 0.8 + sample * 0.2;
+  }
+
+  // quiet: for saves the player didn't tap (settling an expired action), a lost race shows no message.
+  function saveRoomTo(code, doc, quiet = false) {
     const mutationVersion = ++roomMutationRef.current;
     pendingOptimisticRoomRef.current = { code, mutationVersion, snapshot: { ...getRoomSyncSnapshot(doc), baseUpdatedAt: baseUpdatedAtRef.current } };
     setRoom(doc);
     const send = async () => {
-      if (activeRoomCodeRef.current !== code) return;
+      if (activeRoomCodeRef.current !== code) return false;
       try {
+        const sentAt = Date.now();
         const res = await fetch(`/api/rooms/${code}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -5950,16 +6010,17 @@ function OnlineFlow({ onBack }) {
             // Someone else's move landed first. Drop ours, show the current game, ask for a redo.
             pendingOptimisticRoomRef.current = null;
             if (activeRoomCodeRef.current === code) {
-              setError(t("errStale"));
+              if (!quiet) setError(t("errStale"));
               pollRoom();
             }
-            return;
+            return false;
           }
           throw new Error("save_failed");
         }
         if (!res.ok) throw new Error("save_failed");
         const updated = await res.json();
-        if (activeRoomCodeRef.current !== code) return;
+        noteServerClock(updated, sentAt);
+        if (activeRoomCodeRef.current !== code) return false;
         // Even when a newer save is queued, it was built on this one, so it is based on this version.
         stampRoom(updated);
         if (typeof updated?.updatedAt === "string") baseUpdatedAtRef.current = updated.updatedAt;
@@ -5969,7 +6030,7 @@ function OnlineFlow({ onBack }) {
         return true;
       } catch (e) {
         pendingOptimisticRoomRef.current = null;
-        setError(t("errSave"));
+        if (!quiet) setError(t("errSave"));
         return false;
       }
     };
@@ -6116,12 +6177,7 @@ function OnlineFlow({ onBack }) {
       }
       if (!res.ok) return;
       const doc = await res.json();
-      // Server clock sync for the «لا ما تقدر» window: assume the server stamped serverNow halfway
-      // through the round trip, and smooth out the jitter.
-      if (typeof doc?.serverNow === "number") {
-        const sample = doc.serverNow - (sentAt + Date.now()) / 2;
-        serverClockOffset = serverClockOffset === 0 ? sample : serverClockOffset * 0.8 + sample * 0.2;
-      }
+      noteServerClock(doc, sentAt); // for the «لا ما تقدر» window
       if (activeRoomCodeRef.current !== code) return;
       if (requestId < appliedPollSeqRef.current) return;
       if (mutationVersionAtStart !== roomMutationRef.current) return;
@@ -6262,6 +6318,12 @@ function OnlineFlow({ onBack }) {
     await saveRoomTo(roomCode, { ...room, game: newGame });
   }
 
+  // Settling an expired action: true if this save won, false if it lost the race (and a refetch is on its way).
+  function settleGame(newGame) {
+    if (!room) return Promise.resolve(false);
+    return saveRoomTo(roomCode, { ...room, game: newGame }, true);
+  }
+
   function exitToMenu() {
     clearOnlineSession();
     resetRoomSyncState();
@@ -6299,6 +6361,7 @@ function OnlineFlow({ onBack }) {
         onClaimTimeout={(nextGame, expected) => claimTimeout(roomCode, nextGame, expected)}
         onDeclineBlock={(paId) => declineBlockOnline(roomCode, paId)}
         onBlock={(blockerId, paId) => blockOnline(roomCode, blockerId, paId)}
+        onSettle={settleGame}
         onReact={(emoji, single) => reactOnline(roomCode, emoji, single)}
         seatUserIds={Object.fromEntries((room.lobby || []).map((p) => [p.id, p.userId || null]))}
         dispatch={dispatchGame}
