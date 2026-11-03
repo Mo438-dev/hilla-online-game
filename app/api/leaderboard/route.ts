@@ -10,7 +10,8 @@ const DAY_MS = 86_400_000;
 
 // GET /api/leaderboard?period=season|all&season=1448&limit=50
 // Top N plus the caller's own row and rank (even outside the top N), and for the season view the
-// days left. Rows carry nickname, points, games, wins and rank only: never user_id or email.
+// days left. Rows carry the account id (the head-to-head opens by it), nickname, username, points,
+// games, wins and rank; never an email.
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -45,7 +46,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.rpc('leaderboard_rows', { p_from: from, p_to: to });
     if (error) throw error;    const rows = ((data ?? []) as any[]).sort((a, b) => a.rank - b.rank || b.wins - a.wins);
     const handles = await usernamesFor(supabase, rows.slice(0, limit).map((r) => r.user_id).concat(user ? [user.id] : []));
-    const strip = (r: any) => ({ nickname: r.nickname, username: handles.get(r.user_id) ?? null, points: Number(r.points), games: Number(r.games), wins: Number(r.wins), rank: Number(r.rank) });
+    const strip = (r: any) => ({ id: r.user_id, nickname: r.nickname, username: handles.get(r.user_id) ?? null, points: Number(r.points), games: Number(r.games), wins: Number(r.wins), rank: Number(r.rank) });
 
     const mine = user ? rows.find((r) => r.user_id === user.id) : null;
     // «باقي لك ١٢ نقطة توصل للمركز ٤٠»: points to the next rank up.
@@ -115,7 +116,7 @@ async function friendsBoard(
     rows.push({ user_id: id, nickname: nick.get(id)!, ...t, rank });
   });
 
-  const strip = (r: BoardRow) => ({ nickname: r.nickname, username: handle.get(r.user_id) ?? null, points: r.points, games: r.games, wins: r.wins, rank: r.rank });
+  const strip = (r: BoardRow) => ({ id: r.user_id, nickname: r.nickname, username: handle.get(r.user_id) ?? null, points: r.points, games: r.games, wins: r.wins, rank: r.rank });
   const me = rows.find((r) => r.user_id === userId) ?? null;
   const above = me ? [...rows].reverse().find((r) => r.points > me.points) : null;
   return {

@@ -675,6 +675,7 @@ function rPassTurn(game, playerId) {
 }
 
 function rPlayFreeze(game, playerId, cardId) {
+  if (game.pendingAction) return game; // one action at a time: a new one can't overwrite a pending one
   const player = game.players.find((p) => p.id === playerId);
   let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, [cardId]);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], lockCoord: true, actionUsedThisTurn: true };
@@ -684,6 +685,7 @@ function rPlayFreeze(game, playerId, cardId) {
 }
 
 function rPlayDig(game, playerId, cardId) {
+  if (game.pendingAction) return game;
   const player = game.players.find((p) => p.id === playerId);
   let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, [cardId]);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], actionUsedThisTurn: true };
@@ -706,6 +708,7 @@ function rFinishDig(game, keepId) {
 }
 
 function rDeclareAction(game, playerId, cardId, actionType, targetId) {
+  if (game.pendingAction) return game;
   const player = game.players.find((p) => p.id === playerId);
   let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, [cardId]);
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], actionUsedThisTurn: true };
@@ -714,6 +717,7 @@ function rDeclareAction(game, playerId, cardId, actionType, targetId) {
 }
 
 function rDeclareGiveTake(game, playerId, cardId, targetId, giveIds) {
+  if (game.pendingAction) return game;
   const player = game.players.find((p) => p.id === playerId);
   // The عطني وأعطيك card itself can never be one of the gifts, and the gift is exactly
   // min(2, cards left after playing it) cards that are really in the actor's hand.
@@ -1009,6 +1013,7 @@ const I18N = {
     duelNewest: "latest", duelNotCounted: "This game didn't count, so it isn't in your head-to-head.", noRankGeneric: "This game didn't count for the leaderboard",
     newTag: "New", recv_giveTakeGot: "{name} gave you these", recv_giveTakeTook: "You took these from {name}", recv_stealTwo: "{name} handed you these", recv_drawTwo: "{name} made you draw these",
     sdNameLabel: "Your name", sdNameRule2: "2 to 16 characters · others can have the same name", sdUserLabel: "Username", sdUserRule: "English letters, numbers and _ · 3 to 15 · can't be taken by anyone else", sdUserFree: "Available", sdUserTaken: "Taken, try another", sdUserReserved: "That name is reserved, try another", sdUserChars: "Only English letters, numbers and _, starting with a letter", sdUserLength: "3 to 15 characters", sdUserCooldown: "You can change it once every 30 days", sdUserCooldownLeft: "You can change your username in {n} days",
+    waitPending: "Wait for the last action to land",
     sdTagline: "Every region has its outfit", sdOnline: "Online", sdOnlineSub: "With friends", sdLocal: "Same device", sdLocalSub: "Or vs bots", sdRank: "Leaderboard", sdRankSub: "Coming soon", sdRankSoon: "The leaderboard is coming soon", sdGuest: "Guest", sdSaveShort: "Sign in to save your points", sdPickName: "What should we call you?", sdChangeName: "Change your name", sdNamePh: "Your leaderboard name", sdNameRule: "2 to 16 characters · shown on the leaderboard", sdSave: "Save", sdEdit: "Edit", sdHello: "Hi {name}", sdGuestTitle: "You're playing as a guest", sdGuestBody: "Save your account so your name and points stay if you change phones", sdGoogle: "Continue with Google", sdEmail: "Continue with email", sdAuthSoon: "Sign-in arrives with the leaderboard", sdLang: "Language",
     madeBy: "Designed by Saudi hands 🇸🇦", credit: "A Princess Nourah University student, for Core Studio",
     errCreate: "Couldn't create the room, try again.", addBot: "🤖 Add a bot", removeBot: "Remove bot",
@@ -1087,6 +1092,7 @@ const I18N = {
     duelNewest: "último", duelNotCounted: "Esta partida no contó, así que no está en su cara a cara.", noRankGeneric: "Esta partida no contó para la clasificación",
     newTag: "Nueva", recv_giveTakeGot: "{name} te dio estas", recv_giveTakeTook: "Le quitaste estas a {name}", recv_stealTwo: "{name} te pasó estas", recv_drawTwo: "{name} te hizo robar estas",
     sdNameLabel: "Tu nombre", sdNameRule2: "De 2 a 16 caracteres · otros pueden tener el mismo nombre", sdUserLabel: "Usuario", sdUserRule: "Letras inglesas, números y _ · 3 a 15 · nadie más puede tenerlo", sdUserFree: "Disponible", sdUserTaken: "Ocupado, prueba otro", sdUserReserved: "Ese nombre está reservado, prueba otro", sdUserChars: "Solo letras inglesas, números y _, empezando por una letra", sdUserLength: "De 3 a 15 caracteres", sdUserCooldown: "Puedes cambiarlo una vez cada 30 días", sdUserCooldownLeft: "Podrás cambiar tu usuario en {n} días",
+    waitPending: "Espera a que se resuelva la acción anterior",
     sdTagline: "Cada región tiene su traje", sdOnline: "En línea", sdOnlineSub: "Con amigos", sdLocal: "Mismo dispositivo", sdLocalSub: "O contra bots", sdRank: "Clasificación", sdRankSub: "Muy pronto", sdRankSoon: "La clasificación llega pronto", sdGuest: "Invitado", sdSaveShort: "Inicia sesión para guardar tus puntos", sdPickName: "¿Cómo te llamamos?", sdChangeName: "Cambia tu nombre", sdNamePh: "Tu nombre en la clasificación", sdNameRule: "De 2 a 16 caracteres · se muestra en la clasificación", sdSave: "Guardar", sdEdit: "Editar", sdHello: "Hola {name}", sdGuestTitle: "Juegas como invitado", sdGuestBody: "Guarda tu cuenta para no perder tu nombre y tus puntos si cambias de móvil", sdGoogle: "Continuar con Google", sdEmail: "Continuar con correo", sdAuthSoon: "El inicio de sesión llega con la clasificación", sdLang: "Idioma",
     madeBy: "Diseñado por manos saudíes 🇸🇦", credit: "Estudiante de la Universidad Princesa Nourah, para Core Studio",
     errCreate: "No se pudo crear la sala, inténtalo de nuevo.", addBot: "🤖 Añadir un bot", removeBot: "Quitar bot",
@@ -1162,6 +1168,7 @@ Object.assign(I18N.ar, {
   duelNewest: "الأحدث", duelNotCounted: "هالمباراة ما انحسبت، فما هي داخلة في المواجهة.", noRankGeneric: "ما انحسبت هالمباراة في الترتيب",
   newTag: "جديد", recv_giveTakeGot: "{name} عطاك هذي", recv_giveTakeTook: "أخذت هذي من {name}", recv_stealTwo: "{name} فزع لك بهذي", recv_drawTwo: "{name} قدعك وسحبت هذي",
   sdNameLabel: "اسمك", sdNameRule2: "من ٢ إلى ١٦ حرف · عادي يكون نفس اسم أحد ثاني", sdUserLabel: "اسم المستخدم", sdUserRule: "حروف إنجليزي وأرقام و _ · من ٣ إلى ١٥ · ما يتكرر", sdUserFree: "متاح", sdUserTaken: "مأخوذ، جرّب غيره", sdUserReserved: "هذا الاسم محجوز، جرّب غيره", sdUserChars: "حروف إنجليزي وأرقام و _ بس، ويبدأ بحرف", sdUserLength: "من ٣ إلى ١٥ حرف", sdUserCooldown: "تقدر تغيّره مرة كل ٣٠ يوم", sdUserCooldownLeft: "تقدر تغيّر اسم المستخدم بعد {n} يوم",
+  waitPending: "استنى لين يخلص الأكشن اللي قبل",
   sdTagline: "كل منطقة لها حُلّة", sdOnline: "أونلاين", sdOnlineSub: "مع أصحابك", sdLocal: "نفس الجهاز", sdLocalSub: "أو ضد البوتات", sdRank: "الترتيب", sdRankSub: "قريبًا", sdRankSoon: "الترتيب جاي قريب", sdGuest: "ضيف", sdSaveShort: "سجّل واحفظ نقاطك", sdPickName: "وش نسمّيك؟", sdChangeName: "غيّر اسمك", sdNamePh: "اسمك في الترتيب", sdNameRule: "من ٢ إلى ١٦ حرف · يطلع للناس في الترتيب", sdSave: "احفظ", sdEdit: "غيّر", sdHello: "أهلًا {name}", sdGuestTitle: "حسابك ضيف", sdGuestBody: "احفظه عشان ما يضيع اسمك ونقاطك لو غيّرت جوالك", sdGoogle: "كمّل بقوقل", sdEmail: "كمّل بالإيميل", sdAuthSoon: "تسجيل الدخول يجي مع الترتيب", sdLang: "اللغة",
   madeBy: "صُممت بأيدي سعودية 🇸🇦", credit: "طالبة جامعة الأميرة نورة، لمقرر Core Studio",
   errCreate: "تعذر إنشاء الغرفة، حاول مجددًا.", addBot: "🤖 أضف بوت", removeBot: "أزل البوت",
@@ -4450,6 +4457,11 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   }
 
   function startAction(cardId) {
+    // the previous player's action can still be in its window: a new one would overwrite it
+    if (game.pendingAction) {
+      setErrMsg(t("waitPending"));
+      return;
+    }
     if (game.actionUsedThisTurn) return;
     const card = viewer.hand.find((c) => c.id === cardId);
     if (!card) return;
@@ -4493,6 +4505,11 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   }
 
   function chooseTarget(targetId) {
+    if (game.pendingAction) {
+      setNeedTarget(null);
+      setErrMsg(t("waitPending"));
+      return;
+    }
     const card = needTarget;
     if (card.actionType === "giveTake") {
       setNeedTarget(null);
@@ -4525,6 +4542,11 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   }
 
   function confirmGiveTake(chosenIds) {
+    if (game.pendingAction) {
+      setGiveStep(null);
+      setErrMsg(t("waitPending"));
+      return;
+    }
     const target = game.players.find((p) => p.id === giveStep.targetId);
     track([
       mkEvent(game, "action_played", viewer, {
@@ -4618,9 +4640,14 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   // Show what just arrived in my hand from someone's action. One screen = one player only (online,
   // or one human vs bots): on a shared phone it would show cards to the wrong person.
   const recvMeId = isOnline ? myId : soloHuman ? soloHuman.id : null;
+  // Event ids already shown on this screen, seeded with the one in the state when the board mounts,
+  // so a remount / reload / rejoin, or a stale poll flipping the id back, never replays it.
+  const seenRecvRef = useRef(null);
+  if (seenRecvRef.current === null) seenRecvRef.current = new Set(game.receivedEvent ? [game.receivedEvent.id] : []);
   useEffect(() => {
     const ev = game.receivedEvent;
-    if (!ev || !recvMeId) return;
+    if (!ev || !recvMeId || seenRecvRef.current.has(ev.id)) return;
+    seenRecvRef.current.add(ev.id);
     const entry = ev.entries.find((e) => e.toId === recvMeId && e.cardIds.length);
     if (!entry) return;
     const me = game.players.find((p) => p.id === recvMeId);
@@ -5116,7 +5143,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                   </>
                 )}
 
-                {errMsg && !game.pendingAction && (
+                {errMsg && (!game.pendingAction || errMsg === t("waitPending")) && (
                   <div className="tsz-12 font-semibold mb-2 px-3 py-1.5 rounded-xl hilla-pop" style={{ background: `${BRAND}14`, color: BRAND }}>
                     {L.error(errMsg)}
                   </div>
@@ -5850,6 +5877,9 @@ function OnlineFlow({ onBack }) {
 
   function isBehindOptimisticRoom(doc, optimisticSnapshot) {
     if (!optimisticSnapshot) return false;
+    // a room no newer than the version our pending save was built on is older than it, whatever its turn says
+    const base = optimisticSnapshot.baseUpdatedAt;
+    if (typeof base === "string" && typeof doc?.updatedAt === "string" && (doc.updatedAt === base || Date.parse(doc.updatedAt) < Date.parse(base))) return true;
     if (optimisticSnapshot.started && !doc?.started) return true;
     if (!optimisticSnapshot.started || !doc?.started) return false;
 
@@ -5898,7 +5928,7 @@ function OnlineFlow({ onBack }) {
 
   function saveRoomTo(code, doc) {
     const mutationVersion = ++roomMutationRef.current;
-    pendingOptimisticRoomRef.current = { code, mutationVersion, snapshot: getRoomSyncSnapshot(doc) };
+    pendingOptimisticRoomRef.current = { code, mutationVersion, snapshot: { ...getRoomSyncSnapshot(doc), baseUpdatedAt: baseUpdatedAtRef.current } };
     setRoom(doc);
     const send = async () => {
       if (activeRoomCodeRef.current !== code) return;
@@ -7056,7 +7086,7 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
   const [scope, setScope] = useState("friends");
   const [globalTapped, setGlobalTapped] = useState(false);
   const [howOpen, setHowOpen] = useState(false);
-  const [duelWith, setDuelWith] = useState(null); // a board row: by @username, or by name when it has none
+  const [duelWith, setDuelWith] = useState(null); // a board row; the sheet opens by its account id
   const [state, setState] = useState({ status: "loading" });
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -7342,7 +7372,7 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
       {duelWith && (
         <DuelSheet
           them={duelWith.nickname}
-          query={duelWith.username ? `user=${encodeURIComponent(duelWith.username)}` : `nick=${encodeURIComponent(duelWith.nickname)}`}
+          query={`with=${encodeURIComponent(duelWith.id)}`}
           onClose={() => setDuelWith(null)}
         />
       )}

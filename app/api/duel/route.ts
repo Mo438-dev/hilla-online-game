@@ -9,7 +9,8 @@ import { headToHead } from '@/lib/leaderboard/duel';
 const noStore = { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' };
 
 // GET /api/duel?with=<userId> (win screen: the seat's account) or ?user=<username> (leaderboard).
-// ?nick= is a fallback for rows without a username. Returns the head-to-head plus both @handles.
+// ?user= and ?nick= only serve already-open old clients; a name that's ambiguous or unknown gets the
+// empty record, never an error. Returns the head-to-head plus both @handles.
 export async function GET(request: Request) {
   try {
     const user = await getRequestUser(request);
@@ -25,8 +26,8 @@ export async function GET(request: Request) {
     } else if (!themId && nick) {
       // names can repeat now: only answer when exactly one player has it
       const { data } = await supabase.from('profiles').select('user_id').eq('nickname_key', nicknameKey(nick)).limit(2);
-      if ((data ?? []).length > 1) return NextResponse.json({ error: 'ambiguous' }, { status: 409, headers: noStore });
-      themId = data?.[0]?.user_id || '';
+      if ((data ?? []).length !== 1) return NextResponse.json({ games: 0, myWins: 0, theirWins: 0, myPts: 0, theirPts: 0, last: [], meUser: null, themUser: null }, { headers: noStore });
+      themId = data![0].user_id;
     }
     if (!/^[0-9a-f-]{36}$/i.test(themId)) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
     const { data: profs } = await supabase.from('profiles').select('user_id, username').in('user_id', [user.id, themId]);
