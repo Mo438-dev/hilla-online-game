@@ -3,14 +3,14 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getRequestUser } from '@/lib/auth-server';
-import { nicknameKey } from '@/lib/leaderboard/nickname';
 import { headToHead } from '@/lib/leaderboard/duel';
 
+const UUID = /^[0-9a-f-]{36}$/i;
 const noStore = { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' };
 
-// GET /api/duel?with=<userId> (win screen: the seat's account) or ?user=<username> (leaderboard).
-// ?user= and ?nick= only serve already-open old clients; a name that's ambiguous or unknown gets the
-// empty record, never an error. Returns the head-to-head plus both @handles.
+// GET /api/duel?with=<userId> (win screen: the seat's account), or from the leaderboard ?user=<username>
+// or ?ref=<public id>. Anyone not found gets the empty record, never an error. Returns the head-to-head
+// plus both @handles.
 export async function GET(request: Request) {
   try {
     const user = await getRequestUser(request);
@@ -19,17 +19,15 @@ export async function GET(request: Request) {
     const supabase = getSupabaseAdmin();
     let themId = url.searchParams.get('with') || '';
     const handle = url.searchParams.get('user');
-    const nick = url.searchParams.get('nick');
+    const ref = url.searchParams.get('ref');
     if (!themId && handle) {
       const { data } = await supabase.from('profiles').select('user_id').eq('username', handle.toLowerCase()).maybeSingle();
       themId = data?.user_id || '';
-    } else if (!themId && nick) {
-      // names can repeat now: only answer when exactly one player has it
-      const { data } = await supabase.from('profiles').select('user_id').eq('nickname_key', nicknameKey(nick)).limit(2);
-      if ((data ?? []).length !== 1) return NextResponse.json({ games: 0, myWins: 0, theirWins: 0, myPts: 0, theirPts: 0, last: [], meUser: null, themUser: null }, { headers: noStore });
-      themId = data![0].user_id;
+    } else if (!themId && ref && UUID.test(ref)) {
+      const { data } = await supabase.from('profiles').select('user_id').eq('public_id', ref).maybeSingle();
+      themId = data?.user_id || '';
     }
-    if (!/^[0-9a-f-]{36}$/i.test(themId)) return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStore });
+    if (!UUID.test(themId)) return NextResponse.json({ games: 0, myWins: 0, theirWins: 0, myPts: 0, theirPts: 0, last: [], meUser: null, themUser: null }, { headers: noStore });
     const { data: profs } = await supabase.from('profiles').select('user_id, username').in('user_id', [user.id, themId]);
     const handleOf = (id: string) => (profs ?? []).find((p: any) => p.user_id === id)?.username ?? null;
     return NextResponse.json({ ...(await headToHead(user.id, themId)), meUser: handleOf(user.id), themUser: handleOf(themId) }, { headers: noStore });

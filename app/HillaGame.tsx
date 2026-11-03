@@ -7086,7 +7086,7 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
   const [scope, setScope] = useState("friends");
   const [globalTapped, setGlobalTapped] = useState(false);
   const [howOpen, setHowOpen] = useState(false);
-  const [duelWith, setDuelWith] = useState(null); // a board row; the sheet opens by its account id
+  const [duelWith, setDuelWith] = useState(null); // a board row; the sheet opens by @username, or its opaque ref
   const [state, setState] = useState({ status: "loading" });
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -7372,7 +7372,7 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
       {duelWith && (
         <DuelSheet
           them={duelWith.nickname}
-          query={`with=${encodeURIComponent(duelWith.id)}`}
+          query={duelWith.username ? `user=${encodeURIComponent(duelWith.username)}` : `ref=${encodeURIComponent(duelWith.ref || "")}`}
           onClose={() => setDuelWith(null)}
         />
       )}
