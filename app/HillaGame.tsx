@@ -3742,7 +3742,10 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   // what only this phone knows about its seat, reported once at the end of the game (analytics)
   const seatCountRef = useRef({ premovesSet: 0, premovesPlayed: 0, reactionsSent: 0 });
   const [recv, setRecv] = useState(null); // cards that just arrived from an action, for ReceivedFX
-  const [newIds, setNewIds] = useState([]); // those cards get a «جديد» tag in the hand for a while
+  const [newIds, setNewIds] = useState([]); // «جديد» tag: one full round or 15s, whichever is longer
+  const newSinceRef = useRef(0); // turnSerial when they arrived
+  const newAtRef = useRef(0); // time when they arrived
+  const [newTick, setNewTick] = useState(0); // re-check once the 15s are up
   useEffect(() => {
     try {
       window.localStorage.setItem(PREMOVE_STORE, premoveOn ? "on" : "off");
@@ -4626,6 +4629,9 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     setRecv({ key: ev.id, kind: entry.kind, fromName: entry.fromName, cards });
     sendAppEvent("cards_received", game.analyticsId || null, { player_id: recvMeId, cards_played_count: cards.length, payload: { kind: entry.kind } });
     setNewIds(entry.cardIds);
+    newSinceRef.current = game.turnSerial ?? 0;
+    newAtRef.current = Date.now();
+    setTimeout(() => setNewTick((n) => n + 1), 15000);
     haptic?.([12, 60, 12]);
     const a = setTimeout(() => setRecv(null), 2700);
     // as the cards drop toward the hand, slide the hand row so the first new one is in view
@@ -4635,14 +4641,22 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
         el?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
       } catch {}
     }, 2350);
-    const b = setTimeout(() => setNewIds([]), 7000);
     return () => {
       clearTimeout(a);
-      clearTimeout(b);
       clearTimeout(c);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game.receivedEvent?.id]);
+
+  // The «جديد» tag stays for one full round (every seat, you included, has had a turn since) or
+  // 15 seconds, whichever is longer.
+  useEffect(() => {
+    if (!newIds.length) return;
+    const roundDone = (game.turnSerial ?? 0) - newSinceRef.current >= game.players.length;
+    const timeDone = Date.now() - newAtRef.current >= 15000;
+    if (roundDone && timeDone) setNewIds([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game.turnSerial, newTick]);
 
   // Premove only makes sense when this screen belongs to one player: online, or one human vs bots.
   const canPremove = premoveOn && !isMyTurn && !game.winner && viewer && !viewer.isBot && (isOnline || !!soloHuman);
