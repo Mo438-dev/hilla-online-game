@@ -5,9 +5,13 @@ import { allRows, cached, clearCache, filterKey, filterSessions, isAdmin, json, 
 import { ACCOUNTS_SINCE } from '@/lib/analytics/build';
 
 const UUID = /^[0-9a-f-]{36}$/i;
+// PUKC and LQJF (27 Oct): the seat without a result had no account on it. The other seats' results went
+// in with a single write, and that write covers every seat with an account, so this isn't a lost result.
+const NO_ACCOUNT_SEAT = new Set(['9f713f51-0ef2-432a-abcd-fb309a3fa299', '7bf61a56-b2b6-4cfd-9a5c-ce20c9803c0f']);
 
 // Why a game did or didn't count. The first four are the spec's; the rest say what the results really hold.
 function countState(s: any, results: any[], humanSeats: number) {
+  if (NO_ACCOUNT_SEAT.has(s.id)) return { counted: results.some((r) => r.counted), reason: 'before_accounts', missing_results: false };
   const online = !!s.room_code;
   const after = Date.parse(s.started_at) >= ACCOUNTS_SINCE;
   const missing = !!s.completed && online && after && (s.human_count ?? 0) >= 2 && results.length < humanSeats;

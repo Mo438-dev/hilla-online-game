@@ -7,15 +7,12 @@ const EVENT_TYPES = ['coord_changed', 'turn_started', 'items_played', 'action_pl
 const DAY = 86_400_000;
 export const ACCOUNTS_SINCE = Date.parse('2026-10-25T00:00:00Z');
 
-// Most common short comment; the latest one when there are fewer than 3.
-function topComment(rows: any[]) {
-  const c = rows.filter((f) => f.comment?.trim()).sort((a, b) => b.created_at.localeCompare(a.created_at));
-  if (!c.length) return null;
-  if (c.length < 3) return c[0].comment.trim();
-  const short = c.map((f) => f.comment.trim()).filter((t) => t.length <= 60);
-  const n = new Map<string, number>();
-  for (const t of short) n.set(t, (n.get(t) ?? 0) + 1);
-  return [...n.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? c[0].comment.trim();
+// «أبرز ملاحظة»: the latest comment from someone who rated fun 3 or less or wouldn't play again. Never praise.
+function topNote(rows: any[]) {
+  const unhappy = rows
+    .filter((f) => f.comment?.trim() && ((f.fun != null && f.fun <= 3) || f.play_again === false))
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  return unhappy[0]?.comment.trim() ?? null;
 }
 
 export function buildRules(version: string, humans: boolean) {
@@ -66,7 +63,7 @@ export function buildRules(version: string, humans: boolean) {
       cell.wouldReplay = yn.length ? yn.filter((f) => f.play_again).length / yn.length : null;
       cell.surveyN = fb.length;
       cell.response = humanSeats ? fb.length / humanSeats : null;
-      cell.complaint = topComment(fb);
+      cell.note = topNote(fb);
       cells[n] = cell;
     }
     const games = sessions.length;
