@@ -4,7 +4,8 @@ import { allRows, cached, filterKey, filterSessions, isAdmin, json, loadAccounts
 import { median } from '@/lib/analytics/rules';
 
 async function build(url: URL) {
-  const sessions = filterSessions(await loadSessions(), url);
+  const everything = await loadSessions();
+  const sessions = filterSessions(everything, url);
   const ids = new Set(sessions.map((s) => s.id));
   const done = sessions.filter((s) => s.completed);
   const { profiles, resolve } = await loadAccounts();
@@ -42,6 +43,8 @@ async function build(url: URL) {
       { label: 'رجع بيوم ثاني', n: returned },
     ],
     versions,
+    // for the version selects: every version with a finished game, newest first
+    allVersions: [...new Set(everything.filter((s) => s.completed).map((s) => s.ruleset_version))].filter(Boolean).sort().reverse(),
   };
 }
 

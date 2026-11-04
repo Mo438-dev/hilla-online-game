@@ -3,8 +3,10 @@ export const dynamic = 'force-dynamic';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { allRows, cached, isAdmin, json, loadAccounts, loadSessions } from '@/lib/analytics/data';
 
-async function build() {
-  const errors = await allRows('client_errors', 'id, created_at, session_id, user_id, platform, standalone, message, app_build');
+async function build(period: string | null) {
+  // The period is the one header filter an error can follow: most have no game to read the rest from.
+  const since = period === '7' || period === '30' ? Date.now() - Number(period) * 86_400_000 : 0;
+  const errors = (await allRows('client_errors', 'id, created_at, session_id, user_id, platform, standalone, message, app_build')).filter((e) => Date.parse(e.created_at) >= since);
   const { resolve } = await loadAccounts();
   const groups = new Map<string, any>();
   for (const e of errors) {
@@ -33,10 +35,11 @@ async function build() {
 }
 
 // GET /api/analytics2/errors: client_errors grouped by message
-export async function GET() {
+export async function GET(request: Request) {
   if (!(await isAdmin())) return json({ error: 'unauthorized' }, 401);
   try {
-    return json(await cached('errors', build));
+    const period = new URL(request.url).searchParams.get('period');
+    return json(await cached(`errors|${period}`, () => build(period)));
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : 'unknown_error' }, 500);
   }

@@ -21,6 +21,7 @@ home-screen app or browser, UI language). Added in delta-14 is marked **(14)**.
 - `duration_ms` **(14)** — game length in ms (the game's own start/end; server time as fallback).
 - `coord_rounds` **(14)** — coordination cards drawn during the game.
 - `app_build` **(14)** — deployed commit (first 12 chars).
+- `is_test` **(15)** — a test game, kept out of every metric (the «تجربة» toggle on the matches tab).
 
 ## game_players — one row per seat per game
 - `id` — row id.
