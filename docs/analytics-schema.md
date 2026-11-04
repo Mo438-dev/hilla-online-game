@@ -100,7 +100,8 @@ Event types: `game_started`, `game_finished`, `player_joined`, `turn_started`, `
 - `created_platform` / `created_standalone` **(14)** — device of the first profile write.
 - `first_game_at` **(14)** — when the first result was written.
 - `last_seen_at` **(14)** — last app open with a signed-in guest or account.
-- `merged_into` **(14)** — reserved: merged guests are currently deleted, so it stays empty.
+- `merged_into` **(14)** — the account this one was merged into; such rows are hidden from every board and the head-to-head.
+- `public_id` — opaque random id, returned as `ref` in leaderboard rows (never `user_id`).
 
 ## game_results — leaderboard results (server-written)
 - `game_id` / `room_code` / `user_id` — the game and the account.

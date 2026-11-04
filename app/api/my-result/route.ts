@@ -26,8 +26,8 @@ export async function GET(request: Request) {
   const others = (rows ?? []).filter((r) => r.user_id !== user.id);
   if (mine.humans === 2 && others.length === 1) {
     try {
-      const { data: prof } = await supabase.from('profiles').select('nickname, hidden').eq('user_id', others[0].user_id).maybeSingle();
-      if (prof?.nickname && !prof.hidden) {
+      const { data: prof } = await supabase.from('profiles').select('nickname, hidden, merged_into').eq('user_id', others[0].user_id).maybeSingle();
+      if (prof?.nickname && !prof.hidden && !prof.merged_into) {
         const d = await headToHead(user.id, others[0].user_id);
         if (d.games > 0) duel = { name: prof.nickname, me: d.myWins, them: d.theirWins };
       }

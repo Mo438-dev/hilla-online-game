@@ -21,14 +21,17 @@ export async function GET(request: Request) {
     const handle = url.searchParams.get('user');
     const ref = url.searchParams.get('ref');
     if (!themId && handle) {
-      const { data } = await supabase.from('profiles').select('user_id').eq('username', handle.toLowerCase()).maybeSingle();
+      const { data } = await supabase.from('profiles').select('user_id').eq('username', handle.toLowerCase()).is('merged_into', null).maybeSingle();
       themId = data?.user_id || '';
     } else if (!themId && ref && UUID.test(ref)) {
-      const { data } = await supabase.from('profiles').select('user_id').eq('public_id', ref).maybeSingle();
+      const { data } = await supabase.from('profiles').select('user_id').eq('public_id', ref).is('merged_into', null).maybeSingle();
       themId = data?.user_id || '';
     }
-    if (!UUID.test(themId)) return NextResponse.json({ games: 0, myWins: 0, theirWins: 0, myPts: 0, theirPts: 0, last: [], meUser: null, themUser: null }, { headers: noStore });
-    const { data: profs } = await supabase.from('profiles').select('user_id, username').in('user_id', [user.id, themId]);
+    const none = { games: 0, myWins: 0, theirWins: 0, myPts: 0, theirPts: 0, last: [], meUser: null, themUser: null };
+    if (!UUID.test(themId)) return NextResponse.json(none, { headers: noStore });
+    const { data: profs } = await supabase.from('profiles').select('user_id, username, merged_into').in('user_id', [user.id, themId]);
+    // a merged account is gone from the head-to-head too, however it was reached
+    if ((profs ?? []).find((p: any) => p.user_id === themId)?.merged_into) return NextResponse.json(none, { headers: noStore });
     const handleOf = (id: string) => (profs ?? []).find((p: any) => p.user_id === id)?.username ?? null;
     return NextResponse.json({ ...(await headToHead(user.id, themId)), meUser: handleOf(user.id), themUser: handleOf(themId) }, { headers: noStore });
   } catch (error) {

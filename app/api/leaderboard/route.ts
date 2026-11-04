@@ -96,7 +96,7 @@ async function friendsBoard(
   if (e3) throw e3;
   const { data: profiles, error: e4 } = await supabase.from('profiles').select('*').in('user_id', circle);
   if (e4) throw e4;
-  const nick = new Map((profiles ?? []).filter((p: any) => p.nickname && !p.hidden).map((p: any) => [p.user_id, p.nickname]));
+  const nick = new Map((profiles ?? []).filter((p: any) => p.nickname && !p.hidden && !p.merged_into).map((p: any) => [p.user_id, p.nickname]));
   const handle = new Map((profiles ?? []).map((p: any) => [p.user_id, p.username ?? null]));
   const refOf = new Map((profiles ?? []).map((p: any) => [p.user_id, p.public_id ?? null]));
 
