@@ -91,6 +91,24 @@ export function sendDealSnapshot(game: any, roomCode: string | null) {
       items,
     },
   ]);
+  // delta-15: one card_entered per dealt item card, in batches the events route accepts (40 per request)
+  const entered = (game.players || []).flatMap((p: any) =>
+    (p.hand || [])
+      .filter((c: any) => c.kind === 'item')
+      .map((c: any) => ({
+        event_id: `${game.analyticsId}-ce-${c.id}-${p.id}-t0`,
+        game_id: game.analyticsId,
+        room_code: roomCode || null,
+        event_type: 'card_entered',
+        player_id: p.id,
+        player_name: p.name,
+        is_bot: !!p.isBot,
+        turn_number: 0,
+        round_number: 1,
+        payload: { cid: c.id, name: c.name, source: 'dealt', turn_number: 0 },
+      }))
+  );
+  for (let i = 0; i < entered.length; i += 40) sendAnalyticsEvents(entered.slice(i, i + 40));
 }
 
 export function sendGameStarted(game: any, roomCode: string | null) {

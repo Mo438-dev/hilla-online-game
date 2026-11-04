@@ -13,6 +13,7 @@ const MAX_ITEMS_PER_SNAPSHOT = 160;
 const MAX_TEXT = 120;
 const RARITIES = new Set(['common', 'medium', 'rare']);
 const ITEM_EVENT_TYPES = new Set(['items_played', 'deal_snapshot', 'end_snapshot']);
+const CARD_SOURCES = new Set(['dealt', 'drawn', 'received']);
 
 export type AnalyticsEventRow = {
   event_id: string;
@@ -129,7 +130,34 @@ function sanitizePayload(eventType: string, v: unknown): Record<string, unknown>
         return { player_id: playerId, is_bot: !!r.is_bot, is_winner: !!r.is_winner, hand_size: handSize };
       })
       .filter((s) => s !== null);
-    return standings.length ? { standings } : null;
+    if (!standings.length) return null;
+    // delta-15: what every seat held at the win, by rarity and by item name
+    const hands = Array.isArray(p.hands)
+      ? p.hands
+          .slice(0, 6)
+          .map((h) => {
+            if (!h || typeof h !== 'object') return null;
+            const r = h as Record<string, unknown>;
+            const seat = asText(r.seat);
+            if (!seat) return null;
+            const rar = (r.rarity && typeof r.rarity === 'object' ? r.rarity : {}) as Record<string, unknown>;
+            return {
+              seat,
+              rarity: { common: asInt(rar.common) ?? 0, medium: asInt(rar.medium) ?? 0, rare: asInt(rar.rare) ?? 0 },
+              items: Array.isArray(r.items) ? r.items.slice(0, MAX_ITEMS_PER_SNAPSHOT).map(asText).filter((s): s is string => !!s) : [],
+            };
+          })
+          .filter((h) => h !== null)
+      : [];
+    return hands.length ? { standings, hands } : { standings };
+  }
+  if (eventType === 'card_entered') {
+    const cid = asText(p.cid);
+    const name = asText(p.name);
+    const source = asText(p.source);
+    const turn = asInt(p.turn_number);
+    if (!cid || !name || !source || !CARD_SOURCES.has(source) || turn === null) return null;
+    return { cid, name, source, turn_number: turn };
   }
   // delta-14 app events: a few short fields each
   if (APP_EVENT_FIELDS[eventType]) {

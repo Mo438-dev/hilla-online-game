@@ -38,6 +38,8 @@ export const ANALYTICS_EVENT_TYPES = [
   'leaderboard_opened',
   'username_set',
   'survey_step',
+  // delta-15
+  'card_entered', // an item card entered a seat's hand (payload cid, name, source, turn_number)
 ] as const;
 
 export type AnalyticsEventType = (typeof ANALYTICS_EVENT_TYPES)[number];

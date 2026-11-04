@@ -75,6 +75,10 @@ Event types: `game_started`, `game_finished`, `player_joined`, `turn_started`, `
 - `username_set` — a username was saved.
 - `survey_step` — one survey step (payload `step` 0–3, `how`: `answered` | `skipped`).
 
+Added in delta-15, from then on only:
+- `card_entered` — an item card entered a seat's hand (payload `cid`, `name`, `source`: `dealt` | `drawn` | `received`, `turn_number`). `received` = from «اقدع», «افزع لي» or «عطني وأعطيك». Bots included.
+- `end_snapshot` also carries payload `hands`: for every seat, `{ seat, rarity: { common, medium, rare }, items: [name…] }`.
+
 ## game_feedback — the end-of-game survey (one per seat per game)
 - `id` — row id.
 - `game_id` — the game (this is the session id).

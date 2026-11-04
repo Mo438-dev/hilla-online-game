@@ -3971,6 +3971,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
      one row server-side. */
   const isPrimaryLogger = !isOnline || !!isHost;
   const prevGameRef = useRef(null);
+  const inHandAtRef = useRef(new Map()); // seat|cid → latest turn seen in that hand (card_entered)
 
   function mkEvent(g, type, actor, extra) {
     const coord = g.currentCoord;
@@ -4083,6 +4084,28 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     const events = [];
     const prevTurn = prev.turnSerial ?? 0;
     const curTurn = game.turnSerial ?? 0;
+    // An item card that wasn't in this hand before. A stale poll can bring a played card back for a
+    // moment, so older states are ignored, and so is a card this hand already held this same turn.
+    if (curTurn >= prevTurn) {
+      const inHandAt = inHandAtRef.current;
+      const gifted = new Set((game.receivedEvent?.entries || []).flatMap((en) => en.cardIds.map((id) => `${en.toId}|${id}`)));
+      for (const seat of game.players) {
+        const had = new Set((prev.players.find((p) => p.id === seat.id)?.hand || []).map((c) => c.id));
+        for (const c of seat.hand) {
+          const key = `${seat.id}|${c.id}`;
+          if (c.kind === "item" && !had.has(c.id) && inHandAt.get(key) !== curTurn) {
+            const fromSeat = prev.players.some((p) => p.id !== seat.id && p.hand.some((x) => x.id === c.id));
+            events.push(
+              mkEvent(game, "card_entered", seat, {
+                event_id: `${game.analyticsId}-ce-${c.id}-${seat.id}-t${curTurn}`,
+                payload: { cid: c.id, name: c.name, source: fromSeat || gifted.has(key) ? "received" : "drawn", turn_number: curTurn },
+              })
+            );
+          }
+          inHandAt.set(key, curTurn);
+        }
+      }
+    }
     if (curTurn > prevTurn && !game.winner) {
       const cur = game.players[game.currentPlayerIndex];
       const playable = findMatchingItems(cur.hand, game.currentCoord);
@@ -4131,6 +4154,11 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
               is_winner: p.id === game.winner,
               hand_size: p.hand.length,
             })),
+            hands: game.players.map((p) => {
+              const held = p.hand.filter((c) => c.kind === "item");
+              const of = (r) => held.filter((c) => c.rarity === r).length;
+              return { seat: p.id, rarity: { common: of("common"), medium: of("medium"), rare: of("rare") }, items: held.map((c) => c.name) };
+            }),
           },
         })
       );
