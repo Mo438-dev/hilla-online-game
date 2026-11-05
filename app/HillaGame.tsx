@@ -16,6 +16,14 @@ const BEIGE = "#D7CAA9"; // random coordination frame / logo plaque
 const GOLD = "#DDAD55";
 const GOLD_DK = "#B98A2E";
 const INK = "#231F20";
+const INK_HARD = "#231F20";
+const CREAM_HARD = "#FCF3E2";
+// Theme variables (defined in globals.css).
+const SURF = "var(--h-surf)"; // sheets, panels, chips (cream paper in light)
+const SUNK = "var(--h-sunk)"; // inputs and inset rows
+const BRAND_T = "var(--h-brand-t)"; // brand-red text and icons on the page
+// colour + 2-digit hex alpha, also for the CSS-variable colours above
+const A = (c, hh) => (c.startsWith("var(") ? `color-mix(in srgb, ${c} ${Math.round(parseInt(hh, 16) / 2.55)}%, transparent)` : c + hh);
 // legacy aliases kept so untouched code paths still resolve
 const CREAM2 = "#F3E8D0";
 const MAROON = BRAND;
@@ -996,7 +1004,7 @@ const I18N = {
   ar: {},
   en: {
     // generic
-    you: "You", cancel: "Cancel", back: "Back", refresh: "Refresh page", language: "Language",
+    you: "You", sharePlayer: "A player", stTitle: "Settings", stLook: "Appearance", stLight: "Light", stDark: "Dark", stAuto: "Auto", stAutoHint: "Follows your phone", stIcon: "App icon", stDone: "Done", cancel: "Cancel", back: "Back", refresh: "Refresh page", language: "Language",
     random: "Random", oneCardOnly: "One card only", severalNoRepeat: "Several cards · no repeats",
     drawPile: "Draw", lastCard: "Last card", round: "Round {n}", menu: "Menu", reactions: "Reactions",
     // home + setup
@@ -1076,7 +1084,7 @@ const I18N = {
     andHow: "In your browser:", andStep1: "Open the browser menu (⋮).", andStep2: "Choose “Install app” or “Add to Home screen”.",
   },
   es: {
-    you: "Tú", cancel: "Cancelar", back: "Volver", refresh: "Actualizar página", language: "Idioma",
+    you: "Tú", sharePlayer: "Un jugador", stTitle: "Ajustes", stLook: "Apariencia", stLight: "Claro", stDark: "Oscuro", stAuto: "Auto", stAutoHint: "Sigue a tu móvil", stIcon: "Icono de la app", stDone: "Listo", cancel: "Cancelar", back: "Volver", refresh: "Actualizar página", language: "Idioma",
     random: "Aleatoria", oneCardOnly: "Solo una carta", severalNoRepeat: "Varias cartas · sin repetir",
     drawPile: "Mazo", lastCard: "Última carta", round: "Ronda {n}", menu: "Menú", reactions: "Reacciones",
     tagline: "Un juego de emparejar trajes tradicionales saudíes",
@@ -1152,7 +1160,7 @@ const I18N = {
 
 // Arabic source strings for the keys above (Arabic is the reference language).
 Object.assign(I18N.ar, {
-  you: "أنت", cancel: "إلغاء", back: "رجوع", refresh: "تحديث الصفحة", language: "اللغة",
+  you: "أنت", sharePlayer: "لاعب", stTitle: "الإعدادات", stLook: "المظهر", stLight: "فاتح", stDark: "داكن", stAuto: "تلقائي", stAutoHint: "يمشي مع إعداد جوالك", stIcon: "أيقونة التطبيق", stDone: "تم", cancel: "إلغاء", back: "رجوع", refresh: "تحديث الصفحة", language: "اللغة",
   random: "عشوائي", oneCardOnly: "كرت واحد بس", severalNoRepeat: "أكثر من كرت · بدون تكرار",
   drawPile: "السحب", lastCard: "آخر كرت", round: "جولة {n}", menu: "القائمة", reactions: "التفاعلات",
   tagline: "لعبة مطابقة الأزياء التقليدية السعودية",
@@ -2137,6 +2145,46 @@ const btn = "rounded-2xl font-bold transition hpress-97 hbtn";
 const btnPrimary = { background: BRAND, color: CREAM, boxShadow: "0 6px 14px -6px rgba(133,21,45,.6)" };
 const btnGhost = { background: "transparent", color: INK, border: `1.5px solid ${INK}26` };
 
+
+// Theme: "light" (default), "dark", or "system" (follow the phone). Saved on this device only.
+const THEME_STORE = "hulla-theme";
+function loadTheme() {
+  try {
+    return window.localStorage.getItem(THEME_STORE) || "light";
+  } catch {
+    return "light";
+  }
+}
+function resolveTheme(pref) {
+  if (pref === "light" || pref === "dark") return pref;
+  try {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+function applyTheme(pref) {
+  if (typeof document === "undefined") return;
+  const theme = resolveTheme(pref);
+  document.documentElement.dataset.hillaTheme = theme;
+  document.documentElement.style.colorScheme = theme;
+  document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => meta.setAttribute("content", theme === "dark" ? "#3A0F15" : ZIG_BG));
+}
+function useThemePref() {
+  const [pref, setPref] = useState(loadTheme);
+  useEffect(() => {
+    applyTheme(pref);
+    try {
+      window.localStorage.setItem(THEME_STORE, pref);
+    } catch {}
+    if (pref !== "system") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const on = () => applyTheme("system");
+    mq.addEventListener?.("change", on);
+    return () => mq.removeEventListener?.("change", on);
+  }, [pref]);
+  return [pref, setPref];
+}
 
 // Fonts: Thmanyah can't be embedded in a web page (license), so the closest Google Fonts stand in —
 // IBM Plex Sans Arabic for the interface, Markazi Text for titles and long reading text.
@@ -6581,6 +6629,82 @@ function SaduToast({ msg }) {
   );
 }
 
+// Home settings: look, language, and the two game toggles that otherwise live in the in-game menu.
+function SettingsSheet({ onClose, onIcon }) {
+  const { L, setLang, t } = useI18n();
+  const [theme, setTheme] = useThemePref();
+  const [sound, setSound] = useState(loadTurnSound);
+  const [pre, setPre] = useState(loadPremove);
+  const save = (key, on) => {
+    try {
+      window.localStorage.setItem(key, on ? "on" : "off");
+    } catch {}
+  };
+  const Seg = ({ options, value, onPick, label }) => (
+    <div role="group" aria-label={label} className="flex gap-1 p-1 rounded-2xl" style={{ background: SUNK }}>
+      {options.map(([k, l]) => (
+        <button
+          key={k}
+          onClick={() => onPick(k)}
+          aria-pressed={value === k}
+          className="flex-1 py-2 rounded-xl tsz-13 font-bold transition"
+          style={value === k ? { background: SURF, color: INK, boxShadow: `0 0 0 1.5px ${GOLD}` } : { color: A(INK, "99") }}
+        >
+          {l}
+        </button>
+      ))}
+    </div>
+  );
+  const Toggle = ({ on, onFlip, label }) => (
+    <button onClick={onFlip} role="switch" aria-checked={on} className="w-full flex items-center justify-between gap-3 py-3" style={{ color: INK, borderTop: `1px solid ${A(INK, "12")}` }}>
+      <span className="tsz-14 font-semibold">{label}</span>
+      <span className="relative flex-shrink-0 rounded-full transition" style={{ width: 44, height: 26, background: on ? BRAND : A(INK, "22") }}>
+        <span className="absolute top-[3px] rounded-full transition-all" style={{ width: 20, height: 20, background: CREAM, insetInlineStart: on ? 21 : 3, boxShadow: "0 1px 3px rgba(0,0,0,.3)" }} />
+      </span>
+    </button>
+  );
+  return (
+    <Sheet onBackdrop={onClose} maxW={400}>
+      <div dir={L.dir} className="hstart">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="display-font font-bold" style={{ fontSize: 30, color: INK }}>{t("stTitle")}</h2>
+          <button onClick={onClose} aria-label={t("cancel")} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: SUNK, color: INK }}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="tsz-12 font-bold mb-1.5" style={{ color: A(INK, "88") }}>{t("stLook")}</div>
+        <Seg label={t("stLook")} value={theme} onPick={setTheme} options={[["light", t("stLight")], ["dark", t("stDark")], ["system", t("stAuto")]]} />
+        {theme === "system" && <div className="tsz-11 mt-1.5" style={{ color: A(INK, "77") }}>{t("stAutoHint")}</div>}
+        <div className="tsz-12 font-bold mt-5 mb-1.5" style={{ color: A(INK, "88") }}>{t("sdLang")}</div>
+        <Seg label={t("sdLang")} value={L.code} onPick={(c) => setLang && setLang(c)} options={LANGS.map((l) => [l.code, l.label])} />
+        <div className="mt-5">
+          <Toggle label={t("turnSound")} on={sound} onFlip={() => { setSound(!sound); save(TURN_SOUND_STORE, !sound); }} />
+          <Toggle label={t("premove")} on={pre} onFlip={() => { setPre(!pre); save(PREMOVE_STORE, !pre); }} />
+          {onIcon && (
+            <button onClick={onIcon} className="w-full flex items-center justify-between gap-3 py-3" style={{ color: INK, borderTop: `1px solid ${A(INK, "12")}` }}>
+              <span className="tsz-14 font-semibold">{t("stIcon")}</span>
+              <span style={{ color: A(INK, "66") }}>{L.dir === "rtl" ? "‹" : "›"}</span>
+            </button>
+          )}
+        </div>
+        <button onClick={onClose} className={`w-full mt-4 py-3 tsz-15 ${btn}`} style={btnPrimary}>{t("stDone")}</button>
+      </div>
+    </Sheet>
+  );
+}
+
+function SettingsButton({ onClick }) {
+  const { t } = useI18n();
+  return (
+    <button onClick={onClick} aria-label={t("stTitle")} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: A(SURF, "f2"), boxShadow: "0 4px 12px -4px rgba(60,30,10,.35)" }}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ stroke: BRAND_T }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+    </button>
+  );
+}
+
 function LangMenu() {
   const { L, setLang, t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -6928,6 +7052,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
   const [toast, setToast] = useState(null);
   const [lift, setLift] = useState(null);
   const [profile, setProfile] = useState(false);
+  const [settings, setSettings] = useState(false);
   const [haptic, hapticNode] = useIosHaptic();
   const board = useHomeBoard(nick);
   const resume = useResumableRoom();
@@ -6969,7 +7094,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
       {/* top bar: account on the start side (right in Arabic), language on the end side */}
       <div dir="rtl" className="relative flex items-center justify-between gap-3" style={{ zIndex: 40, paddingTop: "max(16px, calc(env(safe-area-inset-top) + 8px))", paddingLeft: "max(16px, env(safe-area-inset-left))", paddingRight: "max(16px, env(safe-area-inset-right))" }}>
         <AccountChip nick={nick} line={chipLine} onClick={() => setProfile(true)} />
-        <LangMenu />
+        <SettingsButton onClick={() => setSettings(true)} />
       </div>
 
       {/* logo: the wordmark on a cream plaque over an edge-to-edge band of the diamond lattice */}
@@ -7069,6 +7194,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
         />
       )}
       <SaduToast msg={toast} />
+      {settings && <SettingsSheet onClose={() => setSettings(false)} onIcon={onInstall ? () => { setSettings(false); onInstall(); } : null} />}
     </div>
   );
 }

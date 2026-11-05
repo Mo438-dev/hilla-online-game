@@ -26,6 +26,10 @@ body {
    safe-area padding. The CSS values below are only the fallback until the script runs. */
 :root {
   --app-h: 100vh;
+  /* Game theme, light values (see themeCss in HillaGame.tsx). */
+  --h-surf: #fcf3e2;
+  --h-sunk: #f1e5cb;
+  --h-brand-t: #85152d;
 }
 @supports (height: 100dvh) {
   :root {
