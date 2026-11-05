@@ -2528,7 +2528,7 @@ function ReactionStrip({ pa, players, windowMs }) {
   const elapsed = Math.max(0, Math.min(windowMs, serverNow() - startedAt));
   return (
     <div className="fixed left-0 right-0 hz-60 pointer-events-none px-3" dir={L.dir} style={{ top: "calc(env(safe-area-inset-top, 0px) + 0.5rem)" }}>
-      <div className="mx-auto max-w-md rounded-2xl overflow-hidden shadow-lg flex items-center gap-2 hpad-e3 hilla-pop" style={{ background: `${A(INK, "ee")}` }}>
+      <div className="mx-auto max-w-md rounded-2xl overflow-hidden shadow-lg flex items-center gap-2 hpad-e3 hilla-pop" style={{ background: `${INK_HARD}ee` }}>
         <ActionThumb type={pa.actionType} size={40} radius={0} />
         <div className="flex-1 py-1.5 tsz-12 font-semibold" style={{ color: CREAM }}>
           {tb("spectator", { actor: pa.actorName, action: L.action(pa.actionType), target: target?.name }, { color: GOLD })}
@@ -2850,7 +2850,7 @@ function ReactionFX({ trigger, myId, isOnline }) {
           style={{
             top: "80%",
             zIndex: 9992,
-            background: `${A(INK, "dd")}`,
+            background: `${INK_HARD}dd`,
             color: CREAM,
             animation: "hilla-reactor-tag 2.6s ease-out forwards",
           }}
