@@ -40,6 +40,9 @@ export const ANALYTICS_EVENT_TYPES = [
   'survey_step',
   // delta-15
   'card_entered', // an item card entered a seat's hand (payload cid, name, source, turn_number)
+  // delta-16
+  'rematch_opened', // first press of «العب من جديد» online opened the new room
+  'rematch_joined', // a later press got the room someone else opened
 ] as const;
 
 export type AnalyticsEventType = (typeof ANALYTICS_EVENT_TYPES)[number];

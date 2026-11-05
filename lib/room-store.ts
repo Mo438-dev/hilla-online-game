@@ -210,6 +210,30 @@ export async function declineBlock(code: string, playerId: string, pendingAction
   return { ok: false as const, reason: 'busy' as const };
 }
 
+// «العب من جديد»: writes the rematch room onto a finished game, only if none is there yet. Guarded by the
+// row version like declineBlock. Goes straight to the row, so it skips the save path: no integrity check,
+// and writeResults stays untouched because it only runs when a winner first appears in a save.
+export async function claimRematch(code: string, rematch: { code: string; hostId: string; hostName: string }) {
+  const supabase = getSupabaseAdmin();
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { data: row, error } = await supabase.from(ROOMS_TABLE).select('*').eq('code', code).maybeSingle();
+    if (error) throw error;
+    if (!row) return null;
+    const game = (row as RoomRow).game as any;
+    if (game?.rematch?.code) return { code: game.rematch.code as string, won: false };
+    const { data, error: upErr } = await supabase
+      .from(ROOMS_TABLE)
+      .update({ game: { ...game, rematch } })
+      .eq('code', code)
+      .eq('updated_at', (row as RoomRow).updated_at)
+      .select()
+      .maybeSingle();
+    if (upErr) throw upErr;
+    if (data) return { code: rematch.code, won: true };
+  }
+  return null;
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Account ids on lobby seats are server-owned: whatever the client sent is replaced by what the row
@@ -295,6 +319,9 @@ export async function guardedSaveRoom(code: string, incoming: RoomDoc, baseUpdat
     const prev = toRoomDoc(row);
     const next = keepServerFields(prev, incoming);
     const extra: Partial<RoomRow> = {};
+    // A phone that hasn't seen the rematch yet must not erase it with a late save.
+    const prevRematch = (prev.game as any)?.rematch;
+    if (prevRematch && next.game && !(next.game as any).rematch) next.game = { ...(next.game as any), rematch: prevRematch };
     // A new «لا ما تقدر» window starts on the server's clock, so every phone counts the same 15s.
     // Later saves of the same pending action keep the server's stamp, whatever the phone sent.
     const nextPa = (next.game as any)?.pendingAction;
