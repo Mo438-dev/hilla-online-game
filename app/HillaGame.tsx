@@ -3385,12 +3385,20 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
     [...(game.discardPile || [])].reverse().filter((c) => c.kind === "item").sort((a, b) => (rank[b.rarity] || 0) - (rank[a.rarity] || 0))[0];
   const pieceTitle = iWon ? t("winPieceMine") : t("winPieceOf", { name: nameOf(winner) });
 
+  // The shared text is read by someone else, so it never says «أنت»: every seat goes by its name
+  // (a solo human still named «أنت» uses their saved nickname, or «لاعب»).
+  const shareName = (p) => {
+    const n = L.name(p.name);
+    if (p.isBot || !(YOU_WORDS.has(p.name) || YOU_WORDS.has(n))) return n;
+    return cleanNick(loadNick()) || t("sharePlayer");
+  };
   function share() {
     sendAppEvent("share_clicked", game.analyticsId || null, { payload: { source: "win" } });
     const lines = [
       t("shareRecap"),
-      ...standings.map((p, i) => `${["🥇", "🥈", "🥉"][i] || `${i + 1}.`} ${nameOf(p)}${i ? ` (${cardsWord(p.hand.length)})` : ""}`),
+      ...standings.map((p, i) => `${["🥇", "🥈", "🥉"][i] || `${i + 1}.`} ${shareName(p)}${i ? ` (${cardsWord(p.hand.length)})` : ""}`),
       ...nums.map((a) => `${a.icon} ${a.l}: ${a.v}`),
+      ...(target ? [`🎯 ${t("awTarget")}: ${target.map(shareName).join(isAr ? " و" : " & ")}`] : []),
     ].join("\n");
     try {
       if (navigator.share) navigator.share({ text: lines });
