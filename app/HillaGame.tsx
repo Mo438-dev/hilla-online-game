@@ -15,15 +15,18 @@ const PAGE = "#F1E5CB"; // table paper
 const BEIGE = "#D7CAA9"; // random coordination frame / logo plaque
 const GOLD = "#DDAD55";
 const GOLD_DK = "#B98A2E";
-const INK = "#231F20";
 const INK_HARD = "#231F20";
 const CREAM_HARD = "#FCF3E2";
-// Theme variables (defined in globals.css).
+// Theme. Light = the zigzag paper, dark = the Sadu rug. Everything that sits on the page reads its
+// colours from CSS variables (globals.css); playing cards reset them with CARD_VARS so a card always
+// looks like a real card in both themes.
+const INK = "var(--h-ink)"; // text and hairlines on the page
 const SURF = "var(--h-surf)"; // sheets, panels, chips (cream paper in light)
 const SUNK = "var(--h-sunk)"; // inputs and inset rows
 const BRAND_T = "var(--h-brand-t)"; // brand-red text and icons on the page
 // colour + 2-digit hex alpha, also for the CSS-variable colours above
 const A = (c, hh) => (c.startsWith("var(") ? `color-mix(in srgb, ${c} ${Math.round(parseInt(hh, 16) / 2.55)}%, transparent)` : c + hh);
+const CARD_VARS = { "--h-ink": INK_HARD, "--h-surf": CREAM_HARD, "--h-sunk": "#F1E5CB", "--h-brand-t": "#85152D", "--h-maroon-t": "#5E0F20", "--h-gold-t": "#5A3F0C" };
 // legacy aliases kept so untouched code paths still resolve
 const CREAM2 = "#F3E8D0";
 const MAROON = BRAND;
@@ -1478,14 +1481,14 @@ const useI18n = () => React.useContext(I18nContext);
 // Small segmented language switch (home screen + in-game menu).
 function LanguagePicker({ value, onChange, compact = false }) {
   return (
-    <div dir="rtl" className="inline-flex p-1 rounded-full gap-0.5" style={{ background: compact ? `${INK}0b` : CREAM, boxShadow: compact ? "none" : "0 2px 8px -2px rgba(60,30,10,.3)" }}>
+    <div dir="rtl" className="inline-flex p-1 rounded-full gap-0.5" style={{ background: compact ? `${A(INK, "0b")}` : CREAM, boxShadow: compact ? "none" : "0 2px 8px -2px rgba(60,30,10,.3)" }}>
       {LANGS.map((l) => (
         <button
           key={l.code}
           type="button"
           onClick={() => onChange(l.code)}
           className="rounded-full font-semibold tsz-12 transition"
-          style={{ padding: compact ? "4px 10px" : "6px 12px", ...(value === l.code ? { background: BRAND, color: CREAM } : { color: `${INK}aa` }) }}
+          style={{ padding: compact ? "4px 10px" : "6px 12px", ...(value === l.code ? { background: BRAND, color: CREAM } : { color: `${A(INK, "aa")}` }) }}
         >
           {l.label}
         </button>
@@ -1546,7 +1549,7 @@ function DiamondLattice({ color = "#C9A227", vertical = false, thickness = 14 })
   );
 }
 
-function Wordmark({ height = 40, color = BRAND, className = "", style }) {
+function Wordmark({ height = 40, color = BRAND_T, className = "", style }) {
   const mask = {
     WebkitMaskImage: `url(${ART.wordmark})`,
     maskImage: `url(${ART.wordmark})`,
@@ -1693,6 +1696,7 @@ function CardShell({ size, height, selected, onClick, disabled, children, bg, ti
         height: h,
         borderRadius: size * 0.11,
         background: bg,
+        ...CARD_VARS,
         opacity: disabled ? 0.45 : 1,
         filter: disabled ? "saturate(.55)" : undefined,
         ...style,
@@ -1754,7 +1758,7 @@ function ItemCard({ card, selected, onClick, size = 92, disabled, showDesc, clas
       {big && ITEM_DESC[card.name] && (
         <div
           className="absolute serif-text leading-snug"
-          style={{ left: "21%", right: "8%", top: "70%", color: `${INK}cc`, fontSize: fs(size * 0.056), textAlign: "center" }}
+          style={{ left: "21%", right: "8%", top: "70%", color: `${A(INK, "cc")}`, fontSize: fs(size * 0.056), textAlign: "center" }}
         >
           {L.itemDesc(card.name)}
         </div>
@@ -1808,7 +1812,7 @@ function ActionCard({ card, actionType, size = 92, selected, onClick, disabled, 
 // Small square crop of an action's art (lists, toasts, buttons) with clean rounded corners.
 function ActionThumb({ type, size = 40, radius }) {
   return (
-    <span className="relative inline-block overflow-hidden flex-shrink-0" style={{ width: size, height: size, borderRadius: radius ?? size * 0.24, background: ACTION_BG[type] || CREAM }}>
+    <span className="relative inline-block overflow-hidden flex-shrink-0" style={{ ...CARD_VARS, width: size, height: size, borderRadius: radius ?? size * 0.24, background: ACTION_BG[type] || CREAM }}>
       {/* text-free thumbnail: the drawing re-centred on its own background */}
       <img src={ART[`actT_${type}`]} alt="" draggable={false} className="absolute inset-0 w-full h-full" />
     </span>
@@ -1860,6 +1864,7 @@ function CoordCard({ card, width = 340, animate = true }) {
     <div
       className={`relative select-none ${animate ? "hilla-coord-in" : ""}`}
       style={{
+        ...CARD_VARS,
         width,
         background: frame,
         padding: 7 * k,
@@ -1867,7 +1872,7 @@ function CoordCard({ card, width = 340, animate = true }) {
         boxShadow: "0 2px 0 rgba(0,0,0,.08), 0 18px 34px -14px rgba(60,30,10,.45)",
       }}
     >
-      <div dir="ltr" className="relative flex" style={{ background: CREAM, borderRadius: 13 * k, padding: `${9 * k}px ${8 * k}px`, gap: 8 * k }}>
+      <div dir="ltr" className="relative flex" style={{ background: SURF, borderRadius: 13 * k, padding: `${9 * k}px ${8 * k}px`, gap: 8 * k }}>
         {!isRandom && <OrnamentColumn region={region} width={strip} />}
         <div dir={L.dir} className="flex-1 min-w-0 flex flex-col">
           <GoldRule>
@@ -1875,7 +1880,7 @@ function CoordCard({ card, width = 340, animate = true }) {
               {isRandom ? t("random") : L.region(card.region)}
             </span>
           </GoldRule>
-          <div className="text-center font-medium" style={{ color: `${INK}88`, fontSize: fs(9.5 * k), marginTop: 2 * k }}>
+          <div className="text-center font-medium" style={{ color: `${A(INK, "88")}`, fontSize: fs(9.5 * k), marginTop: 2 * k }}>
             {isRandom ? t("oneCardOnly") : t("severalNoRepeat")}
           </div>
           <div className="flex flex-wrap justify-center items-end" style={{ marginTop: 8 * k, rowGap: 8 * k }}>
@@ -1894,7 +1899,7 @@ function CoordCard({ card, width = 340, animate = true }) {
                   {openTip === i && (
                     <span
                       className="absolute left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full font-bold whitespace-nowrap shadow-lg z-10 pointer-events-none hilla-tip"
-                      style={{ top: -10 * k, background: INK, color: CREAM, fontSize: fs(11 * k) }}
+                      style={{ top: -10 * k, background: INK_HARD, color: CREAM, fontSize: fs(11 * k) }}
                     >
                       {L.item(it)}
                     </span>
@@ -1941,11 +1946,11 @@ function StickyCoordBar({ card, onJump, timer }) {
         onClick={onJump}
         dir={L.dir}
         className="mx-auto max-w-2xl w-full flex items-center gap-2.5 hr-20 px-2 py-1.5 hstart"
-        style={{ background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}, 0 12px 26px -12px rgba(60,30,10,.55)` }}
+        style={{ ...CARD_VARS, background: SURF, boxShadow: `0 0 0 1.5px ${GOLD}, 0 12px 26px -12px rgba(60,30,10,.55)` }}
       >
         <span
           className="flex-shrink-0 flex items-center justify-center hr-20 display-font font-bold leading-none px-3"
-          style={{ background: color, color: isRandom ? BRAND : CREAM, height: 44, fontSize: fs(19) }}
+          style={{ background: color, color: isRandom ? BRAND_T : CREAM, height: 44, fontSize: fs(19) }}
         >
           {isRandom ? t("random") : L.region(card.region)}
         </span>
@@ -1966,7 +1971,7 @@ function DrawPile({ size = 56 }) {
   const { t, tb, L } = useI18n();
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <div className="relative" style={{ width: size + 6, height: size + 6 }}>
+      <div className="relative" style={{ ...CARD_VARS, width: size + 6, height: size + 6 }}>
         {[2, 1, 0].map((i) => (
           <CardBack
             key={i}
@@ -1981,7 +1986,7 @@ function DrawPile({ size = 56 }) {
           />
         ))}
       </div>
-      <span className="font-semibold" style={{ color: `${INK}77`, fontSize: fs(10) }}>
+      <span className="font-semibold" style={{ color: `${A(INK, "77")}`, fontSize: fs(10) }}>
         {t("drawPile")}
       </span>
     </div>
@@ -2012,10 +2017,10 @@ function DiscardPile({ card, size = 56 }) {
   }, [card?.id]);
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <div className="relative" style={{ width: size + 6, height: size + 6 }}>
+      <div className="relative" style={{ ...CARD_VARS, width: size + 6, height: size + 6 }}>
         <div
           className="absolute rounded-xl"
-          style={{ left: 3, top: 6, width: size, height: size, borderRadius: size * 0.11, border: `1.5px dashed ${INK}33` }}
+          style={{ left: 3, top: 6, width: size, height: size, borderRadius: size * 0.11, border: `1.5px dashed ${A(INK, "33")}` }}
         />
         {layers.map((c, i) => {
           const top = i === layers.length - 1;
@@ -2031,7 +2036,7 @@ function DiscardPile({ card, size = 56 }) {
           );
         })}
       </div>
-      <span className="font-semibold" style={{ color: `${INK}77`, fontSize: fs(10) }}>
+      <span className="font-semibold" style={{ color: `${A(INK, "77")}`, fontSize: fs(10) }}>
         {t("lastCard")}
       </span>
     </div>
@@ -2076,15 +2081,15 @@ function SeatPod({ player, active, isMe, nearWin, thinking }) {
             />
           );
         })}
-        {n === 0 && <span className="absolute rounded-md" style={{ left: 24, top: 2, width: 28, height: 28, border: `1.5px dashed ${INK}33` }} />}
+        {n === 0 && <span className="absolute rounded-md" style={{ left: 24, top: 2, width: 28, height: 28, border: `1.5px dashed ${A(INK, "33")}` }} />}
         <span
           className={`absolute left-1/2 -translate-x-1/2 hminw-22 hh-20 px-1.5 rounded-full flex items-center justify-center font-bold ${nearWin ? "hilla-nearwin" : ""}`}
-          style={{ bottom: -2, background: nearWin ? GOLD : INK, color: nearWin ? INK : CREAM, fontSize: fs(10.5), border: `2px solid ${active ? CREAM : PAGE}` }}
+          style={{ bottom: -2, background: nearWin ? GOLD : INK_HARD, color: nearWin ? INK_HARD : CREAM, fontSize: fs(10.5), border: `2px solid ${active ? CREAM : "var(--h-page)"}` }}
         >
           {n}
         </span>
       </div>
-      <div className="mt-1.5 font-semibold leading-snug whitespace-nowrap" style={{ color: active ? INK : `${INK}99`, fontSize: fs(11.5) }}>
+      <div className="mt-1.5 font-semibold leading-snug whitespace-nowrap" style={{ color: active ? INK_HARD : `${A(INK, "99")}`, fontSize: fs(11.5) }}>
         {player.isBot ? "🤖 " : player.inactive ? "😴 " : nearWin ? "🔥 " : ""}
         {L.name(player.name)}
         {isMe && !YOU_WORDS.has(player.name) && (
@@ -2115,7 +2120,7 @@ function PlayerAvatar({ name, isBot, index = 0, size = 34 }) {
     <span
       aria-hidden="true"
       className="flex-shrink-0 rounded-full flex items-center justify-center font-bold leading-none"
-      style={{ width: size, height: size, background: isBot ? `${INK}12` : bg, color: CREAM, fontSize: isBot ? size * 0.5 : size * 0.46, boxShadow: isBot ? "none" : `0 0 0 2px ${CREAM}, 0 0 0 3px ${bg}40` }}
+      style={{ width: size, height: size, background: isBot ? `${A(INK, "12")}` : bg, color: CREAM, fontSize: isBot ? size * 0.5 : size * 0.46, boxShadow: isBot ? "none" : `0 0 0 2px ${CREAM}, 0 0 0 3px ${bg}40` }}
     >
       {isBot ? "🤖" : ch.toUpperCase()}
     </span>
@@ -2127,13 +2132,13 @@ function Sheet({ children, onBackdrop, maxW = 380, z = 50 }) {
   return (
     <div
       className="app-fixed flex items-center justify-center p-4 hilla-fade"
-      style={{ zIndex: z, background: "rgba(35,31,32,.5)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)" }}
+      style={{ zIndex: z, background: "var(--h-scrim)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)" }}
       onClick={onBackdrop}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full hr-28 p-5 text-center relative hilla-pop"
-        style={{ maxWidth: maxW, borderRadius: 28, background: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 24px 60px -10px rgba(0,0,0,.4)`, maxHeight: "calc(100% - 2rem)", overflowY: "auto" }}
+        style={{ maxWidth: maxW, borderRadius: 28, background: SURF, boxShadow: `0 0 0 2px ${GOLD}, 0 24px 60px -10px rgba(0,0,0,.4)`, maxHeight: "calc(100% - 2rem)", overflowY: "auto" }}
       >
         {children}
       </div>
@@ -2143,7 +2148,7 @@ function Sheet({ children, onBackdrop, maxW = 380, z = 50 }) {
 
 const btn = "rounded-2xl font-bold transition hpress-97 hbtn";
 const btnPrimary = { background: BRAND, color: CREAM, boxShadow: "0 6px 14px -6px rgba(133,21,45,.6)" };
-const btnGhost = { background: "transparent", color: INK, border: `1.5px solid ${INK}26` };
+const btnGhost = { background: "transparent", color: INK, border: `1.5px solid ${A(INK, "26")}` };
 
 
 // Theme: "light" (default), "dark", or "system" (follow the phone). Saved on this device only.
@@ -2357,10 +2362,10 @@ const GlobalFont = () => (
 const ZIG_BG = "#F3E9D2";
 const ZIG_GOLD = "#C9A2270d";
 const pageBg = {
-  background: ZIG_BG,
-  backgroundImage: `linear-gradient(135deg, ${ZIG_GOLD} 25%, transparent 25%), linear-gradient(225deg, ${ZIG_GOLD} 25%, transparent 25%), linear-gradient(45deg, ${ZIG_GOLD} 25%, transparent 25%), linear-gradient(315deg, ${ZIG_GOLD} 25%, transparent 25%)`,
-  backgroundPosition: "20px 0, 20px 0, 0 0, 0 0",
-  backgroundSize: "40px 40px",
+  backgroundColor: "var(--h-page)",
+  backgroundImage: "var(--h-page-img)",
+  backgroundPosition: "var(--h-page-pos)",
+  backgroundSize: "var(--h-page-size)",
 };
 
 
@@ -2392,7 +2397,7 @@ function Confetti() {
         left: Math.random() * 100,
         delay: Math.random() * 0.9,
         dur: 2.2 + Math.random() * 1.8,
-        color: [BRAND, GOLD, ...REGIONS.map((r) => r.color)][i % 6],
+        color: [BRAND_T, GOLD, ...REGIONS.map((r) => r.color)][i % 6],
         size: 6 + Math.random() * 7,
         rot: 360 + Math.random() * 540,
         shape: i % 3,
@@ -2478,28 +2483,28 @@ function WinStats({ game, myId, isOnline }) {
   }
 
   return (
-    <div className="mt-6 mx-auto max-w-xs hr-26 overflow-hidden hstart hilla-pop" style={{ background: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 18px 40px -16px rgba(60,30,10,.45)` }}>
+    <div className="mt-6 mx-auto max-w-xs hr-26 overflow-hidden hstart hilla-pop" style={{ background: SURF, boxShadow: `0 0 0 2px ${GOLD}, 0 18px 40px -16px rgba(60,30,10,.45)` }}>
       <div className="px-4 pb-4 pt-4">
-        <div className="display-font font-bold mb-1 text-center tsz-20" style={{ color: BRAND }}>
+        <div className="display-font font-bold mb-1 text-center tsz-20" style={{ color: BRAND_T }}>
           {t("recap")}
         </div>
         {rows.map((r, i) => (
           <div
             key={i}
             className={`flex justify-between items-baseline gap-2 ${r.hero ? "py-1.5" : "py-1"}`}
-            style={{ color: INK, borderBottom: i < rows.length - 1 ? `1px solid ${INK}14` : "none" }}
+            style={{ color: INK, borderBottom: i < rows.length - 1 ? `1px solid ${A(INK, "14")}` : "none" }}
           >
-            <span className={r.hero ? "tsz-13 font-semibold" : "tsz-12"} style={{ color: r.hero ? BRAND : `${INK}99` }}>
+            <span className={r.hero ? "tsz-13 font-semibold" : "tsz-12"} style={{ color: r.hero ? BRAND_T : `${A(INK, "99")}` }}>
               {r.l}
             </span>
-            <span className={`font-bold hend ${r.hero ? "tsz-15" : "tsz-13"}`} style={{ color: r.hero ? BRAND : INK }}>
+            <span className={`font-bold hend ${r.hero ? "tsz-15" : "tsz-13"}`} style={{ color: r.hero ? BRAND_T : INK }}>
               {r.v}
             </span>
           </div>
         ))}
         {isOnline && <WinPoints gameId={game.analyticsId} />}
         {!isOnline && (
-          <div className="tsz-11 font-semibold text-center mt-2" style={{ color: `${INK}88` }}>
+          <div className="tsz-11 font-semibold text-center mt-2" style={{ color: `${A(INK, "88")}` }}>
             {t("noRankWin")}
           </div>
         )}
@@ -2523,14 +2528,14 @@ function ReactionStrip({ pa, players, windowMs }) {
   const elapsed = Math.max(0, Math.min(windowMs, serverNow() - startedAt));
   return (
     <div className="fixed left-0 right-0 hz-60 pointer-events-none px-3" dir={L.dir} style={{ top: "calc(env(safe-area-inset-top, 0px) + 0.5rem)" }}>
-      <div className="mx-auto max-w-md rounded-2xl overflow-hidden shadow-lg flex items-center gap-2 hpad-e3 hilla-pop" style={{ background: `${INK}ee` }}>
+      <div className="mx-auto max-w-md rounded-2xl overflow-hidden shadow-lg flex items-center gap-2 hpad-e3 hilla-pop" style={{ background: `${A(INK, "ee")}` }}>
         <ActionThumb type={pa.actionType} size={40} radius={0} />
         <div className="flex-1 py-1.5 tsz-12 font-semibold" style={{ color: CREAM }}>
           {tb("spectator", { actor: pa.actorName, action: L.action(pa.actionType), target: target?.name }, { color: GOLD })}
         </div>
       </div>
       <div className="mx-auto max-w-md px-3">
-        <div style={{ height: 3, background: `${CREAM}22` }}>
+        <div style={{ height: 3, background: A(SURF, "22") }}>
           <div style={{ height: 3, background: GOLD, animation: `hilla-strip ${windowMs / 1000}s linear forwards`, animationDelay: `-${elapsed}ms` }} />
         </div>
       </div>
@@ -2548,13 +2553,13 @@ function EduToast({ data }) {
     <div
       dir={L.dir}
       className="fixed left-1/2 hz-58 w-80 hmaxw-92 rounded-2xl shadow-xl pointer-events-none p-2.5 flex items-center gap-3"
-      style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)", background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}, 0 16px 30px -12px rgba(60,30,10,.5)`, animation: "hilla-edu 5s ease-out forwards" }}
+      style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)", background: SURF, boxShadow: `0 0 0 1.5px ${GOLD}, 0 16px 30px -12px rgba(60,30,10,.5)`, animation: "hilla-edu 5s ease-out forwards" }}
     >
       {info && <ItemCard card={{ id: "edu", name: data.name, region: info.region, rarity: info.rarity }} size={64} />}
       <div className="flex-1 min-w-0 hstart">
-        <div className="tsz-13 font-bold" style={{ color: info?.color || BRAND }}>
+        <div className="tsz-13 font-bold" style={{ color: info?.color || BRAND_T }}>
           {L.item(data.name)}
-          {info && <span className="font-medium tsz-11 hms-1" style={{ color: `${INK}77` }}>· {L.region(info.region)}</span>}
+          {info && <span className="font-medium tsz-11 hms-1" style={{ color: `${A(INK, "77")}` }}>· {L.region(info.region)}</span>}
         </div>
         <div className="serif-text tsz-15 leading-snug" style={{ color: INK }}>
           {L.itemDesc(data.name) || data.text}
@@ -2674,7 +2679,7 @@ function CountdownRing({ pendingActionId, startedAt, size = 56, windowSec = BLOC
   const dashoffset = Math.max(0, Math.min(circumference, (elapsed / windowMs) * circumference));
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className={className} style={{ display: "block" }}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill={CREAM} stroke={`${INK}14`} strokeWidth="3.5" />
+      <circle cx={size / 2} cy={size / 2} r={r} style={{ fill: SURF, stroke: A(INK, "14") }} strokeWidth="3.5" />
       <circle
         cx={size / 2}
         cy={size / 2}
@@ -2694,7 +2699,7 @@ function CountdownRing({ pendingActionId, startedAt, size = 56, windowSec = BLOC
         textAnchor="middle"
         fontSize={size * 0.36}
         fontWeight="700"
-        fill={remaining <= 3 ? BRAND : INK}
+        style={{ fill: remaining <= 3 ? BRAND_T : INK }}
         fontFamily="IBM Plex Sans Arabic, sans-serif"
       >
         {remaining}
@@ -2818,21 +2823,21 @@ function ReactionFX({ trigger, myId, isOnline }) {
             <div
               className="relative text-center"
               style={{
-                background: CREAM,
+                background: SURF,
                 borderRadius: 22,
                 padding: b.small ? "6px 16px 8px" : "8px 22px 10px",
                 boxShadow: `0 0 0 2px ${GOLD}, 0 14px 30px -10px rgba(60,30,10,.5)`,
               }}
             >
-              <div className="tsz-11 font-semibold whitespace-nowrap" style={{ color: `${INK}88` }}>
+              <div className="tsz-11 font-semibold whitespace-nowrap" style={{ color: `${A(INK, "88")}` }}>
                 {b.by}
               </div>
-              <div className="display-font font-bold leading-none whitespace-nowrap" style={{ color: BRAND, fontSize: b.small ? 26 : 36 }}>
+              <div className="display-font font-bold leading-none whitespace-nowrap" style={{ color: BRAND_T, fontSize: b.small ? 26 : 36 }}>
                 {L.phrase(b.text)}
               </div>
               <span
                 className="absolute left-1/2"
-                style={{ bottom: -6, width: 12, height: 12, marginLeft: -6, background: CREAM, transform: "rotate(45deg)", boxShadow: `2px 2px 0 0 ${GOLD}` }}
+                style={{ bottom: -6, width: 12, height: 12, marginLeft: -6, background: SURF, transform: "rotate(45deg)", boxShadow: `2px 2px 0 0 ${GOLD}` }}
               />
             </div>
           </div>
@@ -2845,7 +2850,7 @@ function ReactionFX({ trigger, myId, isOnline }) {
           style={{
             top: "80%",
             zIndex: 9992,
-            background: `${INK}dd`,
+            background: `${A(INK, "dd")}`,
             color: CREAM,
             animation: "hilla-reactor-tag 2.6s ease-out forwards",
           }}
@@ -2888,19 +2893,19 @@ function SeatBubble({ anchor, text }) {
         <div
           className="relative flex items-center justify-center whitespace-nowrap"
           style={{
-            background: CREAM,
+            background: SURF,
             borderRadius: 16,
             padding: isPhrase ? "4px 12px 5px" : "2px 9px 3px",
             minWidth: 34,
             boxShadow: `0 0 0 1.5px ${GOLD}, 0 8px 18px -8px rgba(60,30,10,.5)`,
           }}
         >
-          <span className={isPhrase ? "font-bold tsz-13" : "text-xl leading-snug"} style={{ color: BRAND }}>
+          <span className={isPhrase ? "font-bold tsz-13" : "text-xl leading-snug"} style={{ color: BRAND_T }}>
             {L.phrase(text)}
           </span>
           <span
             className="absolute left-1/2"
-            style={{ bottom: -5, width: 10, height: 10, marginLeft: -5, background: CREAM, transform: "rotate(45deg)", boxShadow: `1.5px 1.5px 0 0 ${GOLD}` }}
+            style={{ bottom: -5, width: 10, height: 10, marginLeft: -5, background: SURF, transform: "rotate(45deg)", boxShadow: `1.5px 1.5px 0 0 ${GOLD}` }}
           />
         </div>
       </div>
@@ -2945,7 +2950,7 @@ function ReactionButton({ onReact }) {
             className="hr-22 p-2.5"
             style={{
               width: 236,
-              background: CREAM,
+              background: SURF,
               boxShadow: `0 0 0 1.5px ${GOLD}, 0 14px 30px -12px rgba(0,0,0,.35)`,
               transformOrigin: "0% 100%",
               animation: "hilla-pop .2s cubic-bezier(.2,.9,.3,1.15) backwards",
@@ -2957,13 +2962,13 @@ function ReactionButton({ onReact }) {
                   key={ph}
                   onClick={() => pick(ph)}
                   className="rounded-full font-bold tsz-13 active:scale-95 transition-transform whitespace-nowrap"
-                  style={{ padding: "5px 12px", background: `${BRAND}0f`, color: BRAND }}
+                  style={{ padding: "5px 12px", background: `${BRAND}0f`, color: BRAND_T }}
                 >
                   {L.phrase(ph)}
                 </button>
               ))}
             </div>
-            <div className="h-px my-2" style={{ background: `${INK}14` }} />
+            <div className="h-px my-2" style={{ background: `${A(INK, "14")}` }} />
             <div dir="ltr" className="flex justify-between px-1">
               {REACTIONS.map((e) => (
                 <button key={e} onClick={() => pick(e)} className="text-2xl leading-none p-1 active:scale-90 transition-transform">
@@ -3113,7 +3118,7 @@ function FeedbackCard({ onSubmit, onStep }) {
   const scale = (key) => (
     <div className="flex justify-center gap-2 mt-3" dir="ltr">
       {faces.map((f, i) => (
-        <button key={i} onClick={() => next({ [key]: i + 1 })} className="w-11 h-11 rounded-full flex items-center justify-center hpress-97" style={{ fontSize: 24, background: `${INK}08` }} aria-label={String(i + 1)}>
+        <button key={i} onClick={() => next({ [key]: i + 1 })} className="w-11 h-11 rounded-full flex items-center justify-center hpress-97" style={{ fontSize: 24, background: `${A(INK, "08")}` }} aria-label={String(i + 1)}>
           {f}
         </button>
       ))}
@@ -3121,16 +3126,16 @@ function FeedbackCard({ onSubmit, onStep }) {
   );
   const q = [t("fbQFun"), t("fbQRules"), t("fbQAgain"), t("fbQComment")][step];
   return (
-    <div data-feedback className="mt-6 mx-auto max-w-xs rounded-2xl px-4 pt-3 pb-4 relative win-rise" style={{ animationDelay: "900ms", background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}66` }}>
+    <div data-feedback className="mt-6 mx-auto max-w-xs rounded-2xl px-4 pt-3 pb-4 relative win-rise" style={{ animationDelay: "900ms", background: SURF, boxShadow: `0 0 0 1.5px ${GOLD}66` }}>
       {step < 4 && (
         <div className="flex items-center justify-between">
-          <span className="tsz-11 font-bold" style={{ color: `${INK}77` }}>
+          <span className="tsz-11 font-bold" style={{ color: `${A(INK, "77")}` }}>
             {t("fbTitle")}
           </span>
           <span className="flex items-center gap-2">
             <span className="flex gap-1">
               {[0, 1, 2, 3].map((i) => (
-                <span key={i} className="rounded-full" style={{ width: i === step ? 14 : 6, height: 6, background: i <= step ? BRAND : `${INK}22`, transition: "width .25s" }} />
+                <span key={i} className="rounded-full" style={{ width: i === step ? 14 : 6, height: 6, background: i <= step ? BRAND : `${A(INK, "22")}`, transition: "width .25s" }} />
               ))}
             </span>
             <button
@@ -3141,7 +3146,7 @@ function FeedbackCard({ onSubmit, onStep }) {
                 setStep(-1);
               }}
               className="tsz-11 font-semibold"
-              style={{ color: `${INK}66` }}
+              style={{ color: `${A(INK, "66")}` }}
             >
               {t("fbSkip")}
             </button>
@@ -3161,14 +3166,14 @@ function FeedbackCard({ onSubmit, onStep }) {
             <button onClick={() => next({ again: true })} className={`px-5 py-2 tsz-14 ${btn}`} style={{ background: "#36613522", color: "#2C5A2B" }}>
               {t("fbYes")}
             </button>
-            <button onClick={() => next({ again: false })} className={`px-5 py-2 tsz-14 ${btn}`} style={{ background: `${BRAND}14`, color: BRAND }}>
+            <button onClick={() => next({ again: false })} className={`px-5 py-2 tsz-14 ${btn}`} style={{ background: `${BRAND}14`, color: BRAND_T }}>
               {t("fbNo")}
             </button>
           </div>
         )}
         {step === 3 && (
           <>
-            <textarea value={ans.comment} onChange={(e) => setAns({ ...ans, comment: e.target.value.slice(0, 280) })} rows={2} placeholder={t("fbCommentPh")} className="w-full mt-3 rounded-xl px-3 py-2 hstart" style={{ background: `${INK}06`, border: `1.5px solid ${INK}14`, resize: "none", color: INK }} />
+            <textarea value={ans.comment} onChange={(e) => setAns({ ...ans, comment: e.target.value.slice(0, 280) })} rows={2} placeholder={t("fbCommentPh")} className="w-full mt-3 rounded-xl px-3 py-2 hstart" style={{ background: `${A(INK, "06")}`, border: `1.5px solid ${A(INK, "14")}`, resize: "none", color: INK }} />
             <button
               onClick={() => {
                 onSubmit?.(ans, { stepsAnswered: 4, skippedAtStep: null });
@@ -3183,7 +3188,7 @@ function FeedbackCard({ onSubmit, onStep }) {
           </>
         )}
         {step === 4 && (
-          <div className="tsz-15 font-bold py-2" style={{ color: BRAND }}>
+          <div className="tsz-15 font-bold py-2" style={{ color: BRAND_T }}>
             {t("fbThanks")}
           </div>
         )}
@@ -3265,15 +3270,15 @@ function DuelSheet({ them, query, note, onClose }) {
   const side = (name, pts, mine) => (
     <div className="flex-1 flex flex-col items-center min-w-0">
       <NameAvatar name={mine ? t("you") : name} size={54} ring={mine ? GOLD : "#A3A9B1"} />
-      <div className="tsz-14 font-bold mt-2 truncate" style={{ maxWidth: 120, color: mine ? BRAND : INK }}>
+      <div className="tsz-14 font-bold mt-2 truncate" style={{ maxWidth: 120, color: mine ? BRAND_T : INK }}>
         {mine ? t("you") : name}
       </div>
       {ok && (mine ? d.meUser : d.themUser) && (
-        <div className="tsz-10 truncate" dir="ltr" style={{ maxWidth: 120, color: `${INK}66` }}>
+        <div className="tsz-10 truncate" dir="ltr" style={{ maxWidth: 120, color: `${A(INK, "66")}` }}>
           @{mine ? d.meUser : d.themUser}
         </div>
       )}
-      <div className="tsz-11 font-semibold" style={{ color: `${INK}88`, visibility: ok ? "visible" : "hidden" }}>
+      <div className="tsz-11 font-semibold" style={{ color: `${A(INK, "88")}`, visibility: ok ? "visible" : "hidden" }}>
         {L.points(pts || 0)}
       </div>
     </div>
@@ -3282,57 +3287,57 @@ function DuelSheet({ them, query, note, onClose }) {
   return (
     <Sheet onBackdrop={onClose} maxW={340} z={95}>
       <div className="text-center">
-        <div className="tsz-12 font-bold" style={{ color: `${INK}77` }}>
+        <div className="tsz-12 font-bold" style={{ color: `${A(INK, "77")}` }}>
           {t("duelTitle")}
         </div>
         <div className="flex items-center mt-3">
           {side(them, ok ? d.myPts : 0, true)}
           <div className="flex flex-col items-center px-1">
-            <div dir="ltr" className="display-font font-bold leading-none" style={{ fontSize: 44, color: BRAND }}>
+            <div dir="ltr" className="display-font font-bold leading-none" style={{ fontSize: 44, color: BRAND_T }}>
               {/* your number sits on your side: the right in Arabic, the left otherwise */}
               {ok ? (L.dir === "rtl" ? `${L.num(d.theirWins)} – ${L.num(d.myWins)}` : `${L.num(d.myWins)} – ${L.num(d.theirWins)}`) : "…"}
             </div>
-            <div className="tsz-11 font-semibold mt-1" style={{ color: `${INK}88` }}>
+            <div className="tsz-11 font-semibold mt-1" style={{ color: `${A(INK, "88")}` }}>
               {t("duelWins")}
             </div>
           </div>
           {side(them, ok ? d.theirPts : 0, false)}
         </div>
         {d === null && (
-          <div className="tsz-12 mt-4" style={{ color: `${INK}88` }}>
+          <div className="tsz-12 mt-4" style={{ color: `${A(INK, "88")}` }}>
             {t("lbLoading")}
           </div>
         )}
         {d?.error && (
-          <div className="tsz-12 mt-4" style={{ color: `${INK}88` }}>
+          <div className="tsz-12 mt-4" style={{ color: `${A(INK, "88")}` }}>
             {t("lbError")}
           </div>
         )}
         {ok && d.games === 0 && (
-          <div className="tsz-12 mt-4" style={{ color: `${INK}88` }}>
+          <div className="tsz-12 mt-4" style={{ color: `${A(INK, "88")}` }}>
             {t("duelNone")}
           </div>
         )}
         {ok && d.games > 0 && (
           <>
-            <div className="tsz-13 font-bold mt-4" style={{ color: BRAND }}>
+            <div className="tsz-13 font-bold mt-4" style={{ color: BRAND_T }}>
               {lead}
             </div>
-            <div className="tsz-12 mt-1" style={{ color: `${INK}88` }}>
+            <div className="tsz-12 mt-1" style={{ color: `${A(INK, "88")}` }}>
               {t("duelGames", { n: L.num(d.games) })}
             </div>
             <div className="flex items-center justify-center gap-1.5 mt-3">
-              <span className="tsz-11 font-semibold" style={{ color: `${INK}77` }}>
+              <span className="tsz-11 font-semibold" style={{ color: `${A(INK, "77")}` }}>
                 {t("duelLast")}
               </span>
               {/* newest first: the first dot (on the right in Arabic) is the latest game */}
               {d.last.map((x, i) => (
                 <span key={i} className="flex flex-col items-center" style={{ marginTop: i === 0 ? 14 : 0 }}>
-                  <span className="w-6 h-6 rounded-full flex items-center justify-center tsz-11 font-bold" style={x === "w" ? { background: "#366135", color: CREAM } : { background: `${INK}14`, color: `${INK}88` }}>
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center tsz-11 font-bold" style={x === "w" ? { background: "#366135", color: CREAM } : { background: `${A(INK, "14")}`, color: `${A(INK, "88")}` }}>
                     {x === "w" ? t("duelW") : t("duelL")}
                   </span>
                   {i === 0 && (
-                    <span className="tsz-9 font-semibold leading-none mt-0.5" style={{ color: `${INK}77` }}>
+                    <span className="tsz-9 font-semibold leading-none mt-0.5" style={{ color: `${A(INK, "77")}` }}>
                       {t("duelNewest")}
                     </span>
                   )}
@@ -3342,7 +3347,7 @@ function DuelSheet({ them, query, note, onClose }) {
           </>
         )}
         {note && (
-          <div className="tsz-11 mt-3" style={{ color: `${INK}88` }}>
+          <div className="tsz-11 mt-3" style={{ color: `${A(INK, "88")}` }}>
             {note}
           </div>
         )}
@@ -3464,29 +3469,29 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
     <div className="mt-6 text-center">
       {iWon && <Confetti />}
       <div className="win-rise">
-        <div className="display-font font-bold leading-none" style={{ color: BRAND, fontSize: fs(46) }}>
+        <div className="display-font font-bold leading-none" style={{ color: BRAND_T, fontSize: fs(46) }}>
           {iWon ? t("youWon") : t("wonName", { name: nameOf(winner) })}
         </div>
         {me && !iWon && (
-          <div className="tsz-14 font-semibold mt-2" style={{ color: `${INK}99` }}>
+          <div className="tsz-14 font-semibold mt-2" style={{ color: `${A(INK, "99")}` }}>
             {t("winPlaceLine", { place: placeName(myPlace), left: myLeft(me.hand.length) })}
           </div>
         )}
         {isOnline && res?.counted ? (
-          <div className="inline-flex items-center gap-2 mt-3 rounded-full px-4 py-1.5 tsz-14 font-bold" style={{ background: `${GOLD}40`, color: "#5A3F0C", boxShadow: `0 0 0 1.5px ${GOLD}` }}>
+          <div className="inline-flex items-center gap-2 mt-3 rounded-full px-4 py-1.5 tsz-14 font-bold" style={{ background: `${GOLD}40`, color: "var(--h-gold-t)", boxShadow: `0 0 0 1.5px ${GOLD}` }}>
             {t("winPoints", { n: num(res.points), pw: res.points >= 3 && res.points <= 10 ? "نقاط" : "نقطة" })}
           </div>
         ) : isOnline && notCountedKey ? (
-          <div className="tsz-11 font-semibold mt-2" style={{ color: `${INK}88` }}>
+          <div className="tsz-11 font-semibold mt-2" style={{ color: `${A(INK, "88")}` }}>
             {t(notCountedKey)}
           </div>
         ) : !isOnline ? (
-          <div className="tsz-11 font-semibold mt-2" style={{ color: `${INK}77` }}>
+          <div className="tsz-11 font-semibold mt-2" style={{ color: `${A(INK, "77")}` }}>
             {t("noRankWin")}
           </div>
         ) : null}
         {isOnline && res?.duel && (
-          <div className="tsz-13 font-semibold mt-2" style={{ color: `${INK}99` }}>
+          <div className="tsz-13 font-semibold mt-2" style={{ color: `${A(INK, "99")}` }}>
             {t("winDuel", { name: res.duel.name, a: num(res.duel.me), b: num(res.duel.them) })}
           </div>
         )}
@@ -3503,7 +3508,7 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
                 if (!canDuel(p)) return;
                 sendAppEvent("duel_opened", game.analyticsId || null, { payload: { source: "win" } });
                 setDuelWith(p);
-              }} className={`rounded-2xl pt-3 pb-2 flex flex-col items-center win-rise ${canDuel(p) ? "cursor-pointer hpress-97" : ""}`} style={{ animationDelay: `${180 + i * 90}ms`, background: i === 0 ? CREAM : `${CREAM}99`, boxShadow: i === 0 ? `0 0 0 2px ${GOLD}` : `0 0 0 1px ${INK}12` }}>
+              }} className={`rounded-2xl pt-3 pb-2 flex flex-col items-center win-rise ${canDuel(p) ? "cursor-pointer hpress-97" : ""}`} style={{ ...(i === 0 ? CARD_VARS : null), animationDelay: `${180 + i * 90}ms`, background: i === 0 ? CREAM : A(SURF, "99"), boxShadow: i === 0 ? `0 0 0 2px ${GOLD}` : `0 0 0 1px ${A(INK, "12")}` }}>
               <div className="relative" style={{ width: 84, height: 52 }}>
                 {i === 0 ? (
                   <span className="absolute inset-0 flex items-center justify-center" style={{ fontSize: 30 }}>
@@ -3517,14 +3522,14 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
                   ))
                 )}
               </div>
-              <div className="tsz-13 font-bold mt-1 truncate px-1" style={{ maxWidth: "100%", color: p.id === meId ? BRAND : INK }}>
+              <div className="tsz-13 font-bold mt-1 truncate px-1" style={{ maxWidth: "100%", color: p.id === meId ? BRAND_T : INK }}>
                 {nameOf(p)}
               </div>
-              <div className="tsz-11 font-semibold" style={{ color: i === 0 ? GOLD_DK : `${INK}88` }}>
+              <div className="tsz-11 font-semibold" style={{ color: i === 0 ? GOLD_DK : `${A(INK, "88")}` }}>
                 {i === 0 ? t("winnerTag") : cardsWord(p.hand.length)}
               </div>
               {canDuel(p) && (
-                <div className="tsz-10 font-semibold mt-0.5" style={{ color: `${INK}55` }}>
+                <div className="tsz-10 font-semibold mt-0.5" style={{ color: `${A(INK, "55")}` }}>
                   {t("winDuelTap")} ‹
                 </div>
               )}
@@ -3535,21 +3540,21 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
 
       {/* the match in numbers, then the most-targeted line */}
       <div className="mt-5 mx-auto max-w-xs win-rise" style={{ animationDelay: "480ms" }}>
-        <div className="rounded-2xl py-3 flex" style={{ background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}55` }}>
+        <div className="rounded-2xl py-3 flex" style={{ background: SURF, boxShadow: `0 0 0 1.5px ${GOLD}55` }}>
           {nums.map((a, k) => (
-            <div key={a.l} className="flex-1 text-center px-1" style={{ borderInlineStart: k ? `1px solid ${INK}10` : "none" }}>
+            <div key={a.l} className="flex-1 text-center px-1" style={{ borderInlineStart: k ? `1px solid ${A(INK, "10")}` : "none" }}>
               <div className="tsz-14">{a.icon}</div>
-              <div className="tsz-15 font-bold mt-0.5" style={{ color: BRAND }}>
+              <div className="tsz-15 font-bold mt-0.5" style={{ color: BRAND_T }}>
                 {a.v}
               </div>
-              <div className="tsz-10 font-semibold leading-tight" style={{ color: `${INK}88` }}>
+              <div className="tsz-10 font-semibold leading-tight" style={{ color: `${A(INK, "88")}` }}>
                 {a.l}
               </div>
             </div>
           ))}
         </div>
         {target && (
-          <div className="mt-2 rounded-2xl px-3 py-2 flex items-center gap-2 hstart" style={{ background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}55` }}>
+          <div className="mt-2 rounded-2xl px-3 py-2 flex items-center gap-2 hstart" style={{ background: SURF, boxShadow: `0 0 0 1.5px ${GOLD}55` }}>
             {tie ? (
               <span className="flex flex-shrink-0" style={{ paddingInlineStart: 6 }}>
                 {target.slice(0, 3).map((p) => (
@@ -3564,14 +3569,14 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
               </span>
             )}
             <span className="flex-1 min-w-0">
-              <span className="block tsz-11 font-semibold" style={{ color: `${INK}88` }}>
+              <span className="block tsz-11 font-semibold" style={{ color: `${A(INK, "88")}` }}>
                 {tie ? `🎯 ${t("awTargetTie")}` : t("awTarget")}
               </span>
-              <span className="block tsz-14 font-bold truncate" style={{ color: BRAND }}>
+              <span className="block tsz-14 font-bold truncate" style={{ color: BRAND_T }}>
                 {targetNames}
               </span>
             </span>
-            <span className="tsz-12 font-bold rounded-full px-2.5 py-1 flex-shrink-0" style={{ background: `${INK}0a`, color: `${INK}99` }}>
+            <span className="tsz-12 font-bold rounded-full px-2.5 py-1 flex-shrink-0" style={{ background: `${A(INK, "0a")}`, color: `${A(INK, "99")}` }}>
               {timesTxt(maxT)}
               {tie ? ` ${t("awEach")}` : ""}
             </span>
@@ -3581,17 +3586,17 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
 
       {/* the piece the winner finished with */}
       {piece && (
-        <div className="mt-3 mx-auto max-w-xs rounded-2xl p-3 flex items-center gap-3 hstart win-rise" style={{ animationDelay: "580ms", background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}55` }}>
+        <div className="mt-3 mx-auto max-w-xs rounded-2xl p-3 flex items-center gap-3 hstart win-rise" style={{ animationDelay: "580ms", background: SURF, boxShadow: `0 0 0 1.5px ${GOLD}55` }}>
           <ItemCard card={piece} size={72} />
           <div className="flex-1 min-w-0">
-            <div className="tsz-11 font-semibold" style={{ color: `${INK}88` }}>
+            <div className="tsz-11 font-semibold" style={{ color: `${A(INK, "88")}` }}>
               {pieceTitle}
             </div>
-            <div className="display-font font-bold tsz-17 leading-tight" style={{ color: BRAND }}>
+            <div className="display-font font-bold tsz-17 leading-tight" style={{ color: BRAND_T }}>
               {L.item(piece.name)}
             </div>
             {L.itemDesc(piece.name) && (
-              <div className="tsz-11 mt-0.5 leading-snug" style={{ color: `${INK}99` }}>
+              <div className="tsz-11 mt-0.5 leading-snug" style={{ color: `${A(INK, "99")}` }}>
                 {L.itemDesc(piece.name)}
               </div>
             )}
@@ -3657,7 +3662,7 @@ function ReceivedFX({ data }) {
   const line = t("recv_" + data.kind, { name: L.name(data.fromName || "") });
   return (
     <div className={`fixed inset-x-0 flex flex-col items-center pointer-events-none ${leaving ? "recv-out" : "hilla-fade"}`} style={{ top: "28%", zIndex: 85 }}>
-      <div className="rounded-full px-4 py-1.5 tsz-14 font-bold win-pop" style={{ background: INK, color: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 12px 24px -10px rgba(0,0,0,.5)` }}>
+      <div className="rounded-full px-4 py-1.5 tsz-14 font-bold win-pop" style={{ background: INK_HARD, color: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 12px 24px -10px rgba(0,0,0,.5)` }}>
         {line}
       </div>
       <div className="flex gap-2 mt-3">
@@ -3686,7 +3691,7 @@ function PostGameSurvey({ game, myId, isOnline }) {
   if (!seat) return null;
   if (sent)
     return (
-      <div className="mt-6 mx-auto max-w-sm rounded-2xl border-2 p-4 text-center font-bold" style={{ background: CREAM2, borderColor: GOLD, color: MAROON }}>
+      <div className="mt-6 mx-auto max-w-sm rounded-2xl border-2 p-4 text-center font-bold" style={{ background: CREAM2, borderColor: GOLD, color: BRAND_T }}>
         {t("svThanks")}
       </div>
     );
@@ -3702,22 +3707,22 @@ function PostGameSurvey({ game, myId, isOnline }) {
   return (
     <div className="mt-6 mx-auto max-w-sm rounded-2xl border-2 p-4 text-center" style={{ background: CREAM2, borderColor: GOLD }}>
       <div className="flex justify-between items-center mb-2">
-        <div className="font-black" style={{ color: MAROON }}>
+        <div className="font-black" style={{ color: BRAND_T }}>
           {t("svTitle")}
         </div>
-        <button onClick={() => setHidden(true)} className="text-xs" style={{ color: `${INK}66` }}>
+        <button onClick={() => setHidden(true)} className="text-xs" style={{ color: `${A(INK, "66")}` }}>
           {t("svSkip")}
         </button>
       </div>
-      <div className="text-xs mb-1" style={{ color: `${INK}88` }}>
+      <div className="text-xs mb-1" style={{ color: `${A(INK, "88")}` }}>
         {t("svFun")}
       </div>
       <Stars value={fun} onPick={setFun} />
-      <div className="text-xs mb-1 mt-2" style={{ color: `${INK}88` }}>
+      <div className="text-xs mb-1 mt-2" style={{ color: `${A(INK, "88")}` }}>
         {t("svClear")}
       </div>
       <Stars value={clarity} onPick={setClarity} />
-      <div className="text-xs mb-1 mt-2" style={{ color: `${INK}88` }}>
+      <div className="text-xs mb-1 mt-2" style={{ color: `${A(INK, "88")}` }}>
         {t("svAgain")}
       </div>
       <div className="flex gap-2 justify-center mb-2">
@@ -3731,7 +3736,7 @@ function PostGameSurvey({ game, myId, isOnline }) {
         <button
           onClick={() => setAgain(again === false ? null : false)}
           className="px-3 py-1 rounded-lg border-2 text-sm font-bold"
-          style={again === false ? { background: MAROON, color: CREAM, borderColor: MAROON } : { color: MAROON, borderColor: `${MAROON}66` }}
+          style={again === false ? { background: MAROON, color: CREAM, borderColor: MAROON } : { color: BRAND_T, borderColor: `${MAROON}66` }}
         >
           {t("svNo")}
         </button>
@@ -3742,7 +3747,7 @@ function PostGameSurvey({ game, myId, isOnline }) {
         placeholder={t("svComment")}
         rows={2}
         className="w-full rounded-lg px-2 py-1 text-xs border-2 focus:outline-none mb-2"
-        style={{ background: CREAM, color: INK, borderColor: `${MAROON}33` }}
+        style={{ background: SURF, color: INK, borderColor: `${MAROON}33` }}
       />
       <button
         onClick={() => {
@@ -4864,7 +4869,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   function renderItems() {
     if (itemCards.length === 0) {
       return (
-        <div className="tsz-13 py-6 w-full text-center" style={{ color: `${INK}55` }}>
+        <div className="tsz-13 py-6 w-full text-center" style={{ color: `${A(INK, "55")}` }}>
           {t("noClothing")}
         </div>
       );
@@ -4891,7 +4896,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     let lastRegion = null;
     sorted.forEach((c, i) => {
       if (c.region !== lastRegion) {
-        if (lastRegion !== null) nodes.push(<span key={`div-${c.region}`} className="self-stretch w-px my-4 flex-shrink-0" style={{ background: `${INK}22` }} />);
+        if (lastRegion !== null) nodes.push(<span key={`div-${c.region}`} className="self-stretch w-px my-4 flex-shrink-0" style={{ background: `${A(INK, "22")}` }} />);
         lastRegion = c.region;
       }
       nodes.push(node(c, i));
@@ -4904,7 +4909,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     if (game.pendingAction || game.digOptions) return null;
     if (current.isBot) {
       return (
-        <div className="flex items-center gap-2 tsz-13 font-semibold" style={{ color: `${INK}88` }}>
+        <div className="flex items-center gap-2 tsz-13 font-semibold" style={{ color: `${A(INK, "88")}` }}>
           {t("thinking", { name: current.name })}
           <span className="flex gap-0.5">
             {[0, 1, 2].map((i) => (
@@ -4926,7 +4931,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
             className=""
           />
         )}
-        <div className="tsz-14 font-bold hstart" style={{ color: isMyTurn ? BRAND : `${INK}88` }}>
+        <div className="tsz-14 font-bold hstart" style={{ color: isMyTurn ? BRAND_T : `${A(INK, "88")}` }}>
           {current.inactive ? t("inactiveNow", { name: L.name(current.name) }) : isMyTurn ? t("yourTurn") : t("turnOf", { name: L.name(current.name) })}
         </div>
       </div>
@@ -4953,18 +4958,18 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
         <div className="flex items-center justify-between px-1 mb-2">
           <div className="flex items-center gap-2">
             <Wordmark height={30} />
-            {isOnline && <Wifi className="w-4 h-4" style={{ color: `${INK}66` }} />}
+            {isOnline && <Wifi className="w-4 h-4" style={{ color: `${A(INK, "66")}` }} />}
           </div>
           <div className="flex items-center gap-2">
             {!winnerPlayer && (
-              <span className="tsz-11 font-semibold px-2.5 py-1 rounded-full" style={{ background: `${INK}0d`, color: `${INK}88` }}>
+              <span className="tsz-11 font-semibold px-2.5 py-1 rounded-full" style={{ background: `${A(INK, "0d")}`, color: `${A(INK, "88")}` }}>
                 {t("round", { n: game.coordRounds ?? 1 })}
               </span>
             )}
             <button
               onClick={() => setMenuOpen((v) => !v)}
               className="w-10 h-10 rounded-full flex items-center justify-center transition active:scale-95"
-              style={menuOpen ? { background: INK, color: CREAM } : { background: CREAM, color: INK, boxShadow: "0 2px 8px -2px rgba(60,30,10,.3)" }}
+              style={menuOpen ? { background: INK_HARD, color: CREAM } : { background: SURF, color: INK, boxShadow: "0 2px 8px -2px rgba(60,30,10,.3)" }}
               title={t("menu")}
             >
               <Menu className="w-4 h-4" />
@@ -5044,7 +5049,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
               />
             )}
             {game.lockCoord && (
-              <div className="mt-3 mx-auto w-fit flex items-center gap-2 hpad-e3 rounded-full tsz-12 font-semibold hilla-pop" style={{ background: CREAM, color: INK, boxShadow: `0 0 0 1px ${GOLD}` }}>
+              <div className="mt-3 mx-auto w-fit flex items-center gap-2 hpad-e3 rounded-full tsz-12 font-semibold hilla-pop" style={{ background: SURF, color: INK, boxShadow: `0 0 0 1px ${GOLD}` }}>
                 <span className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: GOLD }}>
                   <Repeat2 className="w-3.5 h-3.5" style={{ color: INK }} />
                 </span>
@@ -5062,7 +5067,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
             )}
             <div className="h-5 mt-1 flex justify-center overflow-hidden px-4">
               {!game.winner && moveToast?.text && (
-                <span key={moveToast.id} className="hilla-lastmove tsz-12 truncate" style={{ color: `${INK}88` }}>
+                <span key={moveToast.id} className="hilla-lastmove tsz-12 truncate" style={{ color: `${A(INK, "88")}` }}>
                   {L.log(moveToast.text)}
                 </span>
               )}
@@ -5089,30 +5094,30 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                         </div>
                         <div className="mb-1" style={{ color: INK }}>
                           <div className="font-semibold tsz-14">
-                            {actorIsMe ? t("youUse") : t("usesX", { name: pa.actorName })} <b style={{ color: BRAND }}>{L.action(pa.actionType)}</b>
+                            {actorIsMe ? t("youUse") : t("usesX", { name: pa.actorName })} <b style={{ color: BRAND_T }}>{L.action(pa.actionType)}</b>
                           </div>
                           {targetIsMe ? (
-                            <div className="display-font font-bold mt-0.5 tsz-20" style={{ color: BRAND }}>
+                            <div className="display-font font-bold mt-0.5 tsz-20" style={{ color: BRAND_T }}>
                               {t("againstYou")}
                             </div>
                           ) : (
-                            <div className="tsz-13 mt-1" style={{ color: `${INK}99` }}>
+                            <div className="tsz-13 mt-1" style={{ color: `${A(INK, "99")}` }}>
                               {t("against", { name: L.name(targetPlayer?.name) })}
                             </div>
                           )}
                         </div>
-                        <div className="tsz-12 mb-4 mt-1" style={{ color: `${INK}88` }}>
+                        <div className="tsz-12 mb-4 mt-1" style={{ color: `${A(INK, "88")}` }}>
                           {isOnline ? (
                             eligibleBlockers.some((p) => p.id === myId) ? (
                               <>
-                                {tb("canBlockYou", null, { color: BRAND })}
+                                {tb("canBlockYou", null, { color: BRAND_T })}
                               </>
                             ) : (
                               t("autoResolve")
                             )
                           ) : (
                             <>
-                              {tb("anyoneBlock", null, { color: BRAND })}
+                              {tb("anyoneBlock", null, { color: BRAND_T })}
                             </>
                           )}
                         </div>
@@ -5135,7 +5140,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                           )}
                         </div>
                         {errMsg && (
-                          <div className="tsz-12 font-semibold px-3 py-1.5 rounded-xl mt-2" style={{ background: `${BRAND}14`, color: BRAND }}>
+                          <div className="tsz-12 font-semibold px-3 py-1.5 rounded-xl mt-2" style={{ background: `${BRAND}14`, color: BRAND_T }}>
                             {L.error(errMsg)}
                           </div>
                         )}
@@ -5150,7 +5155,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                 <div className="flex justify-center mb-3">
                   <ActionCard card={needTarget} size={170} />
                 </div>
-                <div className="tsz-13 mb-3 -mt-1" style={{ color: `${INK}99` }}>
+                <div className="tsz-13 mb-3 -mt-1" style={{ color: `${A(INK, "99")}` }}>
                   {L.actionDesc(needTarget.actionType)}
                 </div>
                 <div className="font-bold tsz-15 mb-3" style={{ color: INK }}>
@@ -5164,16 +5169,16 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                         key={p.id}
                         onClick={() => chooseTarget(p.id)}
                         className={`py-2.5 px-2 tsz-13 flex items-center justify-center gap-1.5 ${btn}`}
-                        style={{ background: PAGE, color: INK, boxShadow: `inset 0 0 0 1.5px ${INK}1a` }}
+                        style={{ background: SUNK, color: INK, boxShadow: `inset 0 0 0 1.5px ${A(INK, "1a")}` }}
                       >
                         <span className="truncate">{p.isBot ? "🤖 " : ""}{L.name(p.name)}</span>
-                        <span className="tsz-11 font-semibold px-1.5 rounded-full" style={{ background: p.hand.length <= 3 ? GOLD : `${INK}12` }}>
+                        <span className="tsz-11 font-semibold px-1.5 rounded-full" style={{ background: p.hand.length <= 3 ? GOLD : `${A(INK, "12")}` }}>
                           {p.hand.length}
                         </span>
                       </button>
                     ))}
                 </div>
-                <button onClick={() => setNeedTarget(null)} className="mt-4 tsz-12 font-semibold" style={{ color: `${INK}77` }}>
+                <button onClick={() => setNeedTarget(null)} className="mt-4 tsz-12 font-semibold" style={{ color: `${A(INK, "77")}` }}>
                   {t("cancel")}
                 </button>
               </Sheet>
@@ -5183,10 +5188,10 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
 
             {game.digOptions && (!isOnline || game.digOptions.playerId === myId) && (
               <Sheet maxW={440}>
-                <div className="display-font font-bold tsz-20 mb-1" style={{ color: BRAND }}>
+                <div className="display-font font-bold tsz-20 mb-1" style={{ color: BRAND_T }}>
                   {t("digTitle")}
                 </div>
-                <div className="tsz-13 mb-4" style={{ color: `${INK}88` }}>
+                <div className="tsz-13 mb-4" style={{ color: `${A(INK, "88")}` }}>
                   {t("digHint")}
                 </div>
                 <div className="flex justify-center gap-2.5 pt-3">
@@ -5199,14 +5204,14 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
               </Sheet>
             )}
             {game.digOptions && isOnline && game.digOptions.playerId !== myId && (
-              <div className="text-center tsz-13 mb-2" style={{ color: `${INK}77` }}>
+              <div className="text-center tsz-13 mb-2" style={{ color: `${A(INK, "77")}` }}>
                 {t("digging", { name: game.players.find((p) => p.id === game.digOptions.playerId)?.name })}
               </div>
             )}
 
             {/* hand */}
             {showThinkingPanel ? (
-              <div className="mt-5 hr-28 py-12 text-center" style={{ background: `${CREAM}aa` }}>
+              <div className="mt-5 hr-28 py-12 text-center" style={{ background: A(SURF, "aa") }}>
                 <div className="tsz-15 font-bold mb-2" style={{ color: INK }}>
                   {t("thinkingDots", { name: current.name })}
                 </div>
@@ -5217,14 +5222,14 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                 </div>
               </div>
             ) : showPassScreen ? (
-              <div className="mt-5 hr-28 py-8 text-center hilla-pop" style={{ background: CREAM, boxShadow: "0 18px 40px -20px rgba(60,30,10,.5)" }}>
+              <div className="mt-5 hr-28 py-8 text-center hilla-pop" style={{ background: SURF, boxShadow: "0 18px 40px -20px rgba(60,30,10,.5)" }}>
                 <div className="mx-auto mb-3 w-fit hilla-float">
                   <CardBack size={84} tall style={{ boxShadow: "0 14px 28px -12px rgba(60,30,10,.6)" }} />
                 </div>
-                <div className="tsz-13 font-semibold mb-1" style={{ color: `${INK}88` }}>
+                <div className="tsz-13 font-semibold mb-1" style={{ color: `${A(INK, "88")}` }}>
                   {t("passTo")}
                 </div>
-                <div className="display-font font-bold mb-5" style={{ color: BRAND, fontSize: fs(38) }}>
+                <div className="display-font font-bold mb-5" style={{ color: BRAND_T, fontSize: fs(38) }}>
                   {current.name}
                 </div>
                 <button onClick={() => setRevealed(true)} className={`px-7 py-3 tsz-15 ${btn}`} style={btnPrimary}>
@@ -5234,32 +5239,32 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
             ) : (
               <section
                 className={`mt-4 hr-28 px-3 pt-3 pb-3 ${handActive ? "hilla-myturn" : ""}`}
-                style={{ background: CREAM, boxShadow: "0 10px 30px -14px rgba(60,30,10,.4)" }}
+                style={{ background: SURF, boxShadow: "0 10px 30px -14px rgba(60,30,10,.4)" }}
               >
                 <div className="flex items-center justify-between px-1">
                   <div className="tsz-13 font-bold flex items-center gap-1.5" style={{ color: INK }}>
                     {isOnline || soloHuman ? t("yourHand") : t("handOf", { name: viewer.name })}
-                    <span className="tsz-11 font-semibold px-1.5 rounded-full" style={{ background: `${INK}0f`, color: `${INK}88` }}>
+                    <span className="tsz-11 font-semibold px-1.5 rounded-full" style={{ background: `${A(INK, "0f")}`, color: `${A(INK, "88")}` }}>
                       {viewer.hand.length}
                     </span>
                   </div>
                   <button
                     onClick={() => setSortByRegion((s) => !s)}
                     className="tsz-11 font-semibold px-3 py-1.5 rounded-full transition"
-                    style={sortByRegion ? { background: INK, color: CREAM } : { background: `${INK}0b`, color: `${INK}aa` }}
+                    style={sortByRegion ? { background: INK_HARD, color: CREAM } : { background: `${A(INK, "0b")}`, color: `${A(INK, "aa")}` }}
                   >
                     {t("sortRegion")}
                   </button>
                 </div>
 
-                <div className="tsz-11 font-semibold mt-2 px-1" style={{ color: `${INK}77` }}>
+                <div className="tsz-11 font-semibold mt-2 px-1" style={{ color: `${A(INK, "77")}` }}>
                   {t("clothing")}
                 </div>
                 <div className="hilla-hand flex gap-2 overflow-x-auto -mx-3 px-3 pb-4 -mb-1">{renderItems()}</div>
 
                 {actionCards.length > 0 && (
                   <>
-                    <div className="tsz-11 font-semibold mt-1 px-1" style={{ color: `${INK}77` }}>
+                    <div className="tsz-11 font-semibold mt-1 px-1" style={{ color: `${A(INK, "77")}` }}>
                       {t("actionsHint")}
                       {game.actionUsedThisTurn && isMyTurn && <span style={{ color: GOLD_DK }}>{t("usedThisTurn")}</span>}
                     </div>
@@ -5279,16 +5284,16 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                 )}
 
                 {errMsg && (!game.pendingAction || errMsg === t("waitPending")) && (
-                  <div className="tsz-12 font-semibold mb-2 px-3 py-1.5 rounded-xl hilla-pop" style={{ background: `${BRAND}14`, color: BRAND }}>
+                  <div className="tsz-12 font-semibold mb-2 px-3 py-1.5 rounded-xl hilla-pop" style={{ background: `${BRAND}14`, color: BRAND_T }}>
                     {L.error(errMsg)}
                   </div>
                 )}
 
                 {canPremove && (
-                  <div className="flex items-center gap-2 tsz-12 font-semibold mb-2 px-3 py-1.5 rounded-xl" style={{ background: pre.length ? `${GOLD}33` : `${INK}08`, color: pre.length ? "#5A3F0C" : `${INK}88` }}>
+                  <div className="flex items-center gap-2 tsz-12 font-semibold mb-2 px-3 py-1.5 rounded-xl" style={{ background: pre.length ? `${GOLD}33` : `${A(INK, "08")}`, color: pre.length ? "#5A3F0C" : `${A(INK, "88")}` }}>
                     <span className="flex-1">{pre.length ? t("premoveBar") : t("premoveHint")}</span>
                     {pre.length > 0 && (
-                      <button onClick={() => setPre([])} aria-label={t("premoveClear")} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: `${INK}12` }}>
+                      <button onClick={() => setPre([])} aria-label={t("premoveClear")} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: `${A(INK, "12")}` }}>
                         <X className="w-3.5 h-3.5" />
                       </button>
                     )}
@@ -5314,14 +5319,14 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
             <button
               onClick={() => setLogOpen((v) => !v)}
               className="mt-4 mx-auto flex items-center gap-1.5 tsz-11 font-semibold px-3 py-1.5 rounded-full"
-              style={{ color: `${INK}88`, background: `${INK}0a` }}
+              style={{ color: `${A(INK, "88")}`, background: `${A(INK, "0a")}` }}
             >
               {t("log")} {logOpen ? "▴" : "▾"}
             </button>
             {logOpen && (
-              <div className="mt-2 rounded-2xl p-3 max-h-40 overflow-y-auto hilla-pop" style={{ background: `${CREAM}cc` }}>
+              <div className="mt-2 rounded-2xl p-3 max-h-40 overflow-y-auto hilla-pop" style={{ background: A(SURF, "cc") }}>
                 {game.log.map((l, i) => (
-                  <div key={i} className="tsz-11 mb-1" style={{ color: `${INK}88` }}>
+                  <div key={i} className="tsz-11 mb-1" style={{ color: `${A(INK, "88")}` }}>
                     {L.log(l)}
                   </div>
                 ))}
@@ -5336,7 +5341,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
           <div className="app-fixed hz-9998 backdrop-blur-sm bg-black/10" onClick={() => setMenuOpen(false)} />
           <div
             className="fixed hz-9999 w-52 rounded-2xl shadow-xl overflow-hidden hilla-pop"
-            style={{ top: "calc(env(safe-area-inset-top, 0px) + 3.75rem)", ...(L.dir === "rtl" ? { left: "1rem" } : { right: "1rem" }), background: CREAM, boxShadow: "0 18px 40px -12px rgba(0,0,0,.35)" }}
+            style={{ top: "calc(env(safe-area-inset-top, 0px) + 3.75rem)", ...(L.dir === "rtl" ? { left: "1rem" } : { right: "1rem" }), background: SURF, boxShadow: "0 18px 40px -12px rgba(0,0,0,.35)" }}
           >
             <button
               onClick={() => setMenuOpen(false)}
@@ -5351,18 +5356,18 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                 setShowRules(true);
               }}
               className="w-full hstart px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
-              style={{ color: INK, borderColor: `${INK}12` }}
+              style={{ color: INK, borderColor: `${A(INK, "12")}` }}
             >
-              <HelpCircle className="w-4 h-4" style={{ color: BRAND }} /> {t("howToPlay")}
+              <HelpCircle className="w-4 h-4" style={{ color: BRAND_T }} /> {t("howToPlay")}
             </button>
             <button
               onClick={() => {
                 setBigText((v) => !v);
               }}
               className="w-full hstart px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
-              style={{ color: INK, background: bigText ? `${GOLD}33` : "transparent", borderColor: `${INK}12` }}
+              style={{ color: INK, background: bigText ? `${GOLD}33` : "transparent", borderColor: `${A(INK, "12")}` }}
             >
-              <Type className="w-4 h-4" style={{ color: BRAND }} /> {t("bigText")} {bigText ? "✓" : ""}
+              <Type className="w-4 h-4" style={{ color: BRAND_T }} /> {t("bigText")} {bigText ? "✓" : ""}
             </button>
             <button
               onClick={() => {
@@ -5372,16 +5377,16 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                 });
               }}
               className="w-full hstart px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
-              style={{ color: INK, background: turnSound ? `${GOLD}33` : "transparent", borderColor: `${INK}12` }}
+              style={{ color: INK, background: turnSound ? `${GOLD}33` : "transparent", borderColor: `${A(INK, "12")}` }}
             >
-              {turnSound ? <Volume2 className="w-4 h-4" style={{ color: BRAND }} /> : <VolumeX className="w-4 h-4" style={{ color: BRAND }} />} {t("turnSound")} {turnSound ? "✓" : ""}
+              {turnSound ? <Volume2 className="w-4 h-4" style={{ color: BRAND_T }} /> : <VolumeX className="w-4 h-4" style={{ color: BRAND_T }} />} {t("turnSound")} {turnSound ? "✓" : ""}
             </button>
             <button
               onClick={() => setPremoveOn((v) => !v)}
               className="w-full hstart px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
-              style={{ color: INK, background: premoveOn ? `${GOLD}33` : "transparent", borderColor: `${INK}12` }}
+              style={{ color: INK, background: premoveOn ? `${GOLD}33` : "transparent", borderColor: `${A(INK, "12")}` }}
             >
-              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke={BRAND} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" style={{ stroke: BRAND_T }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M5 5v14l8-7z" />
                 <path d="M13 5v14l8-7z" />
               </svg>{" "}
@@ -5394,22 +5399,22 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                 } catch {}
               }}
               className="w-full hstart px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
-              style={{ color: INK, borderColor: `${INK}12` }}
+              style={{ color: INK, borderColor: `${A(INK, "12")}` }}
             >
-              <RefreshCw className="w-4 h-4" style={{ color: BRAND }} /> {t("refresh")}
+              <RefreshCw className="w-4 h-4" style={{ color: BRAND_T }} /> {t("refresh")}
             </button>
             <button
               onClick={onExit}
               className="w-full hstart px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
-              style={{ color: INK, borderColor: `${INK}12` }}
+              style={{ color: INK, borderColor: `${A(INK, "12")}` }}
             >
-              <RotateCcw className="w-4 h-4" style={{ color: BRAND }} /> {t("newGame")}
+              <RotateCcw className="w-4 h-4" style={{ color: BRAND_T }} /> {t("newGame")}
             </button>
             {onGoHome && (
               <button
                 onClick={onGoHome}
                 className="w-full hstart px-4 py-3 tsz-13 font-semibold flex items-center gap-2 border-t"
-                style={{ color: BRAND, borderColor: `${INK}12` }}
+                style={{ color: BRAND_T, borderColor: `${A(INK, "12")}` }}
               >
                 <LogOut className="w-4 h-4" /> {t("exit")}
               </button>
@@ -5445,7 +5450,7 @@ function HelpButton({ onClick, className = "" }) {
       onClick={onClick}
       title={t("howToPlay")}
       className={`w-10 h-10 rounded-full flex items-center justify-center transition active:scale-95 ${className}`}
-      style={{ color: INK, background: CREAM, boxShadow: "0 2px 8px -2px rgba(60,30,10,.3)" }}
+      style={{ color: INK, background: SURF, boxShadow: "0 2px 8px -2px rgba(60,30,10,.3)" }}
     >
       <HelpCircle className="w-5 h-5" />
     </button>
@@ -5459,7 +5464,7 @@ function HowToPlay({ onClose, bigText }) {
   const { t, tb, L } = useI18n();
   const Section = ({ title, children }) => (
     <div className="mb-3">
-      <div className="tsz-13 font-bold mb-1" style={{ color: BRAND }}>
+      <div className="tsz-13 font-bold mb-1" style={{ color: BRAND_T }}>
         {title}
       </div>
       <div className="tsz-12 leading-relaxed" style={{ color: INK }}>
@@ -5483,18 +5488,18 @@ function HowToPlay({ onClose, bigText }) {
       <GlobalFont />
       <div
         className="w-full max-w-md hr-26 flex flex-col overflow-hidden hilla-pop"
-        style={{ background: CREAM, maxHeight: "100%", boxShadow: `0 0 0 2px ${GOLD}, 0 24px 60px -10px rgba(0,0,0,.4)` }}
+        style={{ background: SURF, maxHeight: "100%", boxShadow: `0 0 0 2px ${GOLD}, 0 24px 60px -10px rgba(0,0,0,.4)` }}
       >
-        <div className="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0" style={{ background: CREAM }}>
-          <div className="display-font tsz-20 font-bold" style={{ color: BRAND }}>
+        <div className="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0" style={{ background: SURF }}>
+          <div className="display-font tsz-20 font-bold" style={{ color: BRAND_T }}>
             {t("rulesTitle")}
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ color: INK, background: `${INK}0d` }} title="×">
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ color: INK, background: `${A(INK, "0d")}` }} title="×">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-4 pt-2 overflow-y-auto" style={{ background: CREAM }}>
+        <div className="p-4 pt-2 overflow-y-auto" style={{ background: SURF }}>
           <Section title={t("rGoal")}>{t("rGoalT")}</Section>
 
           <Section title={t("rRegion")}>{t("rRegionT")}</Section>
@@ -5505,17 +5510,17 @@ function HowToPlay({ onClose, bigText }) {
 
           <div className="space-y-1.5 mb-3">
             {ACTION_TYPES.map((a) => (
-              <div key={a.id} className="rounded-2xl p-1.5 hpad-e3 flex items-center gap-2.5" style={{ background: `${INK}08` }}>
+              <div key={a.id} className="rounded-2xl p-1.5 hpad-e3 flex items-center gap-2.5" style={{ background: `${A(INK, "08")}` }}>
                 <ActionThumb type={a.id} size={44} radius={12} />
                 <div className="min-w-0">
                   <div className="font-bold tsz-12" style={{ color: INK }}>
                     {L.action(a.id)}
                   </div>
-                  <div className="tsz-11 mt-0.5" style={{ color: `${INK}aa` }}>
+                  <div className="tsz-11 mt-0.5" style={{ color: `${A(INK, "aa")}` }}>
                     {L.actionDesc(a.id)}
                   </div>
                   {(a.id === "giveTake" || a.id === "block") && (
-                    <div className="tsz-11 mt-0.5 font-semibold" style={{ color: BRAND }}>{t(`actNote_${a.id}`)}</div>
+                    <div className="tsz-11 mt-0.5 font-semibold" style={{ color: BRAND_T }}>{t(`actNote_${a.id}`)}</div>
                   )}
                 </div>
               </div>
@@ -5560,7 +5565,7 @@ function InactiveBanner({ onWake }) {
     >
       <div
         className="w-full flex items-center gap-3 rounded-2xl py-2"
-        style={{ paddingInlineStart: 12, paddingInlineEnd: 8, maxWidth: 380, background: INK, color: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 16px 34px -12px rgba(0,0,0,.55)`, pointerEvents: "auto" }}
+        style={{ paddingInlineStart: 12, paddingInlineEnd: 8, maxWidth: 380, background: INK_HARD, color: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 16px 34px -12px rgba(0,0,0,.55)`, pointerEvents: "auto" }}
         role="status"
       >
         <span aria-hidden="true" style={{ fontSize: 22 }}>😴</span>
@@ -5592,10 +5597,10 @@ function GivePicker({ viewer, excludeId, onConfirm, onCancel }) {
       <div className="flex items-center justify-center gap-3 mb-3">
         <ActionThumb type="giveTake" size={56} radius={16} />
         <div className="hstart">
-          <div className="display-font font-bold tsz-20 leading-none" style={{ color: BRAND }}>
+          <div className="display-font font-bold tsz-20 leading-none" style={{ color: BRAND_T }}>
             {t("giveTitle")}
           </div>
-          <div className="tsz-12 mt-1" style={{ color: `${INK}88` }}>
+          <div className="tsz-12 mt-1" style={{ color: `${A(INK, "88")}` }}>
             {max === 2 ? t("givePick2") : t("givePick1")}
           </div>
         </div>
@@ -5675,8 +5680,8 @@ function ScreenShell({ children, maxW = "max-w-md" }) {
   );
 }
 
-const panelStyle = { background: CREAM, boxShadow: "0 18px 44px -20px rgba(60,30,10,.5)" };
-const inputStyle = { background: PAGE, color: INK, boxShadow: `inset 0 0 0 1.5px ${INK}14` };
+const panelStyle = { background: SURF, boxShadow: "0 18px 44px -20px rgba(60,30,10,.5)" };
+const inputStyle = { background: SUNK, color: INK, boxShadow: `inset 0 0 0 1.5px ${A(INK, "14")}` };
 
 /* --------------------------------- LOCAL MODE --------------------------------- */
 
@@ -5705,16 +5710,16 @@ function LocalSetup({ onStart, onBack }) {
     <ScreenShell>
       <div className="text-center mb-4">
         <HeroFan scale={0.72} />
-        <p className="tsz-13 mt-1" style={{ color: `${INK}99` }}>
+        <p className="tsz-13 mt-1" style={{ color: `${A(INK, "99")}` }}>
           {t("localIntro")}
         </p>
       </div>
       <div className="hr-28 p-5 space-y-5" style={panelStyle}>
         <div>
           <label className="tsz-13 flex items-center gap-2 mb-2 font-bold" style={{ color: INK }}>
-            <Users className="w-4 h-4" style={{ color: BRAND }} /> {t("numPlayers")}
+            <Users className="w-4 h-4" style={{ color: BRAND_T }} /> {t("numPlayers")}
           </label>
-          <div className="flex gap-1.5 p-1 rounded-2xl" style={{ background: PAGE }}>
+          <div className="flex gap-1.5 p-1 rounded-2xl" style={{ background: SUNK }}>
             {[2, 3, 4, 5, 6].map((n) => (
               <button
                 key={n}
@@ -5723,7 +5728,7 @@ function LocalSetup({ onStart, onBack }) {
                   setPerPlayer(Math.min(REC_COUNTS[n], maxHandFor(n)));
                 }}
                 className="flex-1 py-2 rounded-xl font-bold tsz-14 transition"
-                style={numPlayers === n ? { background: BRAND, color: CREAM, boxShadow: "0 4px 10px -4px rgba(133,21,45,.6)" } : { color: `${INK}99` }}
+                style={numPlayers === n ? { background: BRAND, color: CREAM, boxShadow: "0 4px 10px -4px rgba(133,21,45,.6)" } : { color: `${A(INK, "99")}` }}
               >
                 {n}
               </button>
@@ -5747,24 +5752,24 @@ function LocalSetup({ onStart, onBack }) {
               <button
                 onClick={() => toggleBot(i)}
                 className="px-3 rounded-xl tsz-12 font-semibold whitespace-nowrap transition"
-                style={isBot[i] ? { background: INK, color: CREAM } : { color: INK, boxShadow: `inset 0 0 0 1.5px ${INK}26` }}
+                style={isBot[i] ? { background: INK_HARD, color: CREAM } : { color: INK, boxShadow: `inset 0 0 0 1.5px ${A(INK, "26")}` }}
                 title={t("botTitle")}
               >
                 {isBot[i] ? t("bot") : t("human")}
               </button>
             </div>
           ))}
-          <p className="tsz-11" style={{ color: `${INK}77` }}>
+          <p className="tsz-11" style={{ color: `${A(INK, "77")}` }}>
             {t("botNote")}
           </p>
-          <p className="tsz-11" style={{ color: `${INK}77` }}>
+          <p className="tsz-11" style={{ color: `${A(INK, "77")}` }}>
             {t("noRankLocal")}
           </p>
         </div>
         <div>
           <label className="tsz-13 mb-2 flex items-center justify-between font-bold" style={{ color: INK }}>
             {t("cardsPerPlayer")}
-            <span className="px-2.5 py-0.5 rounded-full tsz-13" style={{ background: GOLD, color: INK }}>
+            <span className="px-2.5 py-0.5 rounded-full tsz-13" style={{ background: GOLD, color: INK_HARD }}>
               {perPlayer}
             </span>
           </label>
@@ -5784,7 +5789,7 @@ function LocalSetup({ onStart, onBack }) {
         >
           <Sparkles className="w-5 h-5" style={{ color: GOLD }} /> {t("startPlaying")}
         </button>
-        <button onClick={onBack} className="w-full tsz-12 font-semibold" style={{ color: `${INK}77` }}>
+        <button onClick={onBack} className="w-full tsz-12 font-semibold" style={{ color: `${A(INK, "77")}` }}>
           {t("back")}
         </button>
       </div>
@@ -5802,7 +5807,7 @@ function OnlineMenu({ myName, setMyName, onCreate, onJoin, onBack, error }) {
     <ScreenShell>
       <div className="text-center mb-4">
         <HeroFan scale={0.72} />
-        <p className="tsz-13 mt-1 flex items-center justify-center gap-1.5" style={{ color: `${INK}99` }}>
+        <p className="tsz-13 mt-1 flex items-center justify-center gap-1.5" style={{ color: `${A(INK, "99")}` }}>
           <Wifi className="w-4 h-4" /> {t("onlineIntro")}
         </p>
       </div>
@@ -5815,13 +5820,13 @@ function OnlineMenu({ myName, setMyName, onCreate, onJoin, onBack, error }) {
           style={inputStyle}
         />
 
-        <div className="pt-3 border-t" style={{ borderColor: `${INK}12` }}>
+        <div className="pt-3 border-t" style={{ borderColor: `${A(INK, "12")}` }}>
           <div className="tsz-14 font-bold mb-2" style={{ color: INK }}>
             {t("createRoom")}
           </div>
-          <label className="tsz-12 mb-1 flex items-center justify-between" style={{ color: `${INK}88` }}>
+          <label className="tsz-12 mb-1 flex items-center justify-between" style={{ color: `${A(INK, "88")}` }}>
             {t("cardsPerPlayer")}
-            <span className="px-2 rounded-full font-bold" style={{ background: GOLD, color: INK }}>
+            <span className="px-2 rounded-full font-bold" style={{ background: GOLD, color: INK_HARD }}>
               {perPlayer}
             </span>
           </label>
@@ -5831,7 +5836,7 @@ function OnlineMenu({ myName, setMyName, onCreate, onJoin, onBack, error }) {
           </button>
         </div>
 
-        <div className="pt-3 border-t" style={{ borderColor: `${INK}12` }}>
+        <div className="pt-3 border-t" style={{ borderColor: `${A(INK, "12")}` }}>
           <div className="tsz-14 font-bold mb-2" style={{ color: INK }}>
             {t("joinRoom")}
           </div>
@@ -5841,20 +5846,20 @@ function OnlineMenu({ myName, setMyName, onCreate, onJoin, onBack, error }) {
             placeholder={t("roomCodePh")}
             maxLength={4}
             className="w-full rounded-xl px-3 py-2.5 tsz-15 mb-3 text-center tracking-widest font-bold focus:outline-none"
-            style={{ ...inputStyle, color: BRAND }}
+            style={{ ...inputStyle, color: BRAND_T }}
           />
-          <button onClick={() => onJoin(joinCode)} disabled={!myName.trim() || joinCode.length !== 4} className={`w-full py-3 tsz-15 ${btn}`} style={{ background: INK, color: CREAM }}>
+          <button onClick={() => onJoin(joinCode)} disabled={!myName.trim() || joinCode.length !== 4} className={`w-full py-3 tsz-15 ${btn}`} style={{ background: INK_HARD, color: CREAM }}>
             {t("join")}
           </button>
         </div>
 
         {error && (
-          <div className="tsz-12 font-semibold text-center px-3 py-2 rounded-xl" style={{ background: `${BRAND}14`, color: BRAND }}>
+          <div className="tsz-12 font-semibold text-center px-3 py-2 rounded-xl" style={{ background: `${BRAND}14`, color: BRAND_T }}>
             {error}
           </div>
         )}
 
-        <button onClick={onBack} className="w-full tsz-12 font-semibold" style={{ color: `${INK}77` }}>
+        <button onClick={onBack} className="w-full tsz-12 font-semibold" style={{ color: `${A(INK, "77")}` }}>
           {t("back")}
         </button>
       </div>
@@ -5879,18 +5884,18 @@ function OnlineLobby({ room, myId, onStart, starting, onAddBot, onRemoveBot, onB
     <ScreenShell>
       <div className="text-center mb-5">
         <Wordmark height={52} className="mb-3" />
-        <div className="tsz-12 mb-1.5" style={{ color: `${INK}88` }}>
+        <div className="tsz-12 mb-1.5" style={{ color: `${A(INK, "88")}` }}>
           {t("roomCodeShare")}
         </div>
         <button
           onClick={copyCode}
           className="mx-auto flex items-center gap-3 pl-4 pr-6 py-3 hr-22 text-3xl font-bold htrack-3 transition hpress-98"
-          style={{ color: BRAND, background: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 14px 30px -16px rgba(60,30,10,.5)` }}
+          style={{ color: BRAND_T, background: SURF, boxShadow: `0 0 0 2px ${GOLD}, 0 14px 30px -16px rgba(60,30,10,.5)` }}
         >
           {room.code}
           {copied ? <Check className="w-5 h-5" style={{ color: REGION_BY_ID.sharqi.color }} /> : <Copy className="w-5 h-5 opacity-50" />}
         </button>
-        <p className="tsz-11 mt-2" style={{ color: `${INK}77` }}>
+        <p className="tsz-11 mt-2" style={{ color: `${A(INK, "77")}` }}>
           {t("lobbyHint")}
         </p>
       </div>
@@ -5900,23 +5905,23 @@ function OnlineLobby({ room, myId, onStart, starting, onAddBot, onRemoveBot, onB
           {t("playersCount", { n: room.lobby.length, m: room.maxPlayers })}
         </div>
         {room.lobby.map((p, i) => (
-          <div key={p.id} className="flex items-center gap-2.5 px-2 py-2 rounded-2xl hilla-fade" style={{ background: PAGE }}>
+          <div key={p.id} className="flex items-center gap-2.5 px-2 py-2 rounded-2xl hilla-fade" style={{ background: SUNK }}>
             <PlayerAvatar name={p.name} isBot={p.isBot} index={i} />
             <span className="tsz-13 font-semibold flex-1" style={{ color: INK }}>
               {p.name}
             </span>
             {p.id === room.hostId && (
-              <span className="tsz-11 font-semibold px-2 py-0.5 rounded-full" style={{ background: GOLD, color: INK }}>
+              <span className="tsz-11 font-semibold px-2 py-0.5 rounded-full" style={{ background: GOLD, color: INK_HARD }}>
                 {t("host")}
               </span>
             )}
             {p.id === myId && (
-              <span className="tsz-11 font-semibold px-2 py-0.5 rounded-full" style={{ background: INK, color: CREAM }}>
+              <span className="tsz-11 font-semibold px-2 py-0.5 rounded-full" style={{ background: INK_HARD, color: CREAM }}>
                 {t("you")}
               </span>
             )}
             {isHost && p.isBot && (
-              <button onClick={() => onRemoveBot(p.id)} className="tsz-12 font-bold w-7 h-7 rounded-full flex items-center justify-center" style={{ color: BRAND, background: `${BRAND}14` }} title={t("removeBot")}>
+              <button onClick={() => onRemoveBot(p.id)} className="tsz-12 font-bold w-7 h-7 rounded-full flex items-center justify-center" style={{ color: BRAND_T, background: `${BRAND}14` }} title={t("removeBot")}>
                 ✕
               </button>
             )}
@@ -5934,7 +5939,7 @@ function OnlineLobby({ room, myId, onStart, starting, onAddBot, onRemoveBot, onB
           </button>
         )}
         {isHost && room.lobby.filter((p) => !p.isBot).length < 2 && (
-          <div className="tsz-11 font-semibold text-center mt-2" style={{ color: `${INK}88` }}>
+          <div className="tsz-11 font-semibold text-center mt-2" style={{ color: `${A(INK, "88")}` }}>
             {t("noRankLobby")}
           </div>
         )}
@@ -5943,7 +5948,7 @@ function OnlineLobby({ room, myId, onStart, starting, onAddBot, onRemoveBot, onB
             <Sparkles className="w-5 h-5" style={{ color: GOLD }} /> {t("startGame")}
           </button>
         ) : (
-          <div className="text-center tsz-12 py-2 flex items-center justify-center gap-2" style={{ color: `${INK}77` }}>
+          <div className="text-center tsz-12 py-2 flex items-center justify-center gap-2" style={{ color: `${A(INK, "77")}` }}>
             {t("waitingHost")}
             <span className="flex gap-0.5">
               {[0, 1, 2].map((i) => (
@@ -5953,7 +5958,7 @@ function OnlineLobby({ room, myId, onStart, starting, onAddBot, onRemoveBot, onB
           </div>
         )}
         {isHost && room.lobby.length < 2 && (
-          <div className="tsz-11 text-center" style={{ color: `${INK}66` }}>
+          <div className="tsz-11 text-center" style={{ color: `${A(INK, "66")}` }}>
             {t("needTwo")}
           </div>
         )}
@@ -5965,11 +5970,11 @@ function OnlineLobby({ room, myId, onStart, starting, onAddBot, onRemoveBot, onB
             } catch {}
           }}
           className="w-full tsz-12 font-semibold flex items-center justify-center gap-1 pt-1"
-          style={{ color: `${INK}77` }}
+          style={{ color: `${A(INK, "77")}` }}
         >
           <RefreshCw className="w-3 h-3" /> {t("refresh")}
         </button>
-        <button onClick={onBack} className="w-full tsz-12 font-semibold flex items-center justify-center gap-1" style={{ color: `${INK}77` }}>
+        <button onClick={onBack} className="w-full tsz-12 font-semibold flex items-center justify-center gap-1" style={{ color: `${A(INK, "77")}` }}>
           <LogOut className="w-3 h-3" /> {t("leaveRoom")}
         </button>
       </div>
@@ -6458,7 +6463,7 @@ function OnlineFlow({ onBack }) {
     <div dir={L.dir} className="hilla-root app-screen w-full flex flex-col items-center justify-center gap-3" style={{ ...pageBg, color: INK }}>
       <GlobalFont />
       <Wordmark height={44} />
-      <span className="tsz-13" style={{ color: `${INK}88` }}>{t("loading")}</span>
+      <span className="tsz-13" style={{ color: `${A(INK, "88")}` }}>{t("loading")}</span>
     </div>
   );
 }
@@ -6541,7 +6546,7 @@ function preloadAllAssets(onProgress) {
 function LoadingSplash({ progress }) {
   const { t, tb, L } = useI18n();
   return (
-    <div dir={L.dir} className="hilla-root app-fixed overflow-hidden flex items-center justify-center" style={{ background: CREAM, color: INK }}>
+    <div dir={L.dir} className="hilla-root app-fixed overflow-hidden flex items-center justify-center" style={{ ...CARD_VARS, background: SURF, color: INK }}>
       <GlobalFont />
       <div
         aria-hidden="true"
@@ -6561,10 +6566,10 @@ function LoadingSplash({ progress }) {
         style={{ background: BEIGE, borderRadius: 26, boxShadow: `0 0 0 3px ${CREAM}, 0 0 0 5px ${BRAND}, 0 24px 50px -14px rgba(0,0,0,.45)` }}
       >
         <Wordmark height={64} color={INK} />
-        <div className="w-36 h-1.5 rounded-full overflow-hidden" style={{ background: `${INK}1f` }}>
+        <div className="w-36 h-1.5 rounded-full overflow-hidden" style={{ background: `${A(INK, "1f")}` }}>
           <div className="h-full rounded-full" style={{ width: `${Math.round(progress * 100)}%`, background: BRAND, transition: "width .2s ease-out" }} />
         </div>
-        <span className="tsz-12 font-semibold" style={{ color: `${INK}99` }}>
+        <span className="tsz-12 font-semibold" style={{ color: `${A(INK, "99")}` }}>
           {t("preparing")}
         </span>
       </div>
@@ -6604,6 +6609,8 @@ const SADU_TILE = (() => {
   return `url("data:image/svg+xml;utf8,${encodeURIComponent(s)}")`;
 })();
 
+if (typeof window !== "undefined") applyTheme(loadTheme()); // saved theme + theme-color on load
+
 // Leaderboard nickname. Artifact: kept on this device. Production: profiles.nickname via
 // POST /api/profile/nickname (see hulla-leaderboard-spec.md §6), with this as a cache.
 const NICK_STORE = "hulla-nickname";
@@ -6623,7 +6630,7 @@ const nickValid = (v) => {
 function SaduToast({ msg }) {
   if (!msg) return null;
   return (
-    <div key={msg.id} className="fixed left-1/2 sd-toast tsz-13 font-bold rounded-full px-4 py-2" style={{ bottom: "calc(max(16px, env(safe-area-inset-bottom)) + 96px)", zIndex: 80, background: INK, color: CREAM, boxShadow: "0 10px 24px -10px rgba(0,0,0,.5)", whiteSpace: "nowrap" }}>
+    <div key={msg.id} className="fixed left-1/2 sd-toast tsz-13 font-bold rounded-full px-4 py-2" style={{ bottom: "calc(max(16px, env(safe-area-inset-bottom)) + 96px)", zIndex: 80, background: INK_HARD, color: CREAM, boxShadow: "0 10px 24px -10px rgba(0,0,0,.5)", whiteSpace: "nowrap" }}>
       {msg.text}
     </div>
   );
@@ -6659,7 +6666,7 @@ function SettingsSheet({ onClose, onIcon }) {
     <button onClick={onFlip} role="switch" aria-checked={on} className="w-full flex items-center justify-between gap-3 py-3" style={{ color: INK, borderTop: `1px solid ${A(INK, "12")}` }}>
       <span className="tsz-14 font-semibold">{label}</span>
       <span className="relative flex-shrink-0 rounded-full transition" style={{ width: 44, height: 26, background: on ? BRAND : A(INK, "22") }}>
-        <span className="absolute top-[3px] rounded-full transition-all" style={{ width: 20, height: 20, background: CREAM, insetInlineStart: on ? 21 : 3, boxShadow: "0 1px 3px rgba(0,0,0,.3)" }} />
+        <span className="absolute top-[3px] rounded-full transition-all" style={{ width: 20, height: 20, background: SURF, insetInlineStart: on ? 21 : 3, boxShadow: "0 1px 3px rgba(0,0,0,.3)" }} />
       </span>
     </button>
   );
@@ -6711,8 +6718,8 @@ function LangMenu() {
   const cur = LANGS.find((l) => l.code === L.code) || LANGS[0];
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} aria-label={t("sdLang")} aria-expanded={open} className="flex items-center gap-1.5 rounded-full px-3 py-2 tsz-12 font-bold" style={{ background: `${CREAM}f2`, color: INK, boxShadow: "0 4px 12px -4px rgba(0,0,0,.45)" }}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={BRAND} strokeWidth="2" aria-hidden="true">
+      <button onClick={() => setOpen((o) => !o)} aria-label={t("sdLang")} aria-expanded={open} className="flex items-center gap-1.5 rounded-full px-3 py-2 tsz-12 font-bold" style={{ background: A(SURF, "f2"), color: INK, boxShadow: "0 4px 12px -4px rgba(0,0,0,.45)" }}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ stroke: BRAND_T }} strokeWidth="2" aria-hidden="true">
           <circle cx="12" cy="12" r="10" />
           <path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20" />
         </svg>
@@ -6721,7 +6728,7 @@ function LangMenu() {
       {open && (
         <>
           <div className="app-fixed" style={{ zIndex: 41 }} onClick={() => setOpen(false)} />
-          <div className="absolute mt-2 rounded-2xl overflow-hidden hilla-pop" style={{ left: 0, zIndex: 42, minWidth: 140, background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}, 0 14px 30px -10px rgba(0,0,0,.5)` }}>
+          <div className="absolute mt-2 rounded-2xl overflow-hidden hilla-pop" style={{ left: 0, zIndex: 42, minWidth: 140, background: SURF, boxShadow: `0 0 0 1.5px ${GOLD}, 0 14px 30px -10px rgba(0,0,0,.5)` }}>
             {LANGS.map((l) => (
               <button
                 key={l.code}
@@ -6734,7 +6741,7 @@ function LangMenu() {
                 style={{ color: INK, background: l.code === cur.code ? `${GOLD}33` : "transparent" }}
               >
                 <span>{l.label}</span>
-                <span style={{ color: BRAND }}>{l.code === cur.code ? "✓" : ""}</span>
+                <span style={{ color: BRAND_T }}>{l.code === cur.code ? "✓" : ""}</span>
               </button>
             ))}
           </div>
@@ -6748,7 +6755,7 @@ function AccountChip({ nick, line, onClick }) {
   const { t } = useI18n();
   const initial = nick ? [...nick][0] : [...t("sdGuest")][0];
   return (
-    <button onClick={onClick} className="flex items-center gap-2 rounded-full py-1" style={{ paddingInlineStart: 4, paddingInlineEnd: 12, background: `${CREAM}f2`, boxShadow: "0 4px 12px -4px rgba(0,0,0,.45)", maxWidth: "60vw" }}>
+    <button onClick={onClick} className="flex items-center gap-2 rounded-full py-1" style={{ paddingInlineStart: 4, paddingInlineEnd: 12, background: A(SURF, "f2"), boxShadow: "0 4px 12px -4px rgba(0,0,0,.45)", maxWidth: "60vw" }}>
       <span className="w-8 h-8 rounded-full flex items-center justify-center tsz-14 font-bold flex-shrink-0" style={{ background: BRAND, color: CREAM, boxShadow: `0 0 0 2px ${CREAM}, 0 0 0 3.5px ${GOLD}` }}>
         {initial}
       </span>
@@ -6756,7 +6763,7 @@ function AccountChip({ nick, line, onClick }) {
         <span className="tsz-12 font-bold truncate" style={{ color: INK, maxWidth: "40vw" }}>
           {nick || t("sdGuest")}
         </span>
-        <span className="tsz-10 font-semibold truncate" style={{ color: BRAND, maxWidth: "40vw", visibility: line === null ? "hidden" : "visible" }}>
+        <span className="tsz-10 font-semibold truncate" style={{ color: BRAND_T, maxWidth: "40vw", visibility: line === null ? "hidden" : "visible" }}>
           {line ?? t("sdSaveShort")}
         </span>
       </span>
@@ -6846,9 +6853,9 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onSignIn }) {
               onChange={(e) => setDraft(e.target.value)}
               placeholder={t("sdNamePh")}
               className="w-full rounded-xl px-3 py-2.5 hstart focus:outline-none"
-              style={{ background: "#fff", color: INK, boxShadow: `inset 0 0 0 1.5px ${ok ? GOLD : INK + "22"}` }}
+              style={{ background: "var(--h-field)", color: INK, boxShadow: `inset 0 0 0 1.5px ${ok ? GOLD : A(INK, "22")}` }}
             />
-            <div className="tsz-10 mt-1" style={{ color: `${INK}77` }}>
+            <div className="tsz-10 mt-1" style={{ color: `${A(INK, "77")}` }}>
               {t("sdNameRule2")}
             </div>
 
@@ -6857,8 +6864,8 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onSignIn }) {
                 <label className="block tsz-13 font-bold mt-3 mb-1" style={{ color: INK }}>
                   {t("sdUserLabel")}
                 </label>
-                <div className="flex items-center rounded-xl overflow-hidden" dir="ltr" style={{ background: "#fff", boxShadow: `inset 0 0 0 1.5px ${uStat === "ok" ? "#366135" : uBad ? BRAND : INK + "22"}` }}>
-                  <span className="ps-3 tsz-16 font-bold" style={{ color: `${INK}55` }}>
+                <div className="flex items-center rounded-xl overflow-hidden" dir="ltr" style={{ background: "var(--h-field)", boxShadow: `inset 0 0 0 1.5px ${uStat === "ok" ? "#366135" : uBad ? BRAND : A(INK, "22")}` }}>
+                  <span className="ps-3 tsz-16 font-bold" style={{ color: `${A(INK, "55")}` }}>
                     @
                   </span>
                   <input
@@ -6878,33 +6885,33 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onSignIn }) {
                     {uStat === "ok" ? "✓" : uBad ? "✗" : uStat === "checking" ? "…" : ""}
                   </span>
                 </div>
-                <div className="tsz-10 mt-1" style={{ color: uBad ? BRAND : `${INK}77` }}>
+                <div className="tsz-10 mt-1" style={{ color: uBad ? BRAND_T : `${A(INK, "77")}` }}>
                   {uHint}
                 </div>
                 {username && (
-                  <div className="tsz-10 mt-0.5" style={{ color: `${INK}66` }}>
+                  <div className="tsz-10 mt-0.5" style={{ color: `${A(INK, "66")}` }}>
                     {t("sdUserCooldown")}
                   </div>
                 )}
               </>
             )}
             {saveErr && (
-              <div className="tsz-11 mt-2 font-semibold" style={{ color: BRAND }}>
+              <div className="tsz-11 mt-2 font-semibold" style={{ color: BRAND_T }}>
                 {saveErr}
               </div>
             )}
-            <button type="submit" disabled={!canSave} className={`w-full mt-3 py-3 tsz-15 ${btn}`} style={canSave ? btnPrimary : { background: `${INK}12`, color: `${INK}55` }}>
+            <button type="submit" disabled={!canSave} className={`w-full mt-3 py-3 tsz-15 ${btn}`} style={canSave ? btnPrimary : { background: `${A(INK, "12")}`, color: `${A(INK, "55")}` }}>
               {t("sdSave")}
             </button>
           </form>
         ) : (
           <div className="mt-3 flex items-center justify-center gap-2">
             <span className="flex flex-col items-center leading-tight">
-              <span className="display-font font-bold tsz-20" style={{ color: BRAND }}>
+              <span className="display-font font-bold tsz-20" style={{ color: BRAND_T }}>
                 {nick}
               </span>
               {username && (
-                <span className="tsz-12 font-semibold" dir="ltr" style={{ color: `${INK}77` }}>
+                <span className="tsz-12 font-semibold" dir="ltr" style={{ color: `${A(INK, "77")}` }}>
                   @{username}
                 </span>
               )}
@@ -6922,15 +6929,15 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onSignIn }) {
             </button>
           </div>
         )}
-        <div className="mt-4 rounded-2xl p-3" style={{ background: `${INK}08` }}>
+        <div className="mt-4 rounded-2xl p-3" style={{ background: `${A(INK, "08")}` }}>
           <div className="tsz-13 font-bold" style={{ color: INK }}>
             {t("sdGuestTitle")}
           </div>
-          <p className="tsz-11 mt-0.5" style={{ color: `${INK}99` }}>
+          <p className="tsz-11 mt-0.5" style={{ color: `${A(INK, "99")}` }}>
             {t("sdGuestBody")}
           </p>
           <div className="space-y-2 mt-3">
-            <button onClick={() => onSignIn("google")} className={`w-full py-3 tsz-14 flex items-center justify-center gap-2 ${btn}`} style={{ background: "#fff", color: INK, boxShadow: `inset 0 0 0 1.5px ${INK}22` }}>
+            <button onClick={() => onSignIn("google")} className={`w-full py-3 tsz-14 flex items-center justify-center gap-2 ${btn}`} style={{ background: "var(--h-field)", color: INK_HARD, boxShadow: `inset 0 0 0 1.5px ${A(INK, "22")}` }}>
               <span className="font-bold" style={{ color: "#4285F4" }}>
                 G
               </span>{" "}
@@ -6941,7 +6948,7 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onSignIn }) {
             </button>
           </div>
         </div>
-        <button onClick={onClose} className="mt-3 tsz-12 font-semibold" style={{ color: `${INK}77` }}>
+        <button onClick={onClose} className="mt-3 tsz-12 font-semibold" style={{ color: `${A(INK, "77")}` }}>
           {t("later")}
         </button>
       </div>
@@ -6956,6 +6963,7 @@ function RugCard({ title, sub, subHidden, icon, bg, fg, style, big, lifted, dela
       onClick={onClick}
       className="absolute sd-card sd-toss flex flex-col items-center justify-center text-center"
       style={{
+        ...CARD_VARS,
         width: big ? 136 : 112,
         height: big ? 186 : 154,
         background: bg,
@@ -7086,7 +7094,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
     <div
       dir={L.dir}
       className="hilla-root relative w-full app-exact flex flex-col"
-      style={{ ...pageBg, color: INK }}
+      style={{ ...pageBg, backgroundImage: "var(--h-home-img)", color: INK }}
     >
       <GlobalFont />
       {hapticNode}
@@ -7102,7 +7110,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
         <div className="absolute left-0 right-0" style={{ top: 52, background: MAROON_DK }}>
           <DiamondLattice thickness={22} />
         </div>
-        <div className="relative px-6 py-3 flex items-center" style={{ background: CREAM, borderRadius: 18, boxShadow: `0 0 0 3px ${GOLD}, 0 14px 28px -12px rgba(60,20,10,.45)` }}>
+        <div className="relative px-6 py-3 flex items-center" style={{ ...CARD_VARS, background: SURF, borderRadius: 18, boxShadow: `0 0 0 3px ${GOLD}, 0 14px 28px -12px rgba(60,20,10,.45)` }}>
           <Wordmark height={92} />
         </div>
       </div>
@@ -7126,7 +7134,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
           <div style={{ width: 340 * cardScale, height: 320 * cardScale }}>
             <div className="relative mx-auto" style={{ width: 340, height: 320, transform: `scale(${cardScale})`, transformOrigin: "top center" }}>
               <RugCard big title={t("sdOnline")} sub={t("sdOnlineSub")} bg={BRAND} fg={CREAM} lifted={lift === "online"} delays="0ms, 0.9s" icon={<Wifi className="w-10 h-10" style={{ color: GOLD }} />} style={{ left: "50%", top: 0, marginLeft: -68, transform: tilt("online", -4), zIndex: 6 }} onClick={() => play("online", onOnline)} />
-              <RugCard title={t("sdLocal")} sub={t("sdLocalSub")} bg={CREAM} fg={BRAND} lifted={lift === "local"} delays="160ms, 1.1s" icon={<Home className="w-9 h-9" style={{ color: BRAND }} />} style={{ right: 8, top: 150, transform: tilt("local", 12), zIndex: 5 }} onClick={() => play("local", onLocal)} />
+              <RugCard title={t("sdLocal")} sub={t("sdLocalSub")} bg={CREAM} fg={BRAND} lifted={lift === "local"} delays="160ms, 1.1s" icon={<Home className="w-9 h-9" style={{ color: BRAND_T }} />} style={{ right: 8, top: 150, transform: tilt("local", 12), zIndex: 5 }} onClick={() => play("local", onLocal)} />
               <RugCard title={t("sdRank")} sub={leaderLine} subHidden={board === null} bg="#2C3E63" fg={CREAM} lifted={lift === "rank"} delays="80ms, 1.3s" icon={<span style={{ fontSize: 34 }}>🏆</span>} style={{ left: 8, top: 150, transform: tilt("rank", -12), zIndex: 5 }} onClick={() => play("rank", onRank)} />
             </div>
           </div>
@@ -7134,24 +7142,26 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
 
       {/* how to play + add to home */}
       <div className="relative flex flex-wrap items-center justify-center gap-2 px-4">
-        <button onClick={onRules} className="tsz-13 font-bold rounded-full px-4 py-2" style={{ background: `${CREAM}ee`, color: BRAND }}>
+        <button onClick={onRules} className="tsz-13 font-bold rounded-full px-4 py-2" style={{ background: A(SURF, "ee"), color: BRAND_T }}>
           {t("howToPlay")}
         </button>
         {!installed && (
-          <button onClick={onInstall} className="tsz-12 font-semibold rounded-full px-4 py-2" style={{ background: `${CREAM}cc`, color: `${INK}aa` }}>
+          <button onClick={onInstall} className="tsz-12 font-semibold rounded-full px-4 py-2" style={{ background: A(SURF, "cc"), color: `${A(INK, "aa")}` }}>
             {t("addToHome")}
           </button>
         )}
       </div>
       </div>
       <div className="relative text-center px-4 mt-2" style={{ paddingBottom: "max(14px, calc(env(safe-area-inset-bottom) + 8px))" }}>
+        <div className="h-plate">
         <GoldRule className="my-1.5" />
-        <p className="tsz-12 font-bold mt-1" style={{ color: BRAND }}>
+        <p className="tsz-12 font-bold mt-1" style={{ color: BRAND_T }}>
           {t("madeBy")}
         </p>
-        <p className="tsz-11 mt-0.5" style={{ color: `${INK}77` }}>
+        <p className="tsz-11 mt-0.5" style={{ color: `${A(INK, "77")}` }}>
           {t("credit")}
         </p>
+        </div>
       </div>
 
       {profile && (
@@ -7235,14 +7245,14 @@ function WinPoints({ gameId }) {
   }, [gameId]);
   if (notCounted) {
     return (
-      <div className="tsz-11 font-semibold text-center mt-2" style={{ color: `${INK}88` }}>
+      <div className="tsz-11 font-semibold text-center mt-2" style={{ color: `${A(INK, "88")}` }}>
         {t(notCounted)}
       </div>
     );
   }
   if (points === null) return null;
   return (
-    <div className="mt-3 text-center tsz-14 font-bold rounded-xl py-2 hilla-pop" style={{ background: `${GOLD}26`, color: BRAND }}>
+    <div className="mt-3 text-center tsz-14 font-bold rounded-xl py-2 hilla-pop" style={{ background: `${GOLD}26`, color: BRAND_T }}>
       {t("winPoints", { n: L.num(points) })}
     </div>
   );
@@ -7278,22 +7288,22 @@ function ScoringSheet({ onClose }) {
   return (
     <Sheet onBackdrop={onClose} maxW={360} z={90}>
       <div dir={L.dir}>
-        <div className="display-font font-bold tsz-20 text-center mb-3" style={{ color: BRAND }}>
+        <div className="display-font font-bold tsz-20 text-center mb-3" style={{ color: BRAND_T }}>
           {t("lbHowTitle")}
         </div>
         <div className="rounded-2xl overflow-hidden" style={{ boxShadow: `inset 0 0 0 1.5px ${GOLD}` }}>
           {rows.map(([label, pts], i) => (
-            <div key={label} className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: i ? `1px solid ${INK}14` : "none" }}>
+            <div key={label} className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: i ? `1px solid ${A(INK, "14")}` : "none" }}>
               <span className="tsz-14 font-semibold" style={{ color: INK }}>
                 {label}
               </span>
-              <span dir="ltr" className="tsz-15 font-bold" style={{ color: BRAND }}>
+              <span dir="ltr" className="tsz-15 font-bold" style={{ color: BRAND_T }}>
                 {pts}
               </span>
             </div>
           ))}
         </div>
-        <p className="tsz-12 mt-3 hstart" style={{ color: `${INK}88` }}>
+        <p className="tsz-12 mt-3 hstart" style={{ color: `${A(INK, "88")}` }}>
           {t("lbHowNote")}
         </p>
         <button onClick={onClose} className={`w-full mt-4 py-3 tsz-14 ${btn}`} style={btnPrimary}>
@@ -7347,17 +7357,17 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
   const Row = ({ row, pinned }) => (
     <div
       className="flex items-center gap-3 px-3 py-2.5 rounded-2xl"
-      style={{ background: isMe(row) || pinned ? `${GOLD}2e` : `${CREAM}`, boxShadow: isMe(row) || pinned ? `inset 0 0 0 1.5px ${GOLD}` : `0 0 0 1px ${INK}10` }}
+      style={{ background: isMe(row) || pinned ? `${GOLD}2e` : `${CREAM}`, boxShadow: isMe(row) || pinned ? `inset 0 0 0 1.5px ${GOLD}` : `0 0 0 1px ${A(INK, "10")}` }}
     >
-      <span className="w-8 text-center font-bold tsz-14 flex-shrink-0" style={{ color: BRAND }}>
+      <span className="w-8 text-center font-bold tsz-14 flex-shrink-0" style={{ color: BRAND_T }}>
         {L.num(row.rank)}
       </span>
       <div className="flex-1 min-w-0 hstart">
         <div className="tsz-14 font-bold truncate" style={{ color: INK }}>
           {row.nickname}
-          {isMe(row) || pinned ? <span className="tsz-11 font-semibold" style={{ color: BRAND }}> · {t("you")}</span> : null}
+          {isMe(row) || pinned ? <span className="tsz-11 font-semibold" style={{ color: BRAND_T }}> · {t("you")}</span> : null}
         </div>
-        <div className="tsz-11" style={{ color: `${INK}88` }}>
+        <div className="tsz-11" style={{ color: `${A(INK, "88")}` }}>
           {t("lbGamesWins", { g: L.num(row.games), w: L.num(row.wins) })}
         </div>
       </div>
@@ -7372,39 +7382,39 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
       <GlobalFont />
       <TopBar
         start={
-          <button onClick={onBack} className="rounded-full px-4 py-2 tsz-13 font-bold" style={{ background: `${CREAM}f2`, color: BRAND, boxShadow: "0 4px 12px -4px rgba(0,0,0,.25)" }}>
+          <button onClick={onBack} className="rounded-full px-4 py-2 tsz-13 font-bold" style={{ background: A(SURF, "f2"), color: BRAND_T, boxShadow: "0 4px 12px -4px rgba(0,0,0,.25)" }}>
             {t("back")}
           </button>
         }
       />
       <div className="w-full max-w-md mx-auto px-4 flex-1 min-h-0 flex flex-col" style={{ paddingTop: "calc(max(16px, env(safe-area-inset-top)) + 64px)", paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
         <div className="text-center">
-          <div className="display-font font-bold tsz-28 leading-none" style={{ color: BRAND }}>
+          <div className="display-font font-bold tsz-28 leading-none" style={{ color: BRAND_T }}>
             🏆 {t("lbTitle")}
           </div>
           <div className="mt-1.5 flex items-center justify-center gap-2" style={{ minHeight: 24 }}>
-            <span className="tsz-13 font-semibold" style={{ color: `${INK}88` }}>
+            <span className="tsz-13 font-semibold" style={{ color: `${A(INK, "88")}` }}>
               {sub}
             </span>
             <button
               onClick={() => setHowOpen(true)}
               aria-label={t("lbHowTitle")}
               className="w-6 h-6 rounded-full flex items-center justify-center tsz-12 font-bold flex-shrink-0"
-              style={{ background: `${INK}12`, color: BRAND }}
+              style={{ background: `${A(INK, "12")}`, color: BRAND_T }}
             >
               ؟
             </button>
           </div>
         </div>
 
-        <div className="flex gap-1.5 p-1 rounded-2xl mt-4" style={{ background: `${INK}0d` }}>
-          <button onClick={() => { setScope("friends"); setGlobalTapped(false); }} className="flex-1 py-2 rounded-xl tsz-13 font-bold" style={scope === "friends" ? { background: BRAND, color: CREAM } : { background: "transparent", color: `${INK}99` }}>
+        <div className="flex gap-1.5 p-1 rounded-2xl mt-4" style={{ background: `${A(INK, "0d")}` }}>
+          <button onClick={() => { setScope("friends"); setGlobalTapped(false); }} className="flex-1 py-2 rounded-xl tsz-13 font-bold" style={scope === "friends" ? { background: BRAND, color: CREAM } : { background: "transparent", color: `${A(INK, "99")}` }}>
             {t("lbFriends")}
           </button>
           <button
             onClick={() => (LEADERBOARD_OPEN ? setScope("all") : setGlobalTapped(true))}
             className="flex-1 py-2 rounded-xl tsz-13 font-bold flex items-center justify-center gap-1.5"
-            style={scope === "all" ? { background: BRAND, color: CREAM } : { background: "transparent", color: `${INK}99`, opacity: LEADERBOARD_OPEN ? 1 : 0.6 }}
+            style={scope === "all" ? { background: BRAND, color: CREAM } : { background: "transparent", color: `${A(INK, "99")}`, opacity: LEADERBOARD_OPEN ? 1 : 0.6 }}
           >
             {t("lbAll")}
             {!LEADERBOARD_OPEN && (
@@ -7414,13 +7424,13 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
             )}
           </button>
         </div>
-        <div className="tsz-11 text-center mt-1.5 font-semibold" style={{ color: globalTapped ? BRAND : `${INK}88` }}>
+        <div className="tsz-11 text-center mt-1.5 font-semibold" style={{ color: globalTapped ? BRAND_T : `${A(INK, "88")}` }}>
           {globalTapped ? t("lbGlobalSoon") : scope === "friends" ? t("lbFriendsNote") : " "}
         </div>
 
         {/* your stats: only once the player has counted games (and isn't on the empty friends state) */}
         {me && !noFriends && (
-          <div className="grid grid-cols-4 gap-1 mt-3 rounded-2xl px-2 py-2" style={{ background: CREAM, boxShadow: `inset 0 0 0 1.5px ${GOLD}` }}>
+          <div className="grid grid-cols-4 gap-1 mt-3 rounded-2xl px-2 py-2" style={{ background: SURF, boxShadow: `inset 0 0 0 1.5px ${GOLD}` }}>
             {[
               [t("lbStatRank"), L.num(me.rank)],
               [t("lbStatPoints"), L.num(me.points)],
@@ -7428,10 +7438,10 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
               [t("lbStatWins"), L.num(me.wins)],
             ].map(([label, value]) => (
               <div key={label} className="text-center min-w-0">
-                <div className="tsz-17 font-bold leading-tight" style={{ color: BRAND }}>
+                <div className="tsz-17 font-bold leading-tight" style={{ color: BRAND_T }}>
                   {value}
                 </div>
-                <div className="tsz-10 font-semibold truncate" style={{ color: `${INK}88` }}>
+                <div className="tsz-10 font-semibold truncate" style={{ color: `${A(INK, "88")}` }}>
                   {label}
                 </div>
               </div>
@@ -7440,7 +7450,7 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
         )}
 
         {state.status === "loading" && (
-          <div className="flex-1 flex items-center justify-center tsz-13" style={{ color: `${INK}88` }}>
+          <div className="flex-1 flex items-center justify-center tsz-13" style={{ color: `${A(INK, "88")}` }}>
             {t("lbLoading")}
           </div>
         )}
@@ -7459,10 +7469,10 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
         {noFriends && (
           <div className="flex-1 flex flex-col items-center justify-center text-center px-6 gap-2">
             <div style={{ fontSize: 44 }}>🤝</div>
-            <div className="tsz-17 font-bold" style={{ color: BRAND }}>
+            <div className="tsz-17 font-bold" style={{ color: BRAND_T }}>
               {t("lbNoFriendsTitle")}
             </div>
-            <p className="tsz-13" style={{ color: `${INK}99` }}>
+            <p className="tsz-13" style={{ color: `${A(INK, "99")}` }}>
               {t("lbNoFriendsBody")}
             </p>
             <button onClick={onPlayOnline} className={`mt-2 px-6 py-3 tsz-14 flex items-center gap-2 ${btn}`} style={btnPrimary}>
@@ -7472,7 +7482,7 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
         )}
 
         {state.status === "ok" && !noFriends && top.length === 0 && (
-          <div className="flex-1 flex items-center justify-center text-center px-6 tsz-14 font-semibold" style={{ color: `${INK}99` }}>
+          <div className="flex-1 flex items-center justify-center text-center px-6 tsz-14 font-semibold" style={{ color: `${A(INK, "99")}` }}>
             {t("lbEmpty")}
           </div>
         )}
@@ -7486,7 +7496,7 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
                 const initial = row ? [...row.nickname][0] : "؟";
                 return (
                   <div key={place} className="flex-1 flex flex-col items-center min-w-0" style={{ maxWidth: 110, opacity: row ? 1 : 0.55 }}>
-                    <span className="w-9 h-9 rounded-full flex items-center justify-center tsz-15 font-bold mb-1" style={{ background: row ? BRAND : `${INK}22`, color: CREAM, boxShadow: `0 0 0 2px ${CREAM}, 0 0 0 3.5px ${MEDAL[place - 1]}` }}>
+                    <span className="w-9 h-9 rounded-full flex items-center justify-center tsz-15 font-bold mb-1" style={{ background: row ? BRAND : `${A(INK, "22")}`, color: CREAM, boxShadow: `0 0 0 2px ${CREAM}, 0 0 0 3.5px ${MEDAL[place - 1]}` }}>
                       {initial}
                     </span>
                     <div
@@ -7497,11 +7507,11 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
                         setDuelWith(row);
                       }}
                       className={`tsz-13 font-bold truncate w-full text-center ${row && !isMe(row) ? "cursor-pointer" : ""}`}
-                      style={{ color: row && isMe(row) ? BRAND : INK }}
+                      style={{ color: row && isMe(row) ? BRAND_T : INK }}
                     >
                       {row ? row.nickname : meOnPodium ? t("lbInvite") : t("lbYourSpot")}
                     </div>
-                    <div dir={L.dir} className="tsz-11 font-semibold mb-1" style={{ color: `${INK}99`, visibility: row ? "visible" : "hidden" }}>
+                    <div dir={L.dir} className="tsz-11 font-semibold mb-1" style={{ color: `${A(INK, "99")}`, visibility: row ? "visible" : "hidden" }}>
                       {row ? L.points(row.points) : "·"}
                     </div>
                     <div
@@ -7522,8 +7532,8 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
             </div>
 
             {/* everyone, top 3 included, with wins / games and points; scrolls inside, the page never does */}
-            <div className="mt-4 flex-1 min-h-0 overflow-y-auto rounded-2xl" style={{ overscrollBehavior: "contain", background: CREAM, boxShadow: `0 0 0 1.5px ${GOLD}55` }}>
-              <div className="flex items-center px-3 py-2 tsz-10 font-bold sticky top-0" style={{ color: `${INK}77`, borderBottom: `1px solid ${INK}10`, background: CREAM }}>
+            <div className="mt-4 flex-1 min-h-0 overflow-y-auto rounded-2xl" style={{ overscrollBehavior: "contain", background: SURF, boxShadow: `0 0 0 1.5px ${GOLD}55` }}>
+              <div className="flex items-center px-3 py-2 tsz-10 font-bold sticky top-0" style={{ color: `${A(INK, "77")}`, borderBottom: `1px solid ${A(INK, "10")}`, background: SURF }}>
                 <span style={{ width: 28 }}>#</span>
                 <span className="flex-1">{t("lbColPlayer")}</span>
                 <span style={{ width: 64, textAlign: "center" }}>{t("lbColWinsGames")}</span>
@@ -7544,30 +7554,30 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
                       setDuelWith(row);
                     }}
                     className={`flex items-center px-3 py-2.5 ${mine ? "" : "cursor-pointer"}`}
-                    style={{ borderBottom: `1px solid ${INK}0c`, background: mine ? `${GOLD}33` : "transparent" }}
+                    style={{ borderBottom: `1px solid ${A(INK, "0c")}`, background: mine ? `${GOLD}33` : "transparent" }}
                   >
-                    <span className="tsz-13 font-bold" style={{ width: 28, color: row.rank <= 3 ? MEDAL[row.rank - 1] : `${INK}88` }}>
+                    <span className="tsz-13 font-bold" style={{ width: 28, color: row.rank <= 3 ? MEDAL[row.rank - 1] : `${A(INK, "88")}` }}>
                       {L.num(row.rank)}
                     </span>
                     <NameAvatar name={row.nickname} size={28} ring={ring} />
                     <span className="flex-1 ms-2 min-w-0 leading-tight">
-                      <span className="block tsz-13 font-semibold truncate" style={{ color: mine ? BRAND : INK }}>
+                      <span className="block tsz-13 font-semibold truncate" style={{ color: mine ? BRAND_T : INK }}>
                         {row.nickname}
                         {mine ? ` · ${t("you")}` : ""}
                       </span>
                       {row.username && (
-                        <span className="block tsz-10 truncate" dir="ltr" style={{ color: `${INK}66`, textAlign: L.dir === "rtl" ? "right" : "left" }}>
+                        <span className="block tsz-10 truncate" dir="ltr" style={{ color: `${A(INK, "66")}`, textAlign: L.dir === "rtl" ? "right" : "left" }}>
                           @{row.username}
                         </span>
                       )}
                     </span>
-                    <span dir="ltr" className="tsz-12" style={{ width: 64, textAlign: "center", color: `${INK}88` }}>
+                    <span dir="ltr" className="tsz-12" style={{ width: 64, textAlign: "center", color: `${A(INK, "88")}` }}>
                       {L.isAr ? `${L.num(row.games)} / ${L.num(row.wins)}` : `${L.num(row.wins)} / ${L.num(row.games)}`}
                     </span>
-                    <span className="tsz-14 font-bold hend" style={{ width: 44, color: BRAND }}>
+                    <span className="tsz-14 font-bold hend" style={{ width: 44, color: BRAND_T }}>
                       {L.num(row.points)}
                     </span>
-                    <span className="tsz-12 hend" style={{ width: 14, color: mine ? "transparent" : `${INK}44` }}>
+                    <span className="tsz-12 hend" style={{ width: 14, color: mine ? "transparent" : `${A(INK, "44")}` }}>
                       ‹
                     </span>
                   </div>
@@ -7575,7 +7585,7 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
               })}
             </div>
             {top.some((row) => !isMe(row)) && (
-              <div className="tsz-11 text-center mt-1.5 flex-shrink-0" style={{ color: `${INK}77` }}>
+              <div className="tsz-11 text-center mt-1.5 flex-shrink-0" style={{ color: `${A(INK, "77")}` }}>
                 {t("lbDuelHint")}
               </div>
             )}
@@ -7584,7 +7594,7 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
               <div className="mt-2 flex-shrink-0">
                 <Row row={me} pinned />
                 {me.toNext ? (
-                  <div className="tsz-11 text-center mt-1 font-semibold" style={{ color: BRAND }}>
+                  <div className="tsz-11 text-center mt-1 font-semibold" style={{ color: BRAND_T }}>
                     {t("lbToNext", { p: L.num(me.toNext.points), r: L.num(me.toNext.rank) })}
                   </div>
                 ) : null}
@@ -7693,10 +7703,10 @@ function AppIconPicker({ value, onChange, onClose, installEvent, onInstalled }) 
   const steps = ios ? [t("iosStep1"), t("iosStep2"), t("iosStep3")] : [t("andStep1"), t("andStep2")];
   return (
     <Sheet onBackdrop={onClose} maxW={400}>
-      <div className="display-font font-bold tsz-20 mb-1" style={{ color: BRAND }}>
+      <div className="display-font font-bold tsz-20 mb-1" style={{ color: BRAND_T }}>
         {t("installTitle")}
       </div>
-      <div className="tsz-12 mb-4" style={{ color: `${INK}88` }}>
+      <div className="tsz-12 mb-4" style={{ color: `${A(INK, "88")}` }}>
         {t("appIconHint")}
       </div>
       <div dir="rtl" className="grid grid-cols-3 gap-3 justify-items-center">
@@ -7718,7 +7728,7 @@ function AppIconPicker({ value, onChange, onClose, installEvent, onInstalled }) 
       </div>
 
       {showSteps ? (
-        <div className="mt-5 rounded-2xl p-3 hstart hilla-pop" style={{ background: `${INK}08` }}>
+        <div className="mt-5 rounded-2xl p-3 hstart hilla-pop" style={{ background: `${A(INK, "08")}` }}>
           <div className="tsz-13 font-bold mb-2" style={{ color: INK }}>
             {ios ? t("iosHow") : t("andHow")}
           </div>
@@ -7738,7 +7748,7 @@ function AppIconPicker({ value, onChange, onClose, installEvent, onInstalled }) 
       <button onClick={install} className={`w-full mt-5 py-3 tsz-14 flex items-center justify-center gap-2 ${btn}`} style={btnPrimary}>
         {t("addToHome")}
       </button>
-      <button onClick={onClose} className="w-full mt-3 tsz-12 font-semibold" style={{ color: `${INK}77` }}>
+      <button onClick={onClose} className="w-full mt-3 tsz-12 font-semibold" style={{ color: `${A(INK, "77")}` }}>
         {t("later")}
       </button>
     </Sheet>
@@ -7800,7 +7810,7 @@ function HillaApp() {
 
   if (mode === "boot") {
     return (
-      <div dir="rtl" className="hilla-root app-screen w-full flex items-center justify-center" style={{ ...pageBg, color: MAROON }}>
+      <div dir="rtl" className="hilla-root app-screen w-full flex items-center justify-center" style={{ ...pageBg, color: BRAND_T }}>
         <GlobalFont />
         {t("loading")}
       </div>
@@ -7865,6 +7875,9 @@ function HillaApp() {
 // Language lives above everything (default Arabic on every load, never remembered).
 export default function HillaGame() {
   const [lang, setLang] = useState("ar");
+  // If React re-renders the document while recovering from a hydration mismatch, <html> loses the theme
+  // the layout script set. Put it back before that frame paints.
+  (typeof window === "undefined" ? useEffect : React.useLayoutEffect)(() => applyTheme(loadTheme()), []);
   const value = useMemo(() => ({ ...makeI18n(lang), setLang }), [lang]);
 
   // #51 preload splash — an overlay on top of the app, not a gate: the online flow (session

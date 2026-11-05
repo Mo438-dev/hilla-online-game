@@ -56,12 +56,17 @@ export const metadata: Metadata = {
 // visible window (innerHeight), which also follows Safari's toolbar. Re-measured on resize/rotation.
 const APP_HEIGHT_SCRIPT = `(function(){try{var d=document.documentElement;function set(){var h=window.innerHeight;if(window.navigator.standalone===true){var p=window.matchMedia("(orientation: portrait)").matches;var s=p?Math.max(screen.width,screen.height):Math.min(screen.width,screen.height);if(s>h)h=s;}if(h>0)d.style.setProperty("--app-h",h+"px");}window.__hullaSetAppH=set;set();window.addEventListener("resize",set);window.addEventListener("orientationchange",function(){setTimeout(set,300);});}catch(e){}})();`;
 
+// Sets the saved theme before first paint so the wrong theme never flashes. Game screens only: admin
+// and analytics pages keep their own look.
+const THEME_SCRIPT = `(function(){try{if(/^\\/(admin|analytics)(\\/|$)/.test(location.pathname))return;var p=localStorage.getItem("hulla-theme")||"light";var t=p==="dark"||(p==="system"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";var d=document.documentElement;d.dataset.hillaTheme=t;d.style.colorScheme=t;}catch(e){}})();`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className={`${plex.variable} ${markazi.variable}`}>
+    <html lang="ar" dir="rtl" className={`${plex.variable} ${markazi.variable}`} suppressHydrationWarning>
       <head>
         {/* Sets --app-h (see globals.css) before first paint, so the splash is full height too. */}
         <script dangerouslySetInnerHTML={{ __html: APP_HEIGHT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body>
         {children}

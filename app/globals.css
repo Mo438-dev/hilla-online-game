@@ -7,11 +7,53 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background-color: #f3e9d2;
-  background-image: linear-gradient(135deg, #c9a2270d 25%, transparent 25%), linear-gradient(225deg, #c9a2270d 25%, transparent 25%),
+  background-color: var(--h-page);
+  background-image: var(--h-page-img);
+  background-position: var(--h-page-pos);
+  background-size: var(--h-page-size);
+}
+
+/* Game theme. Light is the zigzag paper; dark is the Sadu rug under a dark wash. Cards reset these with
+   CARD_VARS in HillaGame.tsx. The data-hilla-theme attribute is set before paint by the layout script. */
+:root {
+  --h-ink: #231f20;
+  --h-surf: #fcf3e2;
+  --h-sunk: #f1e5cb;
+  --h-brand-t: #85152d;
+  --h-page: #f3e9d2;
+  --h-page-img: linear-gradient(135deg, #c9a2270d 25%, transparent 25%), linear-gradient(225deg, #c9a2270d 25%, transparent 25%),
     linear-gradient(45deg, #c9a2270d 25%, transparent 25%), linear-gradient(315deg, #c9a2270d 25%, transparent 25%);
-  background-position: 20px 0, 20px 0, 0 0, 0 0;
-  background-size: 40px 40px;
+  --h-page-pos: 20px 0, 20px 0, 0 0, 0 0;
+  --h-page-size: 40px 40px;
+  --h-home-img: var(--h-page-img);
+  --h-scrim: rgba(35, 31, 32, 0.5);
+  --h-gold-t: #5a3f0c;
+  --h-maroon-t: #5e0f20;
+  --h-field: #fff;
+  --h-sadu: url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'96'%20height%3D'300'%20viewBox%3D'0%200%2096%20300'%3E%3Crect%20width%3D'96'%20height%3D'300'%20fill%3D'%239B1B2A'%2F%3E%3Crect%20y%3D'0'%20width%3D'96'%20height%3D'26'%20fill%3D'%233B3132'%2F%3E%3Cpolygon%20points%3D'0%2C26%2012%2C26%206%2C36'%20fill%3D'%233B3132'%2F%3E%3Cpolygon%20points%3D'12%2C26%2024%2C26%2018%2C36'%20fill%3D'%233B3132'%2F%3E%3Cpolygon%20points%3D'24%2C26%2036%2C26%2030%2C36'%20fill%3D'%233B3132'%2F%3E%3Cpolygon%20points%3D'36%2C26%2048%2C26%2042%2C36'%20fill%3D'%233B3132'%2F%3E%3Cpolygon%20points%3D'48%2C26%2060%2C26%2054%2C36'%20fill%3D'%233B3132'%2F%3E%3Cpolygon%20points%3D'60%2C26%2072%2C26%2066%2C36'%20fill%3D'%233B3132'%2F%3E%3Cpolygon%20points%3D'72%2C26%2084%2C26%2078%2C36'%20fill%3D'%233B3132'%2F%3E%3Cpolygon%20points%3D'84%2C26%2096%2C26%2090%2C36'%20fill%3D'%233B3132'%2F%3E%3Crect%20y%3D'38'%20width%3D'96'%20height%3D'4'%20fill%3D'%23F6EEDC'%2F%3E%3Cpolygon%20points%3D'0%2C50%2026%2C82%200%2C114%20-26%2C82'%20fill%3D'none'%20stroke%3D'%23F6EEDC'%20stroke-width%3D'5'%2F%3E%3Cpolygon%20points%3D'0%2C70%2010%2C82%200%2C94%20-10%2C82'%20fill%3D'%233B3132'%2F%3E%3Cpolygon%20points%3D'48%2C50%2074%2C82%2048%2C114%2022%2C82'%20fill%3D'none'%20stroke%3D'%23F6EEDC'%20stroke-width%3D'5'%2F%3E%3Cpolygon%20points%3D'48%2C70%2058%2C82%2048%2C94%2038%2C82'%20fill%3D'%233B3132'%2F%3E%3Cpolygon%20points%3D'96%2C50%20122%2C82%2096%2C114%2070%2C82'%20fill%3D'none'%20stroke%3D'%23F6EEDC'%20stroke-width%3D'5'%2F%3E%3Cpolygon%20points%3D'96%2C70%20106%2C82%2096%2C94%2086%2C82'%20fill%3D'%233B3132'%2F%3E%3Crect%20y%3D'122'%20width%3D'96'%20height%3D'4'%20fill%3D'%23F6EEDC'%2F%3E%3Crect%20y%3D'130'%20width%3D'96'%20height%3D'22'%20fill%3D'%23E2CFA6'%2F%3E%3Cpolygon%20points%3D'0%2C152%208%2C134%2016%2C152'%20fill%3D'%239B1B2A'%2F%3E%3Cpolygon%20points%3D'16%2C152%2024%2C134%2032%2C152'%20fill%3D'%239B1B2A'%2F%3E%3Cpolygon%20points%3D'32%2C152%2040%2C134%2048%2C152'%20fill%3D'%239B1B2A'%2F%3E%3Cpolygon%20points%3D'48%2C152%2056%2C134%2064%2C152'%20fill%3D'%239B1B2A'%2F%3E%3Cpolygon%20points%3D'64%2C152%2072%2C134%2080%2C152'%20fill%3D'%239B1B2A'%2F%3E%3Cpolygon%20points%3D'80%2C152%2088%2C134%2096%2C152'%20fill%3D'%239B1B2A'%2F%3E%3Crect%20y%3D'152'%20width%3D'96'%20height%3D'4'%20fill%3D'%233B3132'%2F%3E%3Crect%20y%3D'164'%20width%3D'96'%20height%3D'40'%20fill%3D'%23F6EEDC'%2F%3E%3Cpolygon%20points%3D'0%2C184%2012%2C168%2024%2C184%2012%2C200'%20fill%3D'%239B1B2A'%2F%3E%3Crect%20x%3D'9'%20y%3D'181'%20width%3D'6'%20height%3D'6'%20fill%3D'%233B3132'%2F%3E%3Cpolygon%20points%3D'24%2C184%2036%2C168%2048%2C184%2036%2C200'%20fill%3D'%239B1B2A'%2F%3E%3Crect%20x%3D'33'%20y%3D'181'%20width%3D'6'%20height%3D'6'%20fill%3D'%233B3132'%2F%3E%3Cpolygon%20points%3D'48%2C184%2060%2C168%2072%2C184%2060%2C200'%20fill%3D'%239B1B2A'%2F%3E%3Crect%20x%3D'57'%20y%3D'181'%20width%3D'6'%20height%3D'6'%20fill%3D'%233B3132'%2F%3E%3Cpolygon%20points%3D'72%2C184%2084%2C168%2096%2C184%2084%2C200'%20fill%3D'%239B1B2A'%2F%3E%3Crect%20x%3D'81'%20y%3D'181'%20width%3D'6'%20height%3D'6'%20fill%3D'%233B3132'%2F%3E%3Crect%20y%3D'212'%20width%3D'96'%20height%3D'4'%20fill%3D'%233B3132'%2F%3E%3Crect%20x%3D'0'%20y%3D'224'%20width%3D'4'%20height%3D'14'%20fill%3D'%23F6EEDC'%2F%3E%3Crect%20x%3D'8'%20y%3D'224'%20width%3D'4'%20height%3D'14'%20fill%3D'%23F6EEDC'%2F%3E%3Crect%20x%3D'16'%20y%3D'224'%20width%3D'4'%20height%3D'14'%20fill%3D'%23F6EEDC'%2F%3E%3Crect%20x%3D'24'%20y%3D'224'%20width%3D'4'%20height%3D'14'%20fill%3D'%23F6EEDC'%2F%3E%3Crect%20x%3D'32'%20y%3D'224'%20width%3D'4'%20height%3D'14'%20fill%3D'%23F6EEDC'%2F%3E%3Crect%20x%3D'40'%20y%3D'224'%20width%3D'4'%20height%3D'14'%20fill%3D'%23F6EEDC'%2F%3E%3Crect%20x%3D'48'%20y%3D'224'%20width%3D'4'%20height%3D'14'%20fill%3D'%23F6EEDC'%2F%3E%3Crect%20x%3D'56'%20y%3D'224'%20width%3D'4'%20height%3D'14'%20fill%3D'%23F6EEDC'%2F%3E%3Crect%20x%3D'64'%20y%3D'224'%20width%3D'4'%20height%3D'14'%20fill%3D'%23F6EEDC'%2F%3E%3Crect%20x%3D'72'%20y%3D'224'%20width%3D'4'%20height%3D'14'%20fill%3D'%23F6EEDC'%2F%3E%3Crect%20x%3D'80'%20y%3D'224'%20width%3D'4'%20height%3D'14'%20fill%3D'%23F6EEDC'%2F%3E%3Crect%20x%3D'88'%20y%3D'224'%20width%3D'4'%20height%3D'14'%20fill%3D'%23F6EEDC'%2F%3E%3Crect%20y%3D'246'%20width%3D'96'%20height%3D'54'%20fill%3D'%23E2CFA6'%2F%3E%3Cpolygon%20points%3D'16%2C254%2030%2C273%2016%2C292%202%2C273'%20fill%3D'%239B1B2A'%2F%3E%3Cpolygon%20points%3D'16%2C266%2021%2C273%2016%2C280%2011%2C273'%20fill%3D'%23F6EEDC'%2F%3E%3Cpolygon%20points%3D'48%2C254%2062%2C273%2048%2C292%2034%2C273'%20fill%3D'%239B1B2A'%2F%3E%3Cpolygon%20points%3D'48%2C266%2053%2C273%2048%2C280%2043%2C273'%20fill%3D'%23F6EEDC'%2F%3E%3Cpolygon%20points%3D'80%2C254%2094%2C273%2080%2C292%2066%2C273'%20fill%3D'%239B1B2A'%2F%3E%3Cpolygon%20points%3D'80%2C266%2085%2C273%2080%2C280%2075%2C273'%20fill%3D'%23F6EEDC'%2F%3E%3C%2Fsvg%3E");
+}
+:root[data-hilla-theme="dark"] {
+  --h-ink: #f4ead8;
+  --h-surf: #2a1d1b;
+  --h-sunk: #3a2824;
+  --h-brand-t: #f0a9b6;
+  --h-page: #3a0f15;
+  --h-page-img: linear-gradient(rgba(24, 8, 10, 0.78), rgba(24, 8, 10, 0.78)), var(--h-sadu);
+  --h-home-img: radial-gradient(ellipse at 50% 55%, rgba(24, 8, 10, 0.18) 30%, rgba(24, 8, 10, 0.62) 100%), var(--h-sadu);
+  --h-gold-t: #f2d08a;
+  --h-maroon-t: #ebc2c9;
+  --h-field: #3a2824;
+  --h-page-pos: 0 0, 0 0;
+  --h-page-size: auto, 96px 300px;
+  --h-scrim: rgba(8, 3, 4, 0.66);
+  color-scheme: dark;
+}
+:root[data-hilla-theme="dark"] .h-plate {
+  background: rgba(24, 8, 10, 0.7);
+  border-radius: 16px;
+  padding: 2px 10px 6px;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 
 * {
@@ -26,10 +68,6 @@ body {
    safe-area padding. The CSS values below are only the fallback until the script runs. */
 :root {
   --app-h: 100vh;
-  /* Game theme, light values (see themeCss in HillaGame.tsx). */
-  --h-surf: #fcf3e2;
-  --h-sunk: #f1e5cb;
-  --h-brand-t: #85152d;
 }
 @supports (height: 100dvh) {
   :root {
