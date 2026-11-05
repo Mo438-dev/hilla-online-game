@@ -48,6 +48,33 @@ body {
   --h-scrim: rgba(8, 3, 4, 0.66);
   color-scheme: dark;
 }
+@keyframes rm-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+.rm-in {
+  animation: rm-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+@keyframes rm-dot {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.35);
+  }
+}
+.rm-dot {
+  animation: rm-dot 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rm-in,
+  .rm-dot {
+    animation: none;
+  }
+}
 :root[data-hilla-theme="dark"] .h-plate {
   background: rgba(24, 8, 10, 0.7);
   border-radius: 16px;

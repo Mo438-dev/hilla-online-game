@@ -1055,7 +1055,7 @@ const I18N = {
     noClothing: "You have no clothing cards.", pickMatching: "Pick cards that match",
     playN1: "Play the card", playN2: "Play both cards", playN: "Play {n} cards", endTurn: "I'm done",
     log: "Log", passTo: "Pass the device to", reveal: "Reveal your hand",
-    youWon: "You won!", wonName: "{name} won!", playAgain: "Play again",
+    youWon: "You won!", wonName: "{name} won!", playAgain: "Play again", rmBy: "{name} wants a rematch", rmSub: "Join to play again with the same people", rmJoin: "Join {name}", rmMaking: "Setting up the room…",
     // pending action
     youUse: "You're using", usesX: "{name} is using", againstYou: "Against you!", against: "Against {name}",
     canBlockYou: "You can use <b>No You Don't!</b> before the countdown ends.", autoResolve: "It goes through automatically after the countdown.",
@@ -1132,7 +1132,7 @@ const I18N = {
     noClothing: "No tienes cartas de ropa.", pickMatching: "Elige cartas que coincidan",
     playN1: "Jugar la carta", playN2: "Jugar las dos cartas", playN: "Jugar {n} cartas", endTurn: "Terminé",
     log: "Registro", passTo: "Pasa el dispositivo a", reveal: "Mostrar tu mano",
-    youWon: "¡Ganaste!", wonName: "¡Ganó {name}!", playAgain: "Jugar otra vez",
+    youWon: "¡Ganaste!", wonName: "¡Ganó {name}!", playAgain: "Jugar otra vez", rmBy: "{name} quiere la revancha", rmSub: "Únete para jugar con las mismas personas", rmJoin: "Unirme a {name}", rmMaking: "Preparando la sala…",
     youUse: "Estás usando", usesX: "{name} está usando", againstYou: "¡Contra ti!", against: "Contra {name}",
     canBlockYou: "Puedes usar <b>¡Ni hablar!</b> antes de que acabe la cuenta atrás.", autoResolve: "Se aplica sola al acabar la cuenta atrás.",
     anyoneBlock: "Quien tenga <b>¡Ni hablar!</b> puede usarla ahora; si no, se aplica al acabar la cuenta atrás.",
@@ -1208,7 +1208,7 @@ Object.assign(I18N.ar, {
   noClothing: "ما عندك عناصر لبس.", pickMatching: "اختر كروت تطابق التنسيق",
   playN1: "حط الكرت", playN2: "حط الكرتين", playN: "حط {n} كروت", playN11: "حط {n} كرت", endTurn: "خلصت دوري",
   log: "السجل", passTo: "مرّر الجهاز إلى", reveal: "اكشف يدك",
-  youWon: "فزت!", wonName: "فاز {name}!", playAgain: "العب من جديد",
+  youWon: "فزت!", wonName: "فاز {name}!", playAgain: "العب من جديد", rmBy: "{name} يبي يلعب مرة ثانية", rmSub: "انضم وتلعبون بنفس الأشخاص", rmJoin: "انضم لـ{name}", rmMaking: "نجهّز الغرفة…",
   youUse: "أنت تستخدم", usesX: "{name} يستخدم", againstYou: "ضدك أنت!", against: "ضد {name}",
   canBlockYou: "عندك فرصة تستخدم <b>لا ما تقدر</b> قبل ما تنتهي العدّة.", autoResolve: "بينفّذ تلقائيًا بعد العدّة.",
   anyoneBlock: "أي لاعب عنده <b>لا ما تقدر</b> يقدر يستخدمه الحين، وإلا بينفّذ تلقائيًا بعد العدّة.",
@@ -3359,8 +3359,14 @@ function DuelSheet({ them, query, note, onClose }) {
   );
 }
 
-function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) {
+function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome, onRematch }) {
   const { t, L } = useI18n();
+  // «العب من جديد» online: the first player to press it opens a new room and its code lands on this
+  // finished game (game.rematch). Everyone still here sees who's waiting and joins the same room.
+  const rm = isOnline ? game.rematch : null;
+  const rmInvite = !!(rm && rm.hostId !== myId);
+  const [rmBusy, setRmBusy] = useState(false);
+  const again = isOnline && onRematch ? async () => { setRmBusy(true); await onRematch(); setRmBusy(false); } : onExit;
   const [copied, setCopied] = useState(false);
   // Tap another real player (online, with an account) to see your head-to-head.
   const [duelWith, setDuelWith] = useState(null);
@@ -3606,8 +3612,20 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome }) 
 
       {/* actions */}
       <div className="mt-5 mx-auto max-w-xs win-rise" style={{ animationDelay: "680ms" }}>
-        <button onClick={onExit} className={`w-full py-3 tsz-15 ${btn}`} style={btnPrimary}>
-          {t("playAgain")}
+        {rmInvite && (
+          <div className="mb-2.5 rounded-2xl px-3 py-2.5 flex items-center gap-3 hstart rm-in" style={{ background: SURF, boxShadow: `0 0 0 2px ${GOLD}, 0 10px 24px -14px rgba(60,30,10,.5)` }}>
+            <span className="relative flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center display-font font-bold" style={{ background: BRAND, color: CREAM, fontSize: 20, boxShadow: `0 0 0 2px ${SURF}, 0 0 0 3.5px ${GOLD}` }}>
+              {[...(rm.hostName || "؟").trim()][0]}
+              <span className="absolute -top-0.5 -end-0.5 w-3 h-3 rounded-full rm-dot" style={{ background: "#3E9B57", boxShadow: `0 0 0 2px ${SURF}` }} />
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="tsz-14 font-bold leading-tight" style={{ color: INK }}>{t("rmBy", { name: rm.hostName })}</div>
+              <div className="tsz-12 leading-snug" style={{ color: A(INK, "88") }}>{t("rmSub")}</div>
+            </div>
+          </div>
+        )}
+        <button onClick={again} disabled={rmBusy} className={`w-full py-3 tsz-15 ${btn}`} style={{ ...btnPrimary, opacity: rmBusy ? 0.7 : 1 }}>
+          {rmBusy && !rmInvite ? t("rmMaking") : rmInvite ? t("rmJoin", { name: rm.hostName }) : t("playAgain")}
         </button>
         <div className="flex gap-2 mt-2">
           <button onClick={share} className={`flex-1 py-2.5 tsz-14 flex items-center justify-center gap-1.5 ${btn}`} style={btnGhost}>
@@ -3772,7 +3790,7 @@ function PostGameSurvey({ game, myId, isOnline }) {
   );
 }
 
-function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onClaimTimeout, onDeclineBlock, onBlock, onSettle, onReact, seatUserIds, dispatch, onExit, onGoHome }) {
+function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onClaimTimeout, onDeclineBlock, onBlock, onSettle, onReact, seatUserIds, dispatch, onExit, onGoHome, onRematch }) {
   const { t, tb, L } = useI18n();
   // Win finale plays once per finished game; skipped for reduced motion.
   const reducedMotion = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -6362,9 +6380,37 @@ function OnlineFlow({ onBack }) {
       setRoomCode(code);
       adoptRoom(doc);
       setOnlinePhase("lobby");
+      return true;
     } catch (e) {
       setError(t("errNoRoom"));
     }
+  }
+
+  // «العب من جديد»: the server opens the new room or hands back the one someone already opened; then
+  // this phone joins it the normal way, which also points the resume pill at it. If that room has
+  // already started or filled up, land on the online menu with the usual message.
+  async function rematch() {
+    const prevCode = roomCode;
+    let code = null;
+    try {
+      const res = await fetch("/api/rematch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify({ code: prevCode, playerId: myId }),
+      });
+      if (res.ok) code = (await res.json()).code;
+    } catch (e) {}
+    if (!code) {
+      exitToMenu();
+      setError(t("errCreate"));
+      return;
+    }
+    resetRoomSyncState();
+    if (await joinRoom(code)) return;
+    clearOnlineSession();
+    setRoomCode("");
+    setRoom(null);
+    setOnlinePhase("menu");
   }
 
   async function addBot() {
@@ -6456,6 +6502,7 @@ function OnlineFlow({ onBack }) {
         dispatch={dispatchGame}
         onExit={exitToMenu}
         onGoHome={exitToHome}
+        onRematch={rematch}
       />
     );
   }
