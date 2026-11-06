@@ -7080,28 +7080,51 @@ function useHomeBoard(nick) {
 // it opens the online flow, which restores from that same session.
 function useResumableRoom() {
   const [resume, setResume] = useState(null);
+  // Asked when home opens, again when the app comes back to the front, and retried a couple of times
+  // when the request fails: a single failed check used to hide the card until home was opened again.
   useEffect(() => {
-    const saved = readOnlineSession() || readLastOnline();
-    if (!saved) return;
     let alive = true;
-    fetch(`/api/rooms/${saved.roomCode}`, { cache: "no-store" })
-      .then((res) => (res.status === 404 ? "gone" : res.ok ? res.json() : null))
-      .then((doc) => {
-        if (doc === null) return; // network trouble: keep the record, try again next time
-        const seat = doc !== "gone" && doc?.started ? doc.game?.players?.find((p) => p.id === saved.myId) : null;
-        if (seat && !doc.game.winner) {
-          const players = doc.game.players
-            .map((p, i) => ({ p, seat: i }))
-            .filter(({ p }) => p && !p.isBot && p.id !== saved.myId)
-            .map(({ p, seat }) => ({ name: p.name, seat }));
-          if (alive) setResume({ ...saved, code: saved.roomCode, players });
-        } else if (doc === "gone" || doc?.game?.winner || (doc?.started && !seat)) {
-          forgetLastOnline(); // finished, expired or no longer my seat
-        }
-      })
-      .catch(() => {});
+    let timer = null;
+    const check = (attempt = 0) => {
+      const saved = readOnlineSession() || readLastOnline();
+      if (!saved) {
+        if (alive) setResume(null);
+        return;
+      }
+      fetch(`/api/rooms/${saved.roomCode}`, { cache: "no-store" })
+        .then((res) => (res.status === 404 ? "gone" : res.ok ? res.json() : null))
+        .catch(() => null)
+        .then((doc) => {
+          if (!alive) return;
+          if (doc === null) {
+            // network trouble or a server hiccup: keep the record and try again shortly
+            if (attempt < 2) timer = setTimeout(() => check(attempt + 1), attempt ? 4000 : 1500);
+            return;
+          }
+          const seat = doc !== "gone" && doc?.started ? doc.game?.players?.find((p) => p.id === saved.myId) : null;
+          if (seat && !doc.game.winner) {
+            const players = doc.game.players
+              .map((p, i) => ({ p, seat: i }))
+              .filter(({ p }) => p && !p.isBot && p.id !== saved.myId)
+              .map(({ p, seat }) => ({ name: p.name, seat }));
+            setResume({ ...saved, code: saved.roomCode, players });
+          } else {
+            setResume(null);
+            if (doc === "gone" || doc?.game?.winner || (doc?.started && !seat)) forgetLastOnline(); // finished, expired or no longer my seat
+          }
+        });
+    };
+    check();
+    const onShow = () => {
+      if (document.visibilityState !== "visible") return;
+      clearTimeout(timer);
+      check();
+    };
+    document.addEventListener("visibilitychange", onShow);
     return () => {
       alive = false;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onShow);
     };
   }, []);
   return resume;
