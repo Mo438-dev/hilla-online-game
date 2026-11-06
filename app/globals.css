@@ -138,3 +138,40 @@ select {
   bottom: auto;
   height: var(--app-h);
 }
+
+/* Home «كمّل لعبتك» card: slides in, and the green dot pulses while the room is live. */
+.sd-resume {
+  animation: sd-resume-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+@keyframes sd-resume-in {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+    scale: 0.94;
+  }
+}
+.sd-live::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  background: #5bc37a;
+  opacity: 0.45;
+  animation: sd-live 1.6s ease-out infinite;
+}
+@keyframes sd-live {
+  from {
+    transform: scale(0.4);
+    opacity: 0.55;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sd-resume,
+  .sd-live::after {
+    animation: none;
+  }
+}

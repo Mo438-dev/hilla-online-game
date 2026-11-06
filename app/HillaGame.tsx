@@ -1007,7 +1007,7 @@ const I18N = {
   ar: {},
   en: {
     // generic
-    you: "You", sharePlayer: "A player", stTitle: "Settings", stLook: "Appearance", stLight: "Light", stDark: "Dark", stAuto: "Auto", stAutoHint: "Follows your phone", stIcon: "App icon", stDone: "Done", cancel: "Cancel", back: "Back", refresh: "Refresh page", language: "Language",
+    you: "You", sdResumeTitle: "Back to your game", sdResumeSub: "Room {code} · jump back in", sdWait1: "{a} is waiting · room {code}", sdWait2: "{a} and {b} are waiting · room {code}", sdWaitN: "{a} and {n} others are waiting", sharePlayer: "A player", stTitle: "Settings", stLook: "Appearance", stLight: "Light", stDark: "Dark", stAuto: "Auto", stAutoHint: "Follows your phone", stIcon: "App icon", stDone: "Done", cancel: "Cancel", back: "Back", refresh: "Refresh page", language: "Language",
     random: "Random", oneCardOnly: "One card only", severalNoRepeat: "Several cards · no repeats",
     drawPile: "Draw", lastCard: "Last card", round: "Round {n}", menu: "Menu", reactions: "Reactions",
     // home + setup
@@ -1087,7 +1087,7 @@ const I18N = {
     andHow: "In your browser:", andStep1: "Open the browser menu (⋮).", andStep2: "Choose “Install app” or “Add to Home screen”.",
   },
   es: {
-    you: "Tú", sharePlayer: "Un jugador", stTitle: "Ajustes", stLook: "Apariencia", stLight: "Claro", stDark: "Oscuro", stAuto: "Auto", stAutoHint: "Sigue a tu móvil", stIcon: "Icono de la app", stDone: "Listo", cancel: "Cancelar", back: "Volver", refresh: "Actualizar página", language: "Idioma",
+    you: "Tú", sdResumeTitle: "Vuelve a tu partida", sdResumeSub: "Sala {code} · vuelve a tu sitio", sdWait1: "{a} te espera · sala {code}", sdWait2: "{a} y {b} te esperan · sala {code}", sdWaitN: "{a} y {n} más te esperan", sharePlayer: "Un jugador", stTitle: "Ajustes", stLook: "Apariencia", stLight: "Claro", stDark: "Oscuro", stAuto: "Auto", stAutoHint: "Sigue a tu móvil", stIcon: "Icono de la app", stDone: "Listo", cancel: "Cancelar", back: "Volver", refresh: "Actualizar página", language: "Idioma",
     random: "Aleatoria", oneCardOnly: "Solo una carta", severalNoRepeat: "Varias cartas · sin repetir",
     drawPile: "Mazo", lastCard: "Última carta", round: "Ronda {n}", menu: "Menú", reactions: "Reacciones",
     tagline: "Un juego de emparejar trajes tradicionales saudíes",
@@ -1163,7 +1163,7 @@ const I18N = {
 
 // Arabic source strings for the keys above (Arabic is the reference language).
 Object.assign(I18N.ar, {
-  you: "أنت", sharePlayer: "لاعب", stTitle: "الإعدادات", stLook: "المظهر", stLight: "فاتح", stDark: "داكن", stAuto: "تلقائي", stAutoHint: "يمشي مع إعداد جوالك", stIcon: "أيقونة التطبيق", stDone: "تم", cancel: "إلغاء", back: "رجوع", refresh: "تحديث الصفحة", language: "اللغة",
+  you: "أنت", sdResumeTitle: "كمّل لعبتك", sdResumeSub: "غرفة {code} · ارجع لمكانك", sdWait1: "{a} ينتظرك · غرفة {code}", sdWait2: "{a} و{b} ينتظرونك · غرفة {code}", sdWaitN: "{a} و{n} ثانيين ينتظرونك", sharePlayer: "لاعب", stTitle: "الإعدادات", stLook: "المظهر", stLight: "فاتح", stDark: "داكن", stAuto: "تلقائي", stAutoHint: "يمشي مع إعداد جوالك", stIcon: "أيقونة التطبيق", stDone: "تم", cancel: "إلغاء", back: "رجوع", refresh: "تحديث الصفحة", language: "اللغة",
   random: "عشوائي", oneCardOnly: "كرت واحد بس", severalNoRepeat: "أكثر من كرت · بدون تكرار",
   drawPile: "السحب", lastCard: "آخر كرت", round: "جولة {n}", menu: "القائمة", reactions: "التفاعلات",
   tagline: "لعبة مطابقة الأزياء التقليدية السعودية",
@@ -2112,7 +2112,7 @@ function SeatPod({ player, active, isMe, nearWin, thinking }) {
 // Lobby avatar: a round chip with the player's first letter (🤖 for bots), tinted in rotating
 // brand colours so each seat is easy to tell apart. Replaces the region badges, which read as
 // decoration rather than "this is a person".
-const AVATAR_TINTS = [BRAND, "#366135", "#121A42", "#5C3A1C", GOLD_DK, INK];
+const AVATAR_TINTS = [BRAND, "#366135", "#121A42", "#5C3A1C", GOLD_DK, "#231F20"];
 function PlayerAvatar({ name, isBot, index = 0, size = 34 }) {
   const ch = (name || "").trim().replace(/^[^\p{L}\p{N}]+/u, "").charAt(0) || "؟";
   const bg = AVATAR_TINTS[index % AVATAR_TINTS.length];
@@ -7077,7 +7077,11 @@ function useResumableRoom() {
         if (doc === null) return; // network trouble: keep the record, try again next time
         const seat = doc !== "gone" && doc?.started ? doc.game?.players?.find((p) => p.id === saved.myId) : null;
         if (seat && !doc.game.winner) {
-          if (alive) setResume(saved);
+          const players = doc.game.players
+            .map((p, i) => ({ p, seat: i }))
+            .filter(({ p }) => p && !p.isBot && p.id !== saved.myId)
+            .map(({ p, seat }) => ({ name: p.name, seat }));
+          if (alive) setResume({ ...saved, code: saved.roomCode, players });
         } else if (doc === "gone" || doc?.game?.winner || (doc?.started && !seat)) {
           forgetLastOnline(); // finished, expired or no longer my seat
         }
@@ -7091,15 +7095,16 @@ function useResumableRoom() {
 }
 
 // Card group size: 1.0 at 667px tall up to 1.08 at 844px+ (more clips the side cards at 390px wide).
-function useCardScale() {
-  const [f, setF] = useState(1);
+// With the resume card showing, short screens shrink the cards so 375×667 still needs no scroll.
+function useCardScale(withResume) {
+  const [vh, setVh] = useState(667);
   useEffect(() => {
-    const measure = () => setF(1 + 0.08 * Math.min(1, Math.max(0, (window.innerHeight - 667) / 177)));
+    const measure = () => setVh(window.innerHeight);
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, []);
-  return f;
+  return (1 + 0.08 * Math.min(1, Math.max(0, (vh - 667) / (844 - 667)))) * (withResume && vh < 760 ? 0.84 : 1);
 }
 
 function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, nick, setNick, username, setUsername }) {
@@ -7115,8 +7120,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
   useEffect(() => {
     if (resumeCode) sendAppEvent("resume_shown", null, { room_code: resumeCode });
   }, [resumeCode]);
-  // the «كمّل لعبتك» pill takes room above the cards, so they shrink a little to keep 667px fitting
-  const cardScale = useCardScale() * (resumeCode ? 0.9 : 1);
+  const cardScale = useCardScale(!!resumeCode);
   const say = (text) => setToast({ id: Date.now(), text });
   const me = board?.me || null;
   const leader = board?.leader || null;
@@ -7136,6 +7140,54 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
       go();
     }, 260);
   };
+  // «كمّل لعبتك»: who's waiting in that room (other humans, names only), or the room code.
+  const onResume = () =>
+    play("resume", () => {
+      const { players: _players, code: _code, ...saved } = resume;
+      writeOnlineSession(saved); // the online flow rejoins from this, as on a reload
+      sendAppEvent("resume_tapped", null, { room_code: resume.roomCode });
+      onOnline();
+    });
+  const waiting = (resume?.players || []).filter((p) => p && p.name).slice(0, 3);
+  const waitLine = !waiting.length
+    ? t("sdResumeSub", { code: resume?.code })
+    : waiting.length === 1
+    ? t("sdWait1", { a: waiting[0].name, code: resume.code })
+    : waiting.length === 2
+    ? t("sdWait2", { a: waiting[0].name, b: waiting[1].name, code: resume.code })
+    : t("sdWaitN", { a: waiting[0].name, n: resume.players.length - 1, code: resume.code });
+  const resumeCard = resume && (
+    <button
+      onClick={onResume}
+      className="relative flex items-center gap-3 rounded-[22px] ps-2.5 pe-5 py-2 mb-3 hstart hpress-97 sd-resume"
+      style={{ width: "min(320px, calc(100vw - 48px))", background: "rgba(35,31,32,.74)", WebkitBackdropFilter: "blur(8px)", backdropFilter: "blur(8px)", color: CREAM, boxShadow: `0 0 0 2px ${GOLD}, 0 14px 28px -12px rgba(0,0,0,.45)`, zIndex: 8 }}
+    >
+      {waiting.length ? (
+        <span className="flex flex-shrink-0">
+          {waiting.slice(0, 2).map((p, i) => (
+            <span key={i} className="w-9 h-9 rounded-full flex items-center justify-center font-bold tsz-16" style={{ background: AVATAR_TINTS[(p.seat ?? i + 1) % AVATAR_TINTS.length], color: CREAM, boxShadow: `0 0 0 2px #231F20, 0 0 0 3.5px ${GOLD}`, marginInlineStart: i ? -6 : 0, zIndex: 2 - i }}>
+              {(p.name || "؟").trim().replace(/^[^\p{L}\p{N}]+/u, "").charAt(0) || "؟"}
+            </span>
+          ))}
+        </span>
+      ) : (
+        <span className="relative flex-shrink-0" style={{ width: 48, height: 44 }}>
+          {[-16, 0, 16].map((r, i) => (
+            <span key={i} className="absolute" style={{ left: 13, top: 3, transform: `rotate(${r}deg)`, transformOrigin: "50% 100%" }}>
+              <CardBack size={22} tall style={{ boxShadow: `0 0 0 1.5px ${CREAM}` }} />
+            </span>
+          ))}
+        </span>
+      )}
+      <span className="flex-1 min-w-0">
+        <span className="flex items-center gap-2 tsz-16 font-bold leading-tight">
+          {t("sdResumeTitle")}
+          <span className="relative w-2 h-2 rounded-full sd-live" style={{ background: "#5BC37A" }} />
+        </span>
+        <span className="block tsz-12 mt-0.5 truncate" style={{ color: `${CREAM}c0` }}>{waitLine}</span>
+      </span>
+    </button>
+  );
   const tilt = (key, deg) => (lift === key ? "rotate(0deg) translateY(-26px) scale(1.06)" : `rotate(${deg}deg)`);
   return (
     <div
@@ -7166,18 +7218,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
           (above the cards, between cards and pills, under the pills) */}
       <div className="relative flex-1 min-h-0 flex flex-col items-center justify-evenly">
         <div className="flex flex-col items-center">
-          {resumeCode && (
-            <button
-              onClick={() =>
-                play("resume", () => {
-                  writeOnlineSession(resume); // the online flow rejoins from this, as on a reload
-                  sendAppEvent("resume_tapped", null, { room_code: resume.roomCode });
-                  onOnline();
-                })
-              } className="mb-2 tsz-12 font-bold rounded-full px-4 py-1.5 hilla-pop" style={{ background: BRAND, color: CREAM, boxShadow: `0 0 0 2px ${GOLD}` }}>
-              {t("resumeGame", { code: resumeCode })}
-            </button>
-          )}
+          {resumeCard}
           <div style={{ width: 340 * cardScale, height: 320 * cardScale }}>
             <div className="relative mx-auto" style={{ width: 340, height: 320, transform: `scale(${cardScale})`, transformOrigin: "top center" }}>
               <RugCard big title={t("sdOnline")} sub={t("sdOnlineSub")} bg={BRAND} fg={CREAM} lifted={lift === "online"} delays="0ms, 0.9s" icon={<Wifi className="w-10 h-10" style={{ color: GOLD }} />} style={{ left: "50%", top: 0, marginLeft: -68, transform: tilt("online", -4), zIndex: 6 }} onClick={() => play("online", onOnline)} />
