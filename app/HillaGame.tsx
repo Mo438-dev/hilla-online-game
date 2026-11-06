@@ -5011,7 +5011,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
           <WinFinale key={game.winner} game={game} meId={isOnline ? myId : soloHuman ? soloHuman.id : null} isOnline={isOnline} onDone={() => setFinaleDone(true)} />
         )}
         {winnerPlayer && finaleDone ? (
-          <WinView game={game} myId={myId} isOnline={isOnline} meId={isOnline ? myId : soloHuman ? soloHuman.id : null} seatUserIds={seatUserIds} onExit={onExit} onGoHome={onGoHome} />
+          <WinView onRematch={onRematch} game={game} myId={myId} isOnline={isOnline} meId={isOnline ? myId : soloHuman ? soloHuman.id : null} seatUserIds={seatUserIds} onExit={onExit} onGoHome={onGoHome} />
         ) : (
           <>
             {/* seats */}
