@@ -43,6 +43,7 @@ export const ANALYTICS_EVENT_TYPES = [
   // delta-16
   'rematch_opened', // first press of «العب من جديد» online opened the new room
   'rematch_joined', // a later press got the room someone else opened
+  'rematch_failed', // a press that didn't land in a lobby (payload stage, status, error)
 ] as const;
 
 export type AnalyticsEventType = (typeof ANALYTICS_EVENT_TYPES)[number];

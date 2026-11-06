@@ -77,6 +77,7 @@ const APP_EVENT_FIELDS: Record<string, Record<string, 'text' | 'int'>> = {
   duel_opened: { source: 'text' },
   share_clicked: { source: 'text' },
   survey_step: { step: 'int', how: 'text' },
+  rematch_failed: { stage: 'text', status: 'int', error: 'text' },
 };
 // Events that can happen outside a game (home, leaderboard, account sheet).
 const NO_GAME_EVENTS = new Set(['auth_rate_limited', 'leaderboard_opened', 'resume_shown', 'resume_tapped', 'username_set', 'duel_opened', 'share_clicked']);

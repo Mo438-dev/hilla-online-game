@@ -1055,7 +1055,7 @@ const I18N = {
     noClothing: "You have no clothing cards.", pickMatching: "Pick cards that match",
     playN1: "Play the card", playN2: "Play both cards", playN: "Play {n} cards", endTurn: "I'm done",
     log: "Log", passTo: "Pass the device to", reveal: "Reveal your hand",
-    youWon: "You won!", wonName: "{name} won!", playAgain: "Play again", rmBy: "{name} wants a rematch", rmSub: "Join to play again with the same people", rmJoin: "Join {name}", rmMaking: "Setting up the room…",
+    youWon: "You won!", wonName: "{name} won!", playAgain: "Play again", rmBy: "{name} wants a rematch", rmSub: "Join to play again with the same people", rmJoin: "Join {name}", rmMaking: "Setting up the room…", rmFail: "Couldn't set up the room. Try again.",
     // pending action
     youUse: "You're using", usesX: "{name} is using", againstYou: "Against you!", against: "Against {name}",
     canBlockYou: "You can use <b>No You Don't!</b> before the countdown ends.", autoResolve: "It goes through automatically after the countdown.",
@@ -1132,7 +1132,7 @@ const I18N = {
     noClothing: "No tienes cartas de ropa.", pickMatching: "Elige cartas que coincidan",
     playN1: "Jugar la carta", playN2: "Jugar las dos cartas", playN: "Jugar {n} cartas", endTurn: "Terminé",
     log: "Registro", passTo: "Pasa el dispositivo a", reveal: "Mostrar tu mano",
-    youWon: "¡Ganaste!", wonName: "¡Ganó {name}!", playAgain: "Jugar otra vez", rmBy: "{name} quiere la revancha", rmSub: "Únete para jugar con las mismas personas", rmJoin: "Unirme a {name}", rmMaking: "Preparando la sala…",
+    youWon: "¡Ganaste!", wonName: "¡Ganó {name}!", playAgain: "Jugar otra vez", rmBy: "{name} quiere la revancha", rmSub: "Únete para jugar con las mismas personas", rmJoin: "Unirme a {name}", rmMaking: "Preparando la sala…", rmFail: "No se pudo preparar la sala. Inténtalo de nuevo.",
     youUse: "Estás usando", usesX: "{name} está usando", againstYou: "¡Contra ti!", against: "Contra {name}",
     canBlockYou: "Puedes usar <b>¡Ni hablar!</b> antes de que acabe la cuenta atrás.", autoResolve: "Se aplica sola al acabar la cuenta atrás.",
     anyoneBlock: "Quien tenga <b>¡Ni hablar!</b> puede usarla ahora; si no, se aplica al acabar la cuenta atrás.",
@@ -1208,7 +1208,7 @@ Object.assign(I18N.ar, {
   noClothing: "ما عندك عناصر لبس.", pickMatching: "اختر كروت تطابق التنسيق",
   playN1: "حط الكرت", playN2: "حط الكرتين", playN: "حط {n} كروت", playN11: "حط {n} كرت", endTurn: "خلصت دوري",
   log: "السجل", passTo: "مرّر الجهاز إلى", reveal: "اكشف يدك",
-  youWon: "فزت!", wonName: "فاز {name}!", playAgain: "العب من جديد", rmBy: "{name} يبي يلعب مرة ثانية", rmSub: "انضم وتلعبون بنفس الأشخاص", rmJoin: "انضم لـ{name}", rmMaking: "نجهّز الغرفة…",
+  youWon: "فزت!", wonName: "فاز {name}!", playAgain: "العب من جديد", rmBy: "{name} يبي يلعب مرة ثانية", rmSub: "انضم وتلعبون بنفس الأشخاص", rmJoin: "انضم لـ{name}", rmMaking: "نجهّز الغرفة…", rmFail: "ما قدرنا نجهّز الغرفة، جرّب مرة ثانية.",
   youUse: "أنت تستخدم", usesX: "{name} يستخدم", againstYou: "ضدك أنت!", against: "ضد {name}",
   canBlockYou: "عندك فرصة تستخدم <b>لا ما تقدر</b> قبل ما تنتهي العدّة.", autoResolve: "بينفّذ تلقائيًا بعد العدّة.",
   anyoneBlock: "أي لاعب عنده <b>لا ما تقدر</b> يقدر يستخدمه الحين، وإلا بينفّذ تلقائيًا بعد العدّة.",
@@ -3366,7 +3366,16 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome, on
   const rm = isOnline ? game.rematch : null;
   const rmInvite = !!(rm && rm.hostId !== myId);
   const [rmBusy, setRmBusy] = useState(false);
-  const again = isOnline && onRematch ? async () => { setRmBusy(true); await onRematch(); setRmBusy(false); } : onExit;
+  const [rmFailed, setRmFailed] = useState(false);
+  const again = isOnline && onRematch
+    ? async () => {
+        setRmBusy(true);
+        setRmFailed(false);
+        const ok = await onRematch();
+        setRmBusy(false);
+        if (ok === false) setRmFailed(true);
+      }
+    : onExit;
   const [copied, setCopied] = useState(false);
   // Tap another real player (online, with an account) to see your head-to-head.
   const [duelWith, setDuelWith] = useState(null);
@@ -3627,6 +3636,7 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome, on
         <button onClick={again} disabled={rmBusy} className={`w-full py-3 tsz-15 ${btn}`} style={{ ...btnPrimary, opacity: rmBusy ? 0.7 : 1 }}>
           {rmBusy && !rmInvite ? t("rmMaking") : rmInvite ? t("rmJoin", { name: rm.hostName }) : t("playAgain")}
         </button>
+        {rmFailed && <div className="tsz-12 font-semibold mt-1.5" style={{ color: BRAND_T }}>{t("rmFail")}</div>}
         <div className="flex gap-2 mt-2">
           <button onClick={share} className={`flex-1 py-2.5 tsz-14 flex items-center justify-center gap-1.5 ${btn}`} style={btnGhost}>
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />} {copied ? t("copied") : t("share")}
@@ -6404,26 +6414,47 @@ function OnlineFlow({ onBack }) {
   // already started or filled up, land on the online menu with the usual message.
   async function rematch() {
     const prevCode = roomCode;
+    const gameId = room?.game?.analyticsId || null;
+    // On failure the player stays on the win screen (with a message) instead of being sent to the
+    // online menu, and the route's status and reason are logged so we can see what went wrong.
+    const failed = (stage, status, error) => {
+      console.error("[rematch] failed", stage, status, error);
+      sendAppEvent("rematch_failed", gameId, { room_code: prevCode, payload: { stage, status, error: String(error || "").slice(0, 80) } });
+      return false;
+    };
     let code = null;
-    try {
-      const res = await fetch("/api/rematch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-        body: JSON.stringify({ code: prevCode, playerId: myId }),
-      });
-      if (res.ok) code = (await res.json()).code;
-    } catch (e) {}
-    if (!code) {
-      exitToMenu();
-      setError(t("errCreate"));
-      return;
+    let status = 0;
+    let reason = "";
+    // a 409 can mean the winning save hasn't reached the server yet: wait a moment and ask again
+    for (let attempt = 0; attempt < 3 && !code; attempt++) {
+      if (attempt) await new Promise((r) => setTimeout(r, 1200));
+      try {
+        const res = await fetch("/api/rematch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+          body: JSON.stringify({ code: prevCode, playerId: myId }),
+        });
+        status = res.status;
+        const body = await res.json().catch(() => ({}));
+        if (res.ok && body.code) code = body.code;
+        else reason = body.error || "no_code";
+        if (status === 403 || status === 404 || status === 400) break; // asking again won't help
+      } catch (e) {
+        status = 0;
+        reason = e?.message || "network";
+      }
     }
+    if (!code) return failed("route", status, reason);
+    if (activeRoomCodeRef.current !== prevCode) return true; // left the win screen meanwhile
     resetRoomSyncState();
-    if (await joinRoom(code)) return;
+    if (await joinRoom(code)) return true;
+    // the rematch room has already started or filled up: the online menu shows why
+    failed("join", 0, "join_failed");
     clearOnlineSession();
     setRoomCode("");
     setRoom(null);
     setOnlinePhase("menu");
+    return false;
   }
 
   async function addBot() {
