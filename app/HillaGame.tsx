@@ -1326,6 +1326,13 @@ const PHRASE_I18N = {
   "كفو!": { en: "Legend!", es: "¡Crack!" },
   "ظلم!": { en: "So unfair!", es: "¡Injusto!" },
   "يا زينه": { en: "Gorgeous!", es: "¡Qué bonito!" },
+  "القم!": { en: "Take that!", es: "¡Toma!" },
+  "حلوو": { en: "Niiice", es: "¡Buenísimo!" },
+  "يالله العب": { en: "Come on, play!", es: "¡Venga, juega!" },
+  "هذي لك": { en: "This one's for you", es: "Esta va por ti" },
+  "تبي بعد؟": { en: "Want more?", es: "¿Quieres más?" },
+  "خلّك قدها": { en: "Step up!", es: "¡Ponte a la altura!" },
+  "نمت؟": { en: "Asleep?", es: "¿Te dormiste?" },
   "الله يعين": { en: "Good luck with that", es: "Que Dios te ayude" },
   "ههههه": { en: "Hahaha", es: "Jajaja" },
 };
@@ -2329,6 +2336,19 @@ const GlobalFont = () => (
       100% { opacity: 0; transform: translateY(-4px) scale(.96); }
     }
     .hilla-bubble { animation: hilla-bubble 2.5s cubic-bezier(.2,.9,.3,1.2) forwards; transform-origin: 50% 100%; }
+    /* «القم!» lands like a punch: overshoots big, then shakes */
+    .hilla-bubble.ph-punch { animation: ph-punch 2.5s cubic-bezier(.2,.9,.3,1.2) forwards; }
+    @keyframes ph-punch {
+      0% { opacity: 0; transform: translateY(-30px) scale(1.9) rotate(var(--tilt, 0deg)); }
+      9% { opacity: 1; transform: translateY(0) scale(.92) rotate(var(--tilt, 0deg)); }
+      13% { transform: translateX(-7px) scale(1.06) rotate(calc(var(--tilt, 0deg) - 4deg)); }
+      17% { transform: translateX(6px) scale(1) rotate(calc(var(--tilt, 0deg) + 3deg)); }
+      21% { transform: translateX(-3px) rotate(var(--tilt, 0deg)); }
+      25% { transform: translateX(0) rotate(var(--tilt, 0deg)); }
+      78% { opacity: 1; transform: translateY(-6px) rotate(var(--tilt, 0deg)); }
+      100% { opacity: 0; transform: translateY(-16px) scale(.96) rotate(var(--tilt, 0deg)); }
+    }
+    @media (prefers-reduced-motion: reduce) { .hilla-bubble.ph-punch { animation: hilla-bubble 2.5s ease forwards; } }
     @keyframes hilla-bubble {
       0% { opacity: 0; transform: translateY(14px) scale(.55) rotate(var(--tilt, 0deg)); }
       12% { opacity: 1; transform: translateY(0) scale(1.08) rotate(var(--tilt, 0deg)); }
@@ -2632,6 +2652,78 @@ function turnAudio() {
 function unlockTurnAudio() {
   const ctx = turnAudio();
   if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+  if (ctx) loadPunch(ctx); // decode the «القم!» clip early so it plays on time
+}
+// «القم!»: the recorded "bonk + shout" clip, played through the same Web Audio context as the turn
+// chime, so it works on phones once that's unlocked. Decoded once from /sounds/punch.mp3.
+const PUNCH_URL = "/sounds/punch.mp3";
+const PUNCH_VOLUME = 0.7;
+let punchBuf = null;
+let punchLoading = null;
+function loadPunch(ctx) {
+  if (punchBuf || punchLoading) return punchLoading;
+  punchLoading = fetch(PUNCH_URL)
+    .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error("punch_fetch"))))
+    .then((ab) => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)))
+    .then((b) => (punchBuf = b))
+    .catch(() => {
+      punchLoading = null; // try again on the next unlock
+      return null;
+    });
+  return punchLoading;
+}
+function playPunch() {
+  const ctx = turnAudio();
+  if (!ctx) return;
+  if (ctx.state === "suspended") ctx.resume().catch(() => {});
+  const go = () => {
+    if (!punchBuf) return playPunchSynth(ctx);
+    try {
+      const src = ctx.createBufferSource();
+      src.buffer = punchBuf;
+      const g = ctx.createGain();
+      g.gain.value = PUNCH_VOLUME;
+      src.connect(g);
+      g.connect(ctx.destination);
+      src.start();
+    } catch {}
+  };
+  if (punchBuf) go();
+  else Promise.resolve(loadPunch(ctx)).then(go);
+}
+// Fallback when the clip can't be loaded or decoded: a synthesized bonk.
+function playPunchSynth(ctx) {
+  try {
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    const t0 = ctx.currentTime + 0.02;
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(320, t0);
+    osc.frequency.exponentialRampToValueAtTime(55, t0 + 0.18);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.5, t0 + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.24);
+    osc.connect(g);
+    g.connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + 0.26);
+    const len = Math.floor(ctx.sampleRate * 0.06);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const noise = ctx.createBufferSource();
+    noise.buffer = buf;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 1800;
+    const ng = ctx.createGain();
+    ng.gain.value = 0.35;
+    noise.connect(bp);
+    bp.connect(ng);
+    ng.connect(ctx.destination);
+    noise.start(t0);
+  } catch {}
 }
 function playTurnChime() {
   const ctx = turnAudio();
@@ -2714,7 +2806,9 @@ function CountdownRing({ pendingActionId, startedAt, size = 56, windowSec = BLOC
 
 
 // Saudi one-liners — sent through the same reactionEvent as the emoji, shown as a speech bubble.
-const PHRASES = ["كفو!", "ظلم!", "يا زينه", "الله يعين", "ههههه"];
+const PHRASES = ["كفو!", "القم!", "تبي بعد؟", "خلّك قدها", "ظلم!", "حلوو", "يالله العب", "نمت؟", "ههههه"];
+// phrases older app versions can still send: shown as a bubble, just not offered any more
+const PHRASE_SET = new Set([...PHRASES, "يا زينه", "هذي لك", "الله يعين"]);
 
 // Reaction FX layer — imperative Web Animations API particles (no per-frame React re-renders).
 // Fixed to the viewport so it's unaffected by page scroll, and pointer-events-none so it never
@@ -2732,7 +2826,8 @@ function ReactionFX({ trigger, myId, isOnline }) {
     seenRef.current.add(trigger.id);
 
     // A phrase pops up as a speech bubble (with who said it) instead of raining particles.
-    if (PHRASES.includes(trigger.emoji)) {
+    if (PHRASE_SET.has(trigger.emoji)) {
+      if (trigger.emoji === "القم!" && loadTurnSound()) playPunch();
       const mine = isOnline ? trigger.byId === myId : true;
       const b = {
         id: trigger.id,
@@ -2822,7 +2917,7 @@ function ReactionFX({ trigger, myId, isOnline }) {
           className="fixed pointer-events-none"
           style={{ left: "50%", top: `${b.top}%`, zIndex: 9992, marginLeft: b.dx, transform: "translateX(-50%)" }}
         >
-          <div className="hilla-bubble" style={{ "--tilt": `${b.tilt}deg` }}>
+          <div className={`hilla-bubble ${b.text === "القم!" ? "ph-punch" : ""}`} style={{ "--tilt": `${b.tilt}deg` }}>
             <div
               className="relative text-center"
               style={{
@@ -2889,7 +2984,7 @@ function SeatBubble({ anchor, text }) {
     };
   }, [anchor]);
   if (!pos) return null;
-  const isPhrase = PHRASES.includes(text);
+  const isPhrase = PHRASE_SET.has(text);
   return (
     <div className="fixed pointer-events-none" style={{ left: pos.x, top: pos.y, zIndex: 9993, transform: "translate(-50%, -100%)" }}>
       <div className="hilla-seatbubble" style={{ marginBottom: 2 }}>
