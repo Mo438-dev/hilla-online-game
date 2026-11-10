@@ -1177,7 +1177,7 @@ Object.assign(I18N.ar, {
   lbSeasonLine: "موسم {y} · باقي {n} يوم", lbInvite: "نادِ ربعك", lbColPlayer: "اللاعب", lbColWinsGames: "فوز / لعب", lbColPoints: "نقاط", noRankLocal: "🏆 مباريات نفس الجهاز ومع البوتات ما تنحسب في الترتيب. النقاط بس للأونلاين مع لاعبين حقيقيين.", noRankWin: "مباريات نفس الجهاز ما تنحسب في الترتيب", noRankBots: "ما انحسبت: كانت مع بوتات بس", noRankShort: "ما انحسبت: المباراة كانت قصيرة", noRankDaily: "ما انحسبت: وصلت حد المباريات اليومي", noRankLobby: "تحتاج لاعب حقيقي ثاني عشان تنحسب النقاط",
   blockTooLate: "فات الوقت",
   premove: "حركة مسبقة", premoveTag: "جاهز", premoveHint: "اختر كروتك الحين، وتنلعب أول ما يجي دورك", premoveBar: "حركتك المسبقة جاهزة · تنلعب أول ما يجي دورك", premoveClear: "إلغاء الحركة المسبقة", premoveCancelled: "انلغت حركتك المسبقة، ما عادت تنفع",
-  winPlaceLine: "جيت {place} · {left}", winnerTag: "الفائز", winPieceMine: "القطعة اللي فزت فيها", winPieceOf: "القطعة اللي فاز فيها {name}", winHome: "الرئيسية", awDur: "مدة المباراة", awRounds: "جولات", awCards: "كروت انلعبت", awRares: "نوادر انلعبت", awTarget: "الأكثر استهدافًا", awTargetTie: "تعادلوا في الاستهداف", awTieN: "{n} لاعبين", awEach: "لكل واحد", winLastCard: "آخر كرت!", winFinaleMe: "خلّصت كروتك!", winFinaleOf: "{name} خلّص كروته!", winDuel: "المواجهة: أنت {a} · {name} {b}", winDuelTap: "المواجهة", fbTitle: "رأيك يهمنا · اختياري", fbSkip: "تخطي", fbQFun: "كم كانت المباراة ممتعة؟", fbQRules: "القوانين كانت واضحة؟", fbQAgain: "تلعبها مرة ثانية؟", fbQComment: "عندك شي تقوله؟", fbYes: "أكيد 😍", fbNo: "لا 😅", fbCommentPh: "تعليق (اختياري)", fbSend: "أرسل", fbThanks: "شكرًا لك! 🙏", duelTitle: "المواجهة", duelWins: "فوز", duelTied: "متعادلين", duelLeadMe: "الأفضلية لك", duelLeadThem: "الأفضلية لـ{name}", duelGames: "من {n} مباريات لعبتوها مع بعض هذا الموسم", duelLast: "آخر المباريات:", duelW: "ف", duelL: "خ", duelNone: "ما لعبتوا مع بعض هذا الموسم", lbDuelHint: "اضغط على أي واحد تشوف مواجهتكم",
+  winPlaceLine: "جيت {place} · {left}", winnerTag: "الفائز", winPieceMine: "القطعة اللي فزت فيها", winPieceOf: "القطعة اللي فاز فيها {name}", winHome: "الرئيسية", awDur: "مدة المباراة", awRounds: "جولات", awCards: "كروت انلعبت", awRares: "نوادر انلعبت", awTarget: "الأكثر استهدافًا", awTargetTie: "تعادلوا في الاستهداف", awTieN: "{n} لاعبين", awEach: "لكل واحد", winLastCard: "آخر كرت!", winFinaleMe: "خلّصت كروتك!", winFinaleOf: "{name} خلّص كروته!", winDuel: "المواجهة: أنت {a} · {name} {b}", winDuelTap: "المواجهة", fbTitle: "رأيك يهمنا · اختياري", fbSkip: "تخطي", fbQFun: "كم كانت المباراة ممتعة؟", fbQRules: "القوانين كانت واضحة؟", fbQAgain: "تلعبها مرة ثانية؟", fbQComment: "عندك شي تقوله؟", fbYes: "أكيد 😍", fbNo: "لا 😅", fbCommentPh: "تعليق (اختياري)", fbSend: "أرسل", fbThanks: "شكرًا لك! 🙏", duelTitle: "المواجهة", duelWins: "فوز", duelTied: "متعادلين", duelLeadMe: "الأفضلية لك", duelLeadThem: "الأفضلية لـ{name}", duelGames: "من {n} مباريات لعبتوها مع بعض هذا الموسم", duelGames1: "من مباراة وحدة لعبتوها مع بعض هذا الموسم", duelGames2: "من مباراتين لعبتوها مع بعض هذا الموسم", duelGamesMany: "من {n} مباراة لعبتوها مع بعض هذا الموسم", duelLast: "آخر المباريات:", duelW: "ف", duelL: "خ", duelNone: "ما لعبتوا مع بعض هذا الموسم", lbDuelHint: "اضغط على أي واحد تشوف مواجهتكم",
   duelNewest: "الأحدث", duelNotCounted: "هالمباراة ما انحسبت، فما هي داخلة في المواجهة.", noRankGeneric: "ما انحسبت هالمباراة في الترتيب",
   newTag: "جديد", recv_giveTakeGot: "{name} عطاك هذي", recv_giveTakeTook: "أخذت هذي من {name}", recv_stealTwo: "{name} فزع لك بهذي", recv_drawTwo: "{name} قدعك وسحبت هذي",
   sdNameLabel: "اسمك", sdNameRule2: "من ٢ إلى ١٦ حرف · عادي يكون نفس اسم أحد ثاني", sdUserLabel: "اسم المستخدم", sdUserRule: "حروف إنجليزي وأرقام و _ · من ٣ إلى ١٥ · ما يتكرر", sdUserFree: "متاح", sdUserTaken: "مأخوذ، جرّب غيره", sdUserReserved: "هذا الاسم محجوز، جرّب غيره", sdUserChars: "حروف إنجليزي وأرقام و _ بس، ويبدأ بحرف", sdUserLength: "من ٣ إلى ١٥ حرف", sdUserCooldown: "تقدر تغيّره مرة كل ٣٠ يوم", sdUserCooldownLeft: "تقدر تغيّر اسم المستخدم بعد {n} يوم",
@@ -3250,7 +3250,7 @@ function WinFinale({ game, meId, isOnline, onDone }) {
 
 // Head-to-head: only the games the two of you played together this season (GET /api/duel).
 // query is "with=<userId>" (win screen) or "nick=<nickname>" (leaderboard).
-function DuelSheet({ them, query, note, onClose }) {
+function DuelSheet({ them, meName, query, note, onClose }) {
   const { t, L } = useI18n();
   const [d, setD] = useState(null); // null loading · {error} · data
   useEffect(() => {
@@ -3274,7 +3274,7 @@ function DuelSheet({ them, query, note, onClose }) {
   const ok = d && !d.error;
   const side = (name, pts, mine) => (
     <div className="flex-1 flex flex-col items-center min-w-0">
-      <NameAvatar name={mine ? t("you") : name} size={54} ring={mine ? GOLD : "#A3A9B1"} />
+      <NameAvatar name={mine ? cleanNick(loadNick()) || meName || t("you") : name} size={54} ring={mine ? GOLD : "#A3A9B1"} />
       <div className="tsz-14 font-bold mt-2 truncate" style={{ maxWidth: 120, color: mine ? BRAND_T : INK }}>
         {mine ? t("you") : name}
       </div>
@@ -3329,7 +3329,8 @@ function DuelSheet({ them, query, note, onClose }) {
               {lead}
             </div>
             <div className="tsz-12 mt-1" style={{ color: `${A(INK, "88")}` }}>
-              {t("duelGames", { n: L.num(d.games) })}
+              {/* Arabic counts: مباراة وحدة · مباراتين · ٣–١٠ مباريات · ١١+ مباراة */}
+              {L.isAr && d.games === 1 ? t("duelGames1") : L.isAr && d.games === 2 ? t("duelGames2") : L.isAr && d.games > 10 ? t("duelGamesMany", { n: L.num(d.games) }) : t("duelGames", { n: L.num(d.games) })}
             </div>
             <div className="flex items-center justify-center gap-1.5 mt-3">
               <span className="tsz-11 font-semibold" style={{ color: `${A(INK, "77")}` }}>
@@ -3674,6 +3675,7 @@ function WinView({ game, myId, isOnline, meId, seatUserIds, onExit, onGoHome, on
       {duelWith && (
         <DuelSheet
           them={nameOf(duelWith)}
+          meName={me && !YOU_WORDS.has(me.name) ? me.name : null}
           query={`with=${encodeURIComponent(seatUserIds[duelWith.id])}`}
           onClose={() => setDuelWith(null)}
         />
