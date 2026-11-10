@@ -5904,6 +5904,9 @@ function OnlineMenu({ myName, setMyName, onCreate, onJoin, onBack, error }) {
 
 function OnlineLobby({ room, myId, onStart, starting, onAddBot, onRemoveBot, onBack }) {
   const [confirmLeave, setConfirmLeave] = useState(false);
+  // the sheet ignores taps for 700ms after it opens, so the tap that opened it can't also answer it
+  const leaveOpenedAt = useRef(0);
+  const leaveReady = () => Date.now() - leaveOpenedAt.current > 700;
   const { t, tb, L } = useI18n();
   const [copied, setCopied] = useState(false);
   const isHost = room.hostId === myId;
@@ -6010,7 +6013,10 @@ function OnlineLobby({ room, myId, onStart, starting, onAddBot, onRemoveBot, onB
         >
           <RefreshCw className="w-3 h-3" /> {t("refresh")}
         </button>
-        <button onClick={() => setConfirmLeave(true)} className="w-full tsz-12 font-semibold flex items-center justify-center gap-1" style={{ color: `${A(INK, "77")}` }}>
+        <button onClick={() => {
+            leaveOpenedAt.current = Date.now();
+            setConfirmLeave(true);
+          }} className="w-full tsz-12 font-semibold flex items-center justify-center gap-1" style={{ color: `${A(INK, "77")}` }}>
           <LogOut className="w-3 h-3" /> {t("leaveRoom")}
         </button>
       </div>
@@ -6020,8 +6026,9 @@ function OnlineLobby({ room, myId, onStart, starting, onAddBot, onRemoveBot, onB
             <div className="display-font font-bold tsz-22" style={{ color: INK }}>{t("lvTitle")}</div>
             <div className="tsz-13 mt-1.5" style={{ color: A(INK, "99") }}>{room.hostId === myId ? t("lvHost") : t("lvGuest", { code: room.code })}</div>
             <div className="flex gap-2 mt-4">
-              <button onClick={() => setConfirmLeave(false)} className={`flex-1 py-3 tsz-14 ${btn}`} style={btnPrimary}>{t("lvStay")}</button>
-              <button onClick={onBack} className={`flex-1 py-3 tsz-14 ${btn}`} style={btnGhost}>{t("lvLeave")}</button>
+              {/* same size; leaving is the consequential one, so it's the filled red button */}
+              <button onClick={() => leaveReady() && setConfirmLeave(false)} className={`flex-1 py-3 tsz-14 ${btn}`} style={{ background: SURF, color: INK, border: `1.5px solid ${A(INK, "26")}` }}>{t("lvStay")}</button>
+              <button onClick={() => leaveReady() && onBack()} className={`flex-1 py-3 tsz-14 ${btn}`} style={{ background: "#A3262A", color: CREAM, border: "1.5px solid #A3262A" }}>{t("lvLeave")}</button>
             </div>
           </div>
         </Sheet>
