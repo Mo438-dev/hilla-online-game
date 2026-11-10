@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { abandonQuietRooms } from '@/lib/room-store';
 
 // Daily (vercel.json cron): delete anonymous guests whose last sign-in was more than a year ago.
 // Vercel sends `Authorization: Bearer $CRON_SECRET`; without CRON_SECRET set the route stays closed.
@@ -18,6 +19,13 @@ export async function GET(request: Request) {
     .from('client_errors')
     .delete({ count: 'exact' })
     .lt('created_at', new Date(Date.now() - 90 * 86_400_000).toISOString());
+  // started rooms every human has left (5 / 10 min quiet) end as all_humans_left; reads end them too
+  let roomsEnded = 0;
+  try {
+    roomsEnded = await abandonQuietRooms();
+  } catch (e) {
+    console.error('abandon sweep failed', e instanceof Error ? e.message : e);
+  }
   // games nobody finished within a day are marked abandoned (analytics only)
   const { count: abandoned } = await supabase
     .from('game_sessions')
@@ -25,5 +33,5 @@ export async function GET(request: Request) {
     .eq('completed', false)
     .is('ended_reason', null)
     .lt('started_at', new Date(Date.now() - 86_400_000).toISOString());
-  return NextResponse.json({ deleted: data ?? 0, errorsDeleted: errorsDeleted ?? 0, abandoned: abandoned ?? 0 });
+  return NextResponse.json({ deleted: data ?? 0, errorsDeleted: errorsDeleted ?? 0, abandoned: abandoned ?? 0, roomsEnded });
 }

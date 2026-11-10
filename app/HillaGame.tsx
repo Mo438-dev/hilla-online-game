@@ -1009,7 +1009,7 @@ const I18N = {
   ar: {},
   en: {
     // generic
-    you: "You", lvTitle: "Leave the room?", lvHost: "You're the host: if you leave, nobody can start the game.", lvGuest: "You can come back with code {code}.", lvStay: "Stay", lvLeave: "Leave", sdResumeTitle: "Back to your game", sdResumeSub: "Room {code} · jump back in", sdWait1: "{a} is waiting · room {code}", sdWait2: "{a} and {b} are waiting · room {code}", sdWaitN: "{a} and {n} others are waiting", sharePlayer: "A player", stTitle: "Settings", stLook: "Appearance", stLight: "Light", stDark: "Dark", stAuto: "Auto", stAutoHint: "Follows your phone", stIcon: "App icon", stDone: "Done", cancel: "Cancel", back: "Back", refresh: "Refresh page", language: "Language",
+    you: "You", lvTitle: "Leave the room?", lvHost: "You're the host: if you leave, nobody can start the game.", lvGuest: "You can come back with code {code}.", lvStay: "Stay", lvLeave: "Leave", sdResumeTitle: "Back to your game", sdResumeSub: "Room {code} · jump back in", sdWait1: "{a} is waiting · room {code}", sdWait2: "{a} and {b} are waiting · room {code}", sdWaitN: "{a} and {n} others are waiting", sdEndsLine: "Ends {when} · room {code}", sdEndsSoon: "in under a minute", sdEnds2: "in 2 minutes", sdEndsN: "in {n} minutes", sharePlayer: "A player", stTitle: "Settings", stLook: "Appearance", stLight: "Light", stDark: "Dark", stAuto: "Auto", stAutoHint: "Follows your phone", stIcon: "App icon", stDone: "Done", cancel: "Cancel", back: "Back", refresh: "Refresh page", language: "Language",
     random: "Random", oneCardOnly: "One card only", severalNoRepeat: "Several cards · no repeats",
     drawPile: "Draw", lastCard: "Last card", round: "Round {n}", menu: "Menu", reactions: "Reactions",
     // home + setup
@@ -1089,7 +1089,7 @@ const I18N = {
     andHow: "In your browser:", andStep1: "Open the browser menu (⋮).", andStep2: "Choose “Install app” or “Add to Home screen”.",
   },
   es: {
-    you: "Tú", lvTitle: "¿Salir de la sala?", lvHost: "Eres el anfitrión: si sales, nadie podrá empezar la partida.", lvGuest: "Puedes volver con el código {code}.", lvStay: "Quedarme", lvLeave: "Salir", sdResumeTitle: "Vuelve a tu partida", sdResumeSub: "Sala {code} · vuelve a tu sitio", sdWait1: "{a} te espera · sala {code}", sdWait2: "{a} y {b} te esperan · sala {code}", sdWaitN: "{a} y {n} más te esperan", sharePlayer: "Un jugador", stTitle: "Ajustes", stLook: "Apariencia", stLight: "Claro", stDark: "Oscuro", stAuto: "Auto", stAutoHint: "Sigue a tu móvil", stIcon: "Icono de la app", stDone: "Listo", cancel: "Cancelar", back: "Volver", refresh: "Actualizar página", language: "Idioma",
+    you: "Tú", lvTitle: "¿Salir de la sala?", lvHost: "Eres el anfitrión: si sales, nadie podrá empezar la partida.", lvGuest: "Puedes volver con el código {code}.", lvStay: "Quedarme", lvLeave: "Salir", sdResumeTitle: "Vuelve a tu partida", sdResumeSub: "Sala {code} · vuelve a tu sitio", sdWait1: "{a} te espera · sala {code}", sdWait2: "{a} y {b} te esperan · sala {code}", sdWaitN: "{a} y {n} más te esperan", sdEndsLine: "Termina {when} · sala {code}", sdEndsSoon: "en menos de un minuto", sdEnds2: "en 2 minutos", sdEndsN: "en {n} minutos", sharePlayer: "Un jugador", stTitle: "Ajustes", stLook: "Apariencia", stLight: "Claro", stDark: "Oscuro", stAuto: "Auto", stAutoHint: "Sigue a tu móvil", stIcon: "Icono de la app", stDone: "Listo", cancel: "Cancelar", back: "Volver", refresh: "Actualizar página", language: "Idioma",
     random: "Aleatoria", oneCardOnly: "Solo una carta", severalNoRepeat: "Varias cartas · sin repetir",
     drawPile: "Mazo", lastCard: "Última carta", round: "Ronda {n}", menu: "Menú", reactions: "Reacciones",
     tagline: "Un juego de emparejar trajes tradicionales saudíes",
@@ -1165,7 +1165,7 @@ const I18N = {
 
 // Arabic source strings for the keys above (Arabic is the reference language).
 Object.assign(I18N.ar, {
-  you: "أنت", lvTitle: "تطلع من الغرفة؟", lvHost: "أنت المضيف، وإذا طلعت ما أحد يقدر يبدأ اللعب.", lvGuest: "تقدر ترجع بنفس الكود {code}.", lvStay: "لا، خلّني", lvLeave: "اطلع", sdResumeTitle: "كمّل لعبتك", sdResumeSub: "غرفة {code} · ارجع لمكانك", sdWait1: "{a} ينتظرك · غرفة {code}", sdWait2: "{a} و{b} ينتظرونك · غرفة {code}", sdWaitN: "{a} و{n} ثانيين ينتظرونك", sharePlayer: "لاعب", stTitle: "الإعدادات", stLook: "المظهر", stLight: "فاتح", stDark: "داكن", stAuto: "تلقائي", stAutoHint: "يمشي مع إعداد جوالك", stIcon: "أيقونة التطبيق", stDone: "تم", cancel: "إلغاء", back: "رجوع", refresh: "تحديث الصفحة", language: "اللغة",
+  you: "أنت", lvTitle: "تطلع من الغرفة؟", lvHost: "أنت المضيف، وإذا طلعت ما أحد يقدر يبدأ اللعب.", lvGuest: "تقدر ترجع بنفس الكود {code}.", lvStay: "لا، خلّني", lvLeave: "اطلع", sdResumeTitle: "كمّل لعبتك", sdResumeSub: "غرفة {code} · ارجع لمكانك", sdWait1: "{a} ينتظرك · غرفة {code}", sdWait2: "{a} و{b} ينتظرونك · غرفة {code}", sdWaitN: "{a} و{n} ثانيين ينتظرونك", sdEndsLine: "تنتهي {when} · غرفة {code}", sdEndsSoon: "بعد أقل من دقيقة", sdEnds2: "بعد دقيقتين", sdEndsN: "بعد {n} دقايق", sharePlayer: "لاعب", stTitle: "الإعدادات", stLook: "المظهر", stLight: "فاتح", stDark: "داكن", stAuto: "تلقائي", stAutoHint: "يمشي مع إعداد جوالك", stIcon: "أيقونة التطبيق", stDone: "تم", cancel: "إلغاء", back: "رجوع", refresh: "تحديث الصفحة", language: "اللغة",
   random: "عشوائي", oneCardOnly: "كرت واحد بس", severalNoRepeat: "أكثر من كرت · بدون تكرار",
   drawPile: "السحب", lastCard: "آخر كرت", round: "جولة {n}", menu: "القائمة", reactions: "التفاعلات",
   tagline: "لعبة مطابقة الأزياء التقليدية السعودية",
@@ -7145,7 +7145,14 @@ function useResumableRoom() {
               .map((p, i) => ({ p, seat: i }))
               .filter(({ p }) => p && !p.isBot && p.id !== saved.myId)
               .map(({ p, seat }) => ({ name: p.name, seat }));
-            setResume({ ...saved, code: saved.roomCode, players });
+            // endsAt: sent only while every human is away; the card counts down, and when the time is
+            // up home asks again (the room then reads as gone and the card disappears)
+            const endsAt = typeof doc.endsAt === "number" ? doc.endsAt : null;
+            setResume({ ...saved, code: saved.roomCode, players, endsAt });
+            if (endsAt) {
+              clearTimeout(timer);
+              timer = setTimeout(() => check(), Math.max(5000, endsAt - (doc.serverNow || Date.now()) + 3000));
+            }
           } else {
             setResume(null);
             if (doc === "gone" || doc?.game?.winner || (doc?.started && !seat)) forgetLastOnline(); // finished, expired or no longer my seat
@@ -7223,7 +7230,19 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
       onOnline();
     });
   const waiting = (resume?.players || []).filter((p) => p && p.name).slice(0, 3);
-  const waitLine = !waiting.length
+  // Rooms where every human has left end on their own (5 min vs bots, 10 min with other humans);
+  // the server sends resume.endsAt, and the card counts down when it's close.
+  const [, setClockTick] = useState(0);
+  useEffect(() => {
+    if (!resume?.endsAt) return;
+    const iv = setInterval(() => setClockTick((n) => n + 1), 15000);
+    return () => clearInterval(iv);
+  }, [resume?.endsAt]);
+  const minsLeft = resume?.endsAt ? Math.max(0, Math.ceil((resume.endsAt - Date.now()) / 60000)) : null;
+  const endsIn = minsLeft == null ? null : minsLeft <= 1 ? t("sdEndsSoon") : minsLeft === 2 ? t("sdEnds2") : t("sdEndsN", { n: L.code === "ar" ? String(minsLeft).replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d]) : minsLeft });
+  const waitLine = endsIn
+    ? t("sdEndsLine", { when: endsIn, code: resume.code })
+    : !waiting.length
     ? t("sdResumeSub", { code: resume?.code })
     : waiting.length === 1
     ? t("sdWait1", { a: waiting[0].name, code: resume.code })

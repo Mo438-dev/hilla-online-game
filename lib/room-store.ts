@@ -19,6 +19,7 @@ export type RoomDoc = {
   game: unknown;
   updatedAt?: string | null;
   serverNow?: number; // server clock (ms) when this doc was sent; clients use it to sync timers
+  endsAt?: number; // set only while every human is away: when the room ends on its own (resume card)
 };
 
 type RoomRow = {
@@ -38,6 +39,72 @@ type RoomRow = {
 
 const ROOMS_TABLE = 'hilla_rooms';
 
+// Rooms where every human has left end on their own. A room with anyone in it keeps saving (bot
+// moves, or the turn timeout every phone races to claim, at least every 30 s), so the row's own
+// updated_at is the room's last sign of life. Away for 5 min with one human (vs bots), 10 min with
+// 2+ humans → the game is marked abandoned (reason all_humans_left): no results, the room reads as
+// gone, and game_sessions.ended_reason records it for analytics.
+// ABANDON_TEST_MS shortens both timers for a local test only; never set it in production.
+const ABANDON_TEST_MS = Number(process.env.ABANDON_TEST_MS) || 0;
+const AWAY_AFTER_MS = 60 * 1000; // no save for this long: nobody is at the table right now
+function abandonAfterMs(game: any) {
+  const humans = (game?.players || []).filter((p: any) => p && !p.isBot).length;
+  if (ABANDON_TEST_MS) return ABANDON_TEST_MS;
+  return humans <= 1 ? 5 * 60 * 1000 : 10 * 60 * 1000;
+}
+function isLiveGame(row: RoomRow) {
+  const g = row.game as any;
+  return !!(row.started && g && !g.winner);
+}
+function isAbandoned(row: RoomRow) {
+  const g = row.game as any;
+  if (g?.abandoned) return true;
+  return isLiveGame(row) && Date.now() - Date.parse(row.updated_at) >= abandonAfterMs(g);
+}
+// When the room will end if nobody comes back, only while everyone is away (for the resume card).
+function endsAtOf(row: RoomRow): number | null {
+  if (!isLiveGame(row) || (row.game as any)?.abandoned) return null;
+  const last = Date.parse(row.updated_at);
+  if (Date.now() - last < Math.min(AWAY_AFTER_MS, abandonAfterMs(row.game))) return null;
+  return last + abandonAfterMs(row.game);
+}
+// Marks the game abandoned once (guarded by the row version, so a save that just landed wins) and
+// records the reason on the analytics session. Never throws.
+async function markAbandoned(row: RoomRow) {
+  const g = row.game as any;
+  if (g?.abandoned) return;
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data } = await supabase
+      .from(ROOMS_TABLE)
+      .update({ game: { ...g, abandoned: { reason: 'all_humans_left', at: Date.now() } } })
+      .eq('code', row.code)
+      .eq('updated_at', row.updated_at)
+      .select('code')
+      .maybeSingle();
+    if (data && row.game_id && UUID_RE.test(row.game_id)) {
+      await supabase.from('game_sessions').update({ ended_reason: 'all_humans_left' }).eq('id', row.game_id).eq('completed', false);
+    }
+  } catch (e) {
+    console.error('abandon failed', e instanceof Error ? e.message : e);
+  }
+}
+// The cleanup cron's share: every started, unfinished room that has gone quiet long enough.
+export async function abandonQuietRooms() {
+  const supabase = getSupabaseAdmin();
+  const cutoff = new Date(Date.now() - (ABANDON_TEST_MS || 5 * 60 * 1000)).toISOString();
+  const { data, error } = await supabase.from(ROOMS_TABLE).select('*').eq('started', true).lt('updated_at', cutoff).limit(500);
+  if (error) throw error;
+  let n = 0;
+  for (const row of (data ?? []) as RoomRow[]) {
+    if (!(row.game as any)?.abandoned && isAbandoned(row)) {
+      await markAbandoned(row);
+      n++;
+    }
+  }
+  return n;
+}
+
 function toRoomDoc(row: RoomRow): RoomDoc {
   return {
     code: row.code,
@@ -48,7 +115,8 @@ function toRoomDoc(row: RoomRow): RoomDoc {
     lobby: row.lobby ?? [],
     game: row.game ?? null,
     updatedAt: row.updated_at ?? null,
-    serverNow: Date.now()
+    serverNow: Date.now(),
+    ...(endsAtOf(row) ? { endsAt: endsAtOf(row) as number } : {})
   };
 }
 
@@ -108,6 +176,11 @@ export async function getRoom(code: string) {
     await deleteExpiredRoom(code);
     return null;
   }
+  // everyone left long enough ago: the game ends here and the room reads as gone
+  if (isAbandoned(data as RoomRow)) {
+    await markAbandoned(data as RoomRow);
+    return null;
+  }
 
   return toRoomDoc(data as RoomRow);
 }
@@ -148,6 +221,7 @@ export async function claimTurnTimeout(code: string, incomingRoom: RoomDoc, expe
   const { data: current, error: readErr } = await supabase.from(ROOMS_TABLE).select('*').eq('code', code).maybeSingle();
   if (readErr) throw readErr;
   if (!current || (current as RoomRow).updated_at !== expected.updatedAt) return { ok: false as const };
+  if (isAbandoned(current as RoomRow)) return { ok: false as const };
   const prev = toRoomDoc(current as RoomRow);
   const nextRoom = keepServerFields(prev, incomingRoom);
   const check = prev.game ? checkTransition(prev.game, nextRoom.game) : { ok: false as const, reason: 'no_game' };
@@ -314,6 +388,10 @@ export async function guardedSaveRoom(code: string, incoming: RoomDoc, baseUpdat
     if (baseUpdatedAt && row.updated_at !== baseUpdatedAt) return { ok: false, reason: 'stale' };
     if (isExpired(row.expires_at)) {
       await deleteExpiredRoom(code);
+      return { ok: false, reason: 'not_found' };
+    }
+    if (isAbandoned(row)) {
+      await markAbandoned(row);
       return { ok: false, reason: 'not_found' };
     }
     const prev = toRoomDoc(row);
