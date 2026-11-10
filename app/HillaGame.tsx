@@ -3255,7 +3255,9 @@ function DuelSheet({ them, query, note, onClose }) {
     (async () => {
       try {
         const headers = await authHeaders();
-        const res = await fetch(`/api/duel?${query}`, { headers, cache: "no-store" });
+        // a fresh URL every time: the same "with=" URL after every game let a cache hand back the
+        // first game's record (seen on a phone: three games, the sheet showed one)
+        const res = await fetch(`/api/duel?${query}&t=${Date.now()}`, { headers, cache: "no-store" });
         const body = res.ok ? await res.json() : { error: true };
         if (alive) setD(body);
       } catch {

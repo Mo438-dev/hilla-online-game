@@ -1,4 +1,6 @@
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
@@ -6,7 +8,7 @@ import { getRequestUser } from '@/lib/auth-server';
 import { headToHead } from '@/lib/leaderboard/duel';
 
 const UUID = /^[0-9a-f-]{36}$/i;
-const noStore = { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' };
+const noStore = { 'Cache-Control': 'private, no-store, no-cache, must-revalidate, max-age=0', 'CDN-Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'no-store', Vary: 'Authorization' };
 
 // GET /api/duel?with=<userId> (win screen: the seat's account), or from the leaderboard ?user=<username>
 // or ?ref=<public id>. Anyone not found gets the empty record, never an error. Returns the head-to-head
