@@ -1075,7 +1075,7 @@ const I18N = {
     hintTag: "Tip", hintStep: "{a} of {b}", hintRegionTitle: "Region colour & symbol", hintThisOne: "This {item} is {region}.", hintRegionBody: "Every clothing card belongs to a region: you can tell from the frame's colour and the symbol in its corners.",
     hintCoordRegion: "A {region} card", hintCoordRegionBody: "It only takes pieces with its colour and symbol, from the ones shown on it.", hintCoordRandom: "A random card", hintCoordRandomBody: "It takes just one of the pieces shown on it, from any region.",
     hintFit0: "None of your cards fit it right now", hintFit1: "1 of your cards fits it", hintFit2: "2 of your cards fit it", hintFitN: "{n} of your cards fit it", hintFitMany: "{n} of your cards fit it",
-    hintNext: "Next", hintDone: "Got it", hintSkip: "Skip", randomOneSwap: "A random card takes just one piece, so we swapped your pick.", stHints: "Show tips again", stHintsDone: "They'll show in your next game",
+    hintNext: "Next", hintDone: "Got it", hintSkip: "Skip", randomOneSwap: "A random card takes just one piece, so we swapped your pick.", randomOneSwap: "A random card takes just one piece, so we swapped your pick.", stHints: "Show tips again", stHintsDone: "They'll show in your next game",
     rulesTitle: "How to play Hulla", rGoal: "Goal", rGoalT: "The first player to get rid of all their cards wins.",
     rRegion: "Region coordination card", rRegionT: "Play any number of clothing cards, as long as they're from the card's region and among the items shown on it (no repeating the same item).",
     rRandom: "Random coordination card", rRandomT: "Just one item at a time, from any region, as long as it's one of the items shown on the card.",
@@ -1153,7 +1153,7 @@ const I18N = {
     hintTag: "Consejo", hintStep: "{a} de {b}", hintRegionTitle: "Color y símbolo de región", hintThisOne: "Este {item} es de {region}.", hintRegionBody: "Cada carta de ropa es de una región: lo ves por el color del marco y el símbolo de sus esquinas.",
     hintCoordRegion: "Carta de región {region}", hintCoordRegionBody: "Solo admite piezas de su color y símbolo, de las que aparecen en ella.", hintCoordRandom: "Carta aleatoria", hintCoordRandomBody: "Admite una sola de las piezas que muestra, de cualquier región.",
     hintFit0: "Ahora ninguna de tus cartas encaja", hintFit1: "1 de tus cartas encaja", hintFit2: "2 de tus cartas encajan", hintFitN: "{n} de tus cartas encajan", hintFitMany: "{n} de tus cartas encajan",
-    hintNext: "Siguiente", hintDone: "¡Entendido!", hintSkip: "Saltar", randomOneSwap: "Una carta aleatoria solo admite una pieza: cambiamos tu elección.", stHints: "Mostrar consejos otra vez", stHintsDone: "Saldrán en tu próxima partida",
+    hintNext: "Siguiente", hintDone: "¡Entendido!", hintSkip: "Saltar", randomOneSwap: "Una carta aleatoria solo admite una pieza: cambiamos tu elección.", randomOneSwap: "Una carta aleatoria solo admite una pieza: cambiamos tu elección.", stHints: "Mostrar consejos otra vez", stHintsDone: "Saldrán en tu próxima partida",
     rulesTitle: "Cómo jugar a Hulla", rGoal: "Objetivo", rGoalT: "Gana el primer jugador que se quede sin cartas.",
     rRegion: "Carta de coordinación de región", rRegionT: "Coloca cuantas cartas de ropa quieras, siempre que sean de la región de la carta y estén entre los objetos que muestra (sin repetir el mismo objeto).",
     rRandom: "Carta de coordinación aleatoria", rRandomT: "Solo un objeto cada vez, de cualquier región, siempre que sea uno de los objetos de la carta.",
@@ -1233,7 +1233,7 @@ Object.assign(I18N.ar, {
   hintTag: "تلميح", hintStep: "{a} من {b}", hintRegionTitle: "لون ورمز المنطقة", hintThisOne: "مثلًا هذا {item} {region}.", hintRegionBody: "كل قطعة لبس من منطقة. تعرفها من لون إطار الكرت والرمز اللي بزواياه.",
   hintCoordRegion: "بطاقة منطقة {region}", hintCoordRegionBody: "ما تقبل إلا قطع بنفس لونها ورمزها، ومن القطع المعروضة عليها.", hintCoordRandom: "بطاقة عشوائية", hintCoordRandomBody: "تقبل قطعة وحدة بس من القطع المعروضة عليها، ومن أي منطقة.",
   hintFit0: "ما عندك قطعة تنفع لها الحين", hintFit1: "عندك قطعة وحدة تنفع لها", hintFit2: "عندك قطعتين تنفع لها", hintFitN: "عندك {n} قطع تنفع لها", hintFitMany: "عندك {n} قطعة تنفع لها",
-  hintNext: "التالي", hintDone: "فهمت، يلا!", hintSkip: "تخطّي", randomOneSwap: "العشوائي ياخذ قطعة وحدة بس، بدّلنا اختيارك.", stHints: "اعرض التلميحات من جديد", stHintsDone: "بتطلع في مباراتك الجاية",
+  hintNext: "التالي", hintDone: "فهمت، يلا!", hintSkip: "تخطّي", randomOneSwap: "العشوائي ياخذ قطعة وحدة بس، بدّلنا اختيارك.", randomOneSwap: "العشوائي ياخذ قطعة وحدة بس، بدّلنا اختيارك.", stHints: "اعرض التلميحات من جديد", stHintsDone: "بتطلع في مباراتك الجاية",
   rulesTitle: "وش قوانين حُلّة؟", rGoal: "الهدف", rGoalT: "أول لاعب يتخلص من كل كروته يفوز.",
   rRegion: "كرت تنسيق منطقة", rRegionT: "تقدر تحط أي عدد من كروت العناصر بشرط تكون من نفس منطقة الكرت ومن العناصر المعروضة عليه (بدون تكرار نفس العنصر).",
   rRandom: "كرت تنسيق عشوائي", rRandomT: "عنصر واحد بس بكل مرة، من أي منطقة، طالما اسمه من ضمن العناصر المعروضة على الكرت.",
@@ -4840,7 +4840,16 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     // nothing to clear, so we only dispatch on a real change.
     const woken = rWakePlayer(game, viewer.id);
     if (woken !== game) dispatch(woken);
-    setSelected((s) => (s.includes(cardId) ? s.filter((x) => x !== cardId) : [...s, cardId]));
+    if (selected.includes(cardId)) setSelected(selected.filter((x) => x !== cardId));
+    else setSelected(oneItemOnly(cardId, selected) ? [cardId] : [...selected, cardId]);
+  }
+  // A random coordination card takes one piece: tapping a second item swaps the pick and says why.
+  function oneItemOnly(cardId, picked) {
+    if (game.currentCoord?.type !== "random" || !picked.length) return false;
+    const isItem = (id) => viewer.hand.some((c) => c.id === id && c.kind === "item");
+    if (!isItem(cardId) || !picked.some(isItem)) return false;
+    setErrMsg(t("randomOneSwap"));
+    return true;
   }
 
   function playSelectedItems() {
@@ -5161,7 +5170,8 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
       seatCountRef.current.premovesSet += 1;
       sendAppEvent("premove_set", game.analyticsId || null, { player_id: viewer.id, turn_number: game.turnSerial ?? 0 });
     }
-    setPre((s) => (s.includes(cardId) ? s.filter((x) => x !== cardId) : [...s, cardId]));
+    if (pre.includes(cardId)) setPre(pre.filter((x) => x !== cardId));
+    else setPre(oneItemOnly(cardId, pre) ? [cardId] : [...pre, cardId]);
   }
   // A premoved card left the hand before my turn (اقدع / عطني وأعطيك): drop the premove and say so.
   useEffect(() => {
