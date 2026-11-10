@@ -1072,6 +1072,10 @@ const I18N = {
     // menu
     continue: "Keep playing", howToPlay: "How to play?", bigText: "Larger text", newGame: "New game", exit: "Exit",
     // rules
+    hintTag: "Tip", hintStep: "{a} of {b}", hintRegionTitle: "Region colour & symbol", hintThisOne: "This {item} is {region}.", hintRegionBody: "Every clothing card belongs to a region: you can tell from the frame's colour and the symbol in its corners.",
+    hintCoordRegion: "A {region} card", hintCoordRegionBody: "It only takes pieces with its colour and symbol, from the ones shown on it.", hintCoordRandom: "A random card", hintCoordRandomBody: "It takes just one of the pieces shown on it, from any region.",
+    hintFit0: "None of your cards fit it right now", hintFit1: "1 of your cards fits it", hintFit2: "2 of your cards fit it", hintFitN: "{n} of your cards fit it", hintFitMany: "{n} of your cards fit it",
+    hintNext: "Next", hintDone: "Got it", hintSkip: "Skip", randomOneSwap: "A random card takes just one piece, so we swapped your pick.", stHints: "Show tips again", stHintsDone: "They'll show in your next game",
     rulesTitle: "How to play Hulla", rGoal: "Goal", rGoalT: "The first player to get rid of all their cards wins.",
     rRegion: "Region coordination card", rRegionT: "Play any number of clothing cards, as long as they're from the card's region and among the items shown on it (no repeating the same item).",
     rRandom: "Random coordination card", rRandomT: "Just one item at a time, from any region, as long as it's one of the items shown on the card.",
@@ -1146,6 +1150,10 @@ const I18N = {
     confirm: "Confirmar ({a}/{b})",
     spectator: "{actor} usa <b>{action}</b> contra {target}", blocked: "¡{blocker} frenó a {actor} con ¡Ni hablar!",
     continue: "Seguir jugando", howToPlay: "¿Cómo se juega?", bigText: "Texto más grande", newGame: "Partida nueva", exit: "Salir",
+    hintTag: "Consejo", hintStep: "{a} de {b}", hintRegionTitle: "Color y símbolo de región", hintThisOne: "Este {item} es de {region}.", hintRegionBody: "Cada carta de ropa es de una región: lo ves por el color del marco y el símbolo de sus esquinas.",
+    hintCoordRegion: "Carta de región {region}", hintCoordRegionBody: "Solo admite piezas de su color y símbolo, de las que aparecen en ella.", hintCoordRandom: "Carta aleatoria", hintCoordRandomBody: "Admite una sola de las piezas que muestra, de cualquier región.",
+    hintFit0: "Ahora ninguna de tus cartas encaja", hintFit1: "1 de tus cartas encaja", hintFit2: "2 de tus cartas encajan", hintFitN: "{n} de tus cartas encajan", hintFitMany: "{n} de tus cartas encajan",
+    hintNext: "Siguiente", hintDone: "¡Entendido!", hintSkip: "Saltar", randomOneSwap: "Una carta aleatoria solo admite una pieza: cambiamos tu elección.", stHints: "Mostrar consejos otra vez", stHintsDone: "Saldrán en tu próxima partida",
     rulesTitle: "Cómo jugar a Hulla", rGoal: "Objetivo", rGoalT: "Gana el primer jugador que se quede sin cartas.",
     rRegion: "Carta de coordinación de región", rRegionT: "Coloca cuantas cartas de ropa quieras, siempre que sean de la región de la carta y estén entre los objetos que muestra (sin repetir el mismo objeto).",
     rRandom: "Carta de coordinación aleatoria", rRandomT: "Solo un objeto cada vez, de cualquier región, siempre que sea uno de los objetos de la carta.",
@@ -1222,6 +1230,10 @@ Object.assign(I18N.ar, {
   confirm: "تأكيد ({a}/{b})",
   spectator: "{actor} يستخدم <b>{action}</b> ضد {target}", blocked: "{blocker} صدّ {actor} بـ لا ما تقدر!",
   continue: "استمرار اللعب", howToPlay: "كيف ألعب؟", bigText: "تكبير النص", newGame: "لعبة جديدة", exit: "خروج",
+  hintTag: "تلميح", hintStep: "{a} من {b}", hintRegionTitle: "لون ورمز المنطقة", hintThisOne: "مثلًا هذا {item} {region}.", hintRegionBody: "كل قطعة لبس من منطقة. تعرفها من لون إطار الكرت والرمز اللي بزواياه.",
+  hintCoordRegion: "بطاقة منطقة {region}", hintCoordRegionBody: "ما تقبل إلا قطع بنفس لونها ورمزها، ومن القطع المعروضة عليها.", hintCoordRandom: "بطاقة عشوائية", hintCoordRandomBody: "تقبل قطعة وحدة بس من القطع المعروضة عليها، ومن أي منطقة.",
+  hintFit0: "ما عندك قطعة تنفع لها الحين", hintFit1: "عندك قطعة وحدة تنفع لها", hintFit2: "عندك قطعتين تنفع لها", hintFitN: "عندك {n} قطع تنفع لها", hintFitMany: "عندك {n} قطعة تنفع لها",
+  hintNext: "التالي", hintDone: "فهمت، يلا!", hintSkip: "تخطّي", randomOneSwap: "العشوائي ياخذ قطعة وحدة بس، بدّلنا اختيارك.", stHints: "اعرض التلميحات من جديد", stHintsDone: "بتطلع في مباراتك الجاية",
   rulesTitle: "وش قوانين حُلّة؟", rGoal: "الهدف", rGoalT: "أول لاعب يتخلص من كل كروته يفوز.",
   rRegion: "كرت تنسيق منطقة", rRegionT: "تقدر تحط أي عدد من كروت العناصر بشرط تكون من نفس منطقة الكرت ومن العناصر المعروضة عليه (بدون تكرار نفس العنصر).",
   rRandom: "كرت تنسيق عشوائي", rRandomT: "عنصر واحد بس بكل مرة، من أي منطقة، طالما اسمه من ضمن العناصر المعروضة على الكرت.",
@@ -2336,6 +2348,16 @@ const GlobalFont = () => (
       100% { opacity: 0; transform: translateY(-4px) scale(.96); }
     }
     .hilla-bubble { animation: hilla-bubble 2.5s cubic-bezier(.2,.9,.3,1.2) forwards; transform-origin: 50% 100%; }
+    /* first-game tip */
+    .hint-in { animation: hint-in .35s ease both; }
+    @keyframes hint-in { from { opacity: 0; } }
+    .hint-ring { animation: hint-ring 1.6s ease-in-out infinite; transition: left .35s ease, top .35s ease, width .35s ease, height .35s ease; }
+    @keyframes hint-ring { 0%, 100% { box-shadow: 0 0 0 3px ${GOLD}, 0 0 0 3px ${GOLD}55; } 50% { box-shadow: 0 0 0 3px ${GOLD}, 0 0 0 12px ${GOLD}00; } }
+    .hint-bubble { animation: hint-bubble .42s cubic-bezier(.2,.9,.3,1.25) both; }
+    .hint-chip-on { animation: hint-chip .5s .35s cubic-bezier(.2,.9,.3,1.4) both; }
+    @keyframes hint-chip { from { transform: scale(.8); } }
+    @keyframes hint-bubble { from { opacity: 0; transform: scale(.86) translateY(6px); } }
+    @media (prefers-reduced-motion: reduce) { .hint-in, .hint-ring, .hint-bubble { animation: none; } }
     /* «القم!» lands like a punch: overshoots big, then shakes */
     .hilla-bubble.ph-punch { animation: ph-punch 2.5s cubic-bezier(.2,.9,.3,1.2) forwards; }
     @keyframes ph-punch {
@@ -3902,6 +3924,181 @@ function PostGameSurvey({ game, myId, isOnline }) {
   );
 }
 
+// First-game tip: a two-step spotlight that teaches the region colour + symbol on a real card in
+// your hand, then what the current coordination card accepts. Shown once per device (Settings can
+// bring it back). Locally the whole table waits while it's open; online it only appears while it
+// isn't your turn, so it never eats your turn clock.
+// Only first-timers get it: anyone who has already finished a game on this device never sees it
+// (production also skips it when the account already has game results). Settings → «اعرض
+// التلميحات من جديد» stores "again", which brings it back once even for old players.
+const HINT_STORE = "hulla-hint-regions"; // "seen" | "again" | unset
+const PLAYED_STORE = "hulla-played"; // set once any game this device was in has ended
+function hintSeen() {
+  try {
+    const v = window.localStorage.getItem(HINT_STORE);
+    if (v === "again") return false;
+    return v === "seen" || window.localStorage.getItem(PLAYED_STORE) === "1";
+  } catch {
+    return true; // no storage: don't nag every game
+  }
+}
+function markPlayed() {
+  try {
+    window.localStorage.setItem(PLAYED_STORE, "1");
+  } catch {}
+}
+function markHintSeen() {
+  try {
+    window.localStorage.setItem(HINT_STORE, "seen");
+  } catch {}
+}
+
+// The region's app icon (the same art as the home-screen icon choice), used by the first-game tip.
+function RegionIcon({ region, size = 32 }) {
+  const icon = APP_ICONS.find((i) => i.key === region);
+  if (!icon) return null;
+  return <img src={icon.src} alt="" width={size} height={size} draggable={false} style={{ width: size, height: size, borderRadius: size * 0.24, flexShrink: 0, display: "block", }} />;
+}
+
+function RegionCoach({ step, coord, hand, coordRef, onNext, onSkip }) {
+  const { t, L } = useI18n();
+  const [rect, setRect] = useState(null);
+  const [cid, setCid] = useState(null); // the hand card under the spotlight
+  const [vp, setVp] = useState({ w: typeof window !== "undefined" ? window.innerWidth : 390, h: typeof window !== "undefined" ? window.innerHeight : 844 });
+  const target = () => {
+    if (step === 1) return coordRef.current;
+    const row = document.querySelector('[data-hint="items"]');
+    if (!row) return null;
+    const box = row.getBoundingClientRect();
+    return [...row.querySelectorAll("[data-cid]")].find((el) => {
+      const r = el.getBoundingClientRect();
+      return r.left >= box.left - 2 && r.right <= box.right + 2;
+    }) || row.querySelector("[data-cid]");
+  };
+  useEffect(() => {
+    const el = target();
+    if (el) el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    let raf = 0;
+    const until = Date.now() + 900; // follow the target while the deal / scroll settles
+    const measure = () => {
+      const node = target();
+      if (node) {
+        const r = node.getBoundingClientRect();
+        if (step === 0) setCid(node.getAttribute("data-cid"));
+        setRect((old) => (old && Math.abs(old.x - r.x) < 0.5 && Math.abs(old.y - r.y) < 0.5 && old.w === r.width ? old : { x: r.x, y: r.y, w: r.width, h: r.height }));
+      }
+      setVp({ w: window.innerWidth, h: window.innerHeight });
+      if (Date.now() < until) raf = requestAnimationFrame(measure);
+    };
+    measure();
+    const on = () => measure();
+    window.addEventListener("resize", on);
+    window.addEventListener("scroll", on, true);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", on);
+      window.removeEventListener("scroll", on, true);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, coord?.id]);
+  if (!rect) return null;
+
+  const pad = step === 1 ? 8 : 6;
+  const hole = { left: rect.x - pad, top: rect.y - pad, width: rect.w + pad * 2, height: rect.h + pad * 2 };
+  const bw = Math.min(320, vp.w - 32);
+  const above = rect.y + rect.h / 2 > vp.h * 0.5;
+  const cx = rect.x + rect.w / 2;
+  const left = Math.min(Math.max(16, cx - bw / 2), vp.w - 16 - bw);
+  const arrowX = Math.min(Math.max(22, cx - left), bw - 22);
+  const num = (n) => (L.code === "ar" ? String(n).replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d]) : String(n));
+
+  const lit = step === 0 ? hand.find((c) => c.id === cid) : null; // its region gets picked out in the legend
+  const isRegion = coord && coord.type !== "random";
+  const fits = !coord ? 0 : isRegion ? findMatchingItems(hand, coord).length : hand.filter((c) => c.kind === "item" && coord.items.includes(c.name)).length;
+  const fitLine = fits === 0 ? t("hintFit0") : fits === 1 ? t("hintFit1") : fits === 2 ? t("hintFit2") : fits <= 10 ? t("hintFitN", { n: num(fits) }) : t("hintFitMany", { n: num(fits) });
+
+  return (
+    <div className="fixed inset-0 hint-in" style={{ zIndex: 9000 }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t("hintTag")}>
+      {/* the dimmed table with a lit hole over the target */}
+      <div
+        className="absolute hint-hole"
+        style={{ ...hole, borderRadius: step === 1 ? 22 : 16, boxShadow: "0 0 0 200vmax rgba(18,8,9,.68)", transition: "left .35s ease, top .35s ease, width .35s ease, height .35s ease" }}
+      />
+      <div className="absolute pointer-events-none hint-ring" style={{ ...hole, borderRadius: step === 1 ? 22 : 16, boxShadow: `0 0 0 3px ${GOLD}` }} />
+
+      {/* the bubble */}
+      <div
+        key={step}
+        className="absolute hint-bubble"
+        dir={L.dir}
+        style={{
+          left,
+          width: bw,
+          ...(above ? { bottom: vp.h - hole.top + 16 } : { top: hole.top + hole.height + 16 }),
+          ...CARD_VARS,
+          background: CREAM,
+          color: INK_HARD,
+          borderRadius: 22,
+          padding: "14px 16px 12px",
+          boxShadow: `0 0 0 2px ${GOLD}, 0 22px 50px -14px rgba(0,0,0,.6)`,
+          transformOrigin: `${arrowX}px ${above ? "100%" : "0%"}`,
+        }}
+      >
+        <span className="absolute" style={{ left: arrowX - 8, [above ? "bottom" : "top"]: -7, width: 16, height: 16, background: CREAM, transform: "rotate(45deg)", boxShadow: above ? `2px 2px 0 0 ${GOLD}` : `-2px -2px 0 0 ${GOLD}` }} />
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="tsz-11 font-bold rounded-full px-2 py-0.5" style={{ background: `${GOLD}33`, color: "#5A3F0C" }}>
+            💡 {t("hintTag")}
+          </span>
+          <span className="tsz-11 font-semibold" style={{ color: "#231F2077" }}>{t("hintStep", { a: num(step + 1), b: num(2) })}</span>
+        </div>
+
+        {step === 0 ? (
+          <>
+            <div className="display-font font-bold leading-tight" style={{ fontSize: 24, color: BRAND }}>{t("hintRegionTitle")}</div>
+            <div className="tsz-13 leading-relaxed mt-1" style={{ color: "#231F20cc" }}>
+              {t("hintRegionBody")}
+              {lit && <> <b style={{ color: regionOf(lit.region)?.color }}>{t("hintThisOne", { item: L.item(lit.name), region: L.region(lit.region) })}</b></>}
+            </div>
+            <div className="grid grid-cols-4 gap-1.5 mt-3">
+              {REGIONS.map((r) => {
+                const on = lit && lit.region === r.id;
+                return (
+                  <div key={r.id} className={`flex flex-col items-center gap-1.5 rounded-xl pt-2 pb-1.5 transition ${on ? "hint-chip-on" : ""}`} style={on ? { background: r.color, boxShadow: `0 0 0 2px ${GOLD}` } : { background: `${r.color}12`, boxShadow: `inset 0 0 0 1.5px ${r.color}55` }}>
+                    <RegionIcon region={r.id} size={36} />
+                    <span className="tsz-11 font-bold leading-none" style={{ color: on ? CREAM : r.color }}>{L.region(r.id)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              {isRegion && <RegionIcon region={coord.region} size={34} />}
+              <div className="display-font font-bold leading-tight" style={{ fontSize: 24, color: isRegion ? regionOf(coord.region)?.color || BRAND : BRAND }}>
+                {isRegion ? t("hintCoordRegion", { region: L.region(coord.region) }) : t("hintCoordRandom")}
+              </div>
+            </div>
+            <div className="tsz-13 leading-relaxed mt-1" style={{ color: "#231F20cc" }}>{isRegion ? t("hintCoordRegionBody") : t("hintCoordRandomBody")}</div>
+            <div className="mt-2.5 rounded-xl px-3 py-2 tsz-12 font-bold flex items-center gap-2" style={{ background: fits ? "#36613514" : "#231F200d", color: fits ? "#366135" : "#231F2099" }}>
+              <span aria-hidden="true">{fits ? "✓" : "…"}</span> {fitLine}
+            </div>
+          </>
+        )}
+
+        <div className="flex items-center gap-2 mt-3">
+          <button onClick={onSkip} className="tsz-12 font-semibold px-2 py-2" style={{ color: "#231F2088" }}>{t("hintSkip")}</button>
+          <span className="flex-1 flex justify-center gap-1.5" aria-hidden="true">
+            {[0, 1].map((i) => <span key={i} className="rounded-full transition-all" style={{ width: i === step ? 16 : 6, height: 6, background: i === step ? BRAND : "#231F2026" }} />)}
+          </span>
+          <button onClick={onNext} className={`px-5 py-2 tsz-14 ${btn}`} style={btnPrimary}>{step === 0 ? t("hintNext") : t("hintDone")}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onClaimTimeout, onDeclineBlock, onBlock, onSettle, onReact, seatUserIds, dispatch, onExit, onGoHome, onRematch }) {
   const { t, tb, L } = useI18n();
   // Win finale plays once per finished game; skipped for reduced motion.
@@ -4073,6 +4270,8 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     },
   };
   const coordRef = useRef(null);
+  const [hintStep, setHintStep] = useState(null); // first-game region tip: null | 0 | 1
+  const hintHold = hintStep !== null && !isOnline; // locally the table waits while the tip is open
   const [coordHidden, setCoordHidden] = useState(false);
   useEffect(() => {
     const el = coordRef.current;
@@ -4416,7 +4615,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   // Auto-play a bot's turn a beat after it becomes active. turnSerial guards against dispatching
   // the same bot turn twice if the effect refires on an identical polled room state.
   useEffect(() => {
-    if (!botExecutor || game.winner || game.pendingAction || game.digOptions) return;
+    if (!botExecutor || hintHold || game.winner || game.pendingAction || game.digOptions) return;
     const cur = game.players[game.currentPlayerIndex];
     if (!cur || !cur.isBot) return;
     const key = `${game.turnSerial ?? 0}:${cur.id}`;
@@ -4430,7 +4629,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     }, 900);
     return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game, botExecutor]);
+  }, [game, botExecutor, hintHold]);
 
   // LOCAL turn timer / inactive auto-skip (#26). If the active human doesn't act within the window
   // (30s normally, 3s once inactive), auto-skip their turn. Remaining time is derived from the
@@ -4438,7 +4637,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   // a dependency so waking mid-turn cancels the short 3s timer and reschedules (#27 bug 2). Local
   // mode has a single authoritative client, so it just dispatches the skip directly.
   useEffect(() => {
-    if (isOnline) return;
+    if (isOnline || hintHold) return;
     if (game.winner || game.pendingAction || game.digOptions) return;
     const cur = game.players[game.currentPlayerIndex];
     if (!cur || cur.isBot) return;
@@ -4461,7 +4660,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     }, remaining);
     return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOnline, game.turnSerial, game.turnStartedAt, game.pendingAction, game.digOptions, game.players[game.currentPlayerIndex]?.inactive]);
+  }, [isOnline, game.turnSerial, game.turnStartedAt, game.pendingAction, game.digOptions, game.players[game.currentPlayerIndex]?.inactive, hintHold]);
 
   // ONLINE turn timer (#26), host-independent. Every connected client runs this and races to
   // "claim" the skip through a guarded server write (onClaimTimeout → /timeout CAS). The server
@@ -4994,6 +5193,36 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   }, [isMyTurn, game.turnSerial, game.pendingAction, game.digOptions]);
 
   const itemCards = viewer.hand.filter((c) => c.kind === "item");
+
+  // first-game region tip (RegionCoach)
+  useEffect(() => {
+    if (game.winner) markPlayed(); // from now on this device isn't a first-timer
+  }, [game.winner]);
+  const gameNowRef = useRef(game);
+  gameNowRef.current = game;
+  const hasItems = itemCards.length > 0;
+  useEffect(() => {
+    if (hintStep !== null || hintSeen()) return;
+    if (game.winner || game.pendingAction || game.digOptions || !hasItems) return;
+    if (isOnline && isMyTurn) return; // online: only while someone else plays, never on your clock
+    const tm = setTimeout(() => {
+      const g = gameNowRef.current;
+      if (g.winner || g.pendingAction || g.digOptions) return;
+      if (!isOnline && !g.players[g.currentPlayerIndex]?.isBot) dispatch(pauseTurnClock(g));
+      setHintStep(0);
+    }, 1400);
+    return () => clearTimeout(tm);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game.turnSerial, isMyTurn, !!game.pendingAction, !!game.digOptions, game.winner, hasItems, hintStep]);
+  useEffect(() => {
+    if (isOnline && isMyTurn && hintStep !== null) setHintStep(null); // your turn started: get out of the way, show it later
+  }, [isOnline, isMyTurn, hintStep]);
+  const closeHint = () => {
+    markHintSeen();
+    setHintStep(null);
+    const g = gameNowRef.current;
+    if (!isOnline && typeof g.pausedElapsedMs === "number") dispatch(resumeTurnClock(g));
+  };
   const actionCards = viewer.hand.filter((c) => c.kind === "action");
 
   function renderItems() {
@@ -5390,7 +5619,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
                 <div className="tsz-11 font-semibold mt-2 px-1" style={{ color: `${A(INK, "77")}` }}>
                   {t("clothing")}
                 </div>
-                <div className="hilla-hand flex gap-2 overflow-x-auto -mx-3 px-3 pb-4 -mb-1">{renderItems()}</div>
+                <div data-hint="items" className="hilla-hand flex gap-2 overflow-x-auto -mx-3 px-3 pb-4 -mb-1">{renderItems()}</div>
 
                 {actionCards.length > 0 && (
                   <>
@@ -5556,6 +5785,9 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
       {/* Rendered last so it sits above the board and the ☰ menu; scales with A+. */}
       {showRules && <HowToPlay onClose={() => setShowRules(false)} bigText={bigText} />}
       {inactiveMe && !winnerPlayer && <InactiveBanner onWake={wakeMe} />}
+      {hintStep !== null && (
+        <RegionCoach step={hintStep} coord={game.currentCoord} hand={viewer.hand} coordRef={coordRef} onNext={() => (hintStep === 0 ? setHintStep(1) : closeHint())} onSkip={closeHint} />
+      )}
     </div>
   );
 }
@@ -6842,6 +7074,7 @@ function SettingsSheet({ onClose, onIcon }) {
   const [theme, setTheme] = useThemePref();
   const [sound, setSound] = useState(loadTurnSound);
   const [pre, setPre] = useState(loadPremove);
+  const [hintsBack, setHintsBack] = useState(false);
   const save = (key, on) => {
     try {
       window.localStorage.setItem(key, on ? "on" : "off");
@@ -6887,6 +7120,19 @@ function SettingsSheet({ onClose, onIcon }) {
         <div className="mt-5">
           <Toggle label={t("turnSound")} on={sound} onFlip={() => { setSound(!sound); save(TURN_SOUND_STORE, !sound); }} />
           <Toggle label={t("premove")} on={pre} onFlip={() => { setPre(!pre); save(PREMOVE_STORE, !pre); }} />
+          <button
+            onClick={() => {
+              try {
+                window.localStorage.setItem(HINT_STORE, "again");
+              } catch {}
+              setHintsBack(true);
+            }}
+            className="w-full flex items-center justify-between gap-3 py-3"
+            style={{ color: INK, borderTop: `1px solid ${A(INK, "12")}` }}
+          >
+            <span className="tsz-14 font-semibold">{t("stHints")}</span>
+            <span className="tsz-12" style={{ color: hintsBack ? "#3E9B57" : A(INK, "66") }}>{hintsBack ? t("stHintsDone") : "💡"}</span>
+          </button>
           {onIcon && (
             <button onClick={onIcon} className="w-full flex items-center justify-between gap-3 py-3" style={{ color: INK, borderTop: `1px solid ${A(INK, "12")}` }}>
               <span className="tsz-14 font-semibold">{t("stIcon")}</span>
@@ -8088,6 +8334,7 @@ function HillaApp() {
     syncNickname(loadNick()).then((p) => {
       if (p?.nickname && p.nickname !== loadNick()) setNick(p.nickname);
       if (p) setUsername(p.username);
+      if (p?.games > 0) markPlayed(); // an account with finished games never gets the first-game tip
     });
   }, []);
 

@@ -81,17 +81,18 @@ export async function saveNicknameRemote(nickname: string): Promise<{ ok: true; 
 // A name typed before accounts existed (or while offline) only lives on the phone, so the leaderboard
 // can't list that player; if the server has none, send the phone's up. Returns the name to show, or
 // null when there's nothing to change (no account, offline, or the phone's name was refused).
-export async function syncNickname(localNick: string): Promise<{ nickname: string | null; username: string | null } | null> {
+export async function syncNickname(localNick: string): Promise<{ nickname: string | null; username: string | null; games: number } | null> {
   const headers = await authHeaders();
   if (!headers.Authorization) return null;
   try {
     const d = deviceInfo();
     const res = await fetch(`/api/profile?platform=${d.platform}&standalone=${d.standalone ? 1 : 0}`, { headers, cache: 'no-store' });
     if (!res.ok) return null;
-    const { nickname, username } = await res.json();
-    if (nickname || !localNick) return { nickname: nickname ?? null, username: username ?? null };
+    const { nickname, username, games } = await res.json();
+    const played = typeof games === 'number' ? games : 0;
+    if (nickname || !localNick) return { nickname: nickname ?? null, username: username ?? null, games: played };
     const saved = await saveNicknameRemote(localNick);
-    return { nickname: saved.ok ? saved.nickname : null, username: username ?? null };
+    return { nickname: saved.ok ? saved.nickname : null, username: username ?? null, games: played };
   } catch {
     return null;
   }

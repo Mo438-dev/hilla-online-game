@@ -30,8 +30,10 @@ export async function GET(request: Request) {
   const seen: Record<string, unknown> = { user_id: user.id, last_seen_at: new Date().toISOString() };
   if (!data?.created_platform && dev.platform) Object.assign(seen, { created_platform: dev.platform, created_standalone: dev.standalone });
   await supabase.from('profiles').upsert(seen, { onConflict: 'user_id' });
+  // finished online games on this account: a returning player never gets the first-game tip
+  const { count: games } = await supabase.from('game_results').select('id', { count: 'exact', head: true }).eq('user_id', user.id);
   return NextResponse.json(
-    { nickname: data?.nickname ?? null, username: data?.username ?? null, usernameChangedAt: data?.username_changed_at ?? null, provider: user.provider },
+    { nickname: data?.nickname ?? null, username: data?.username ?? null, games: games ?? 0, usernameChangedAt: data?.username_changed_at ?? null, provider: user.provider },
     { headers: noStore }
   );
 }
