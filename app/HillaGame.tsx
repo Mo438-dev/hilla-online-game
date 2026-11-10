@@ -797,15 +797,17 @@ function canPlayLastBlock(game, playerId) {
   const cur = game.players[game.currentPlayerIndex];
   if (!cur || cur.id !== playerId || game.winner || game.pendingAction || game.digOptions) return false;
   if (game.actionUsedThisTurn) return false;
-  return cur.hand.length === 1 && cur.hand[0].kind === "action" && cur.hand[0].actionType === "block";
+  // every card left is «لا ما تقدر» (one or more): put them all down and finish
+  return cur.hand.length > 0 && cur.hand.every((c) => c.kind === "action" && c.actionType === "block");
 }
 
 function rPlayLastBlock(game, playerId) {
   if (!canPlayLastBlock(game, playerId)) return game;
   const player = game.players.find((p) => p.id === playerId);
-  let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, [player.hand[0].id]);
+  const n = player.hand.length;
+  let { game: g1, removed } = removeFromHand(resetMissed(game, playerId), playerId, player.hand.map((c) => c.id));
   g1 = { ...g1, discardPile: [...g1.discardPile, ...removed], actionUsedThisTurn: true };
-  g1 = pushLog(g1, `${player.name} نزّل لا ما تقدر كآخر كرت.`);
+  g1 = pushLog(g1, n === 1 ? `${player.name} نزّل لا ما تقدر كآخر كرت.` : `${player.name} نزّل آخر كروته: لا ما تقدر ×${n}.`);
   return checkWin(g1, playerId);
 }
 
@@ -1061,7 +1063,7 @@ const I18N = {
     canBlockYou: "You can use <b>No You Don't!</b> before the countdown ends.", autoResolve: "It goes through automatically after the countdown.",
     anyoneBlock: "Anyone holding <b>No You Don't!</b> can use it now, otherwise it goes through after the countdown.",
     useBlock: "Use No You Don't!", useBlockName: "{name}: use No You Don't!", passBlock: "No, I'll let it go",
-    noBlockCard: "{name} doesn't have a No You Don't! card.", blockOnlyReactive: "No You Don't! is a reaction to someone's action, or you can put it down when it's your last card.", actNote_giveTake: "Only one card left in their hand? That's fine: they get your two, you take their one.", actNote_block: "If it's your last card, you can play it to finish, as long as you haven't played an action this turn.", inactiveMeTitle: "You're inactive", inactiveMeBody: "Your turns are skipped until you're back.", imBack: "I'm back", turnSound: "Turn sound",
+    noBlockCard: "{name} doesn't have a No You Don't! card.", blockOnlyReactive: "No You Don't! is a reaction to someone's action, or you can put it down when it's all you have left.", actNote_giveTake: "Only one card left in their hand? That's fine: they get your two, you take their one.", actNote_block: "If all you have left is No You Don't! (one or more), put them all down to finish, as long as you haven't played an action this turn.", inactiveMeTitle: "You're inactive", inactiveMeBody: "Your turns are skipped until you're back.", imBack: "I'm back", turnSound: "Turn sound",
     whoTarget: "On whom?", digTitle: "Search the Chest", digHint: "Pick one card to keep; the rest go back to the pile.",
     digging: "{name} is searching the chest…",
     giveTitle: "Give & Take", givePick2: "Pick two cards from your hand to give the other player.", givePick1: "Pick one card from your hand to give the other player.",
@@ -1137,7 +1139,7 @@ const I18N = {
     canBlockYou: "Puedes usar <b>¡Ni hablar!</b> antes de que acabe la cuenta atrás.", autoResolve: "Se aplica sola al acabar la cuenta atrás.",
     anyoneBlock: "Quien tenga <b>¡Ni hablar!</b> puede usarla ahora; si no, se aplica al acabar la cuenta atrás.",
     useBlock: "Usar ¡Ni hablar!", useBlockName: "{name}: usar ¡Ni hablar!", passBlock: "No, lo dejo pasar",
-    noBlockCard: "{name} no tiene una carta ¡Ni hablar!", blockOnlyReactive: "¡Ni hablar! es una reacción a la acción de otro, o puedes jugarla cuando sea tu última carta.", actNote_giveTake: "¿Le queda una sola carta? No pasa nada: recibe tus dos y tú te llevas la suya.", actNote_block: "Si es tu última carta, puedes jugarla para terminar, siempre que no hayas jugado una acción en este turno.", inactiveMeTitle: "Estás inactivo", inactiveMeBody: "Tus turnos se saltan hasta que vuelvas.", imBack: "Ya volví", turnSound: "Sonido de turno",
+    noBlockCard: "{name} no tiene una carta ¡Ni hablar!", blockOnlyReactive: "¡Ni hablar! es una reacción a la acción de otro, o puedes jugarla cuando sea lo único que te queda.", actNote_giveTake: "¿Le queda una sola carta? No pasa nada: recibe tus dos y tú te llevas la suya.", actNote_block: "Si solo te quedan cartas ¡Ni hablar! (una o más), júgalas todas para terminar, siempre que no hayas jugado una acción en este turno.", inactiveMeTitle: "Estás inactivo", inactiveMeBody: "Tus turnos se saltan hasta que vuelvas.", imBack: "Ya volví", turnSound: "Sonido de turno",
     whoTarget: "¿Contra quién?", digTitle: "Busca en el baúl", digHint: "Elige una carta para quedártela; el resto vuelve al mazo.",
     digging: "{name} está buscando en el baúl…",
     giveTitle: "Toma y daca", givePick2: "Elige dos cartas de tu mano para dárselas al otro jugador.", givePick1: "Elige una carta de tu mano para dársela al otro jugador.",
@@ -1213,7 +1215,7 @@ Object.assign(I18N.ar, {
   canBlockYou: "عندك فرصة تستخدم <b>لا ما تقدر</b> قبل ما تنتهي العدّة.", autoResolve: "بينفّذ تلقائيًا بعد العدّة.",
   anyoneBlock: "أي لاعب عنده <b>لا ما تقدر</b> يقدر يستخدمه الحين، وإلا بينفّذ تلقائيًا بعد العدّة.",
   useBlock: "استخدم لا ما تقدر", useBlockName: "{name}: استخدم لا ما تقدر", passBlock: "لا، ما راح أستخدمه",
-  noBlockCard: "{name} ما معه كرت لا ما تقدر.", blockOnlyReactive: "لا ما تقدر تستخدمه كردّ فعل لما أحد يلعب أكشن، أو تنزله إذا صار آخر كرت معك.", actNote_giveTake: "ما بقى معه إلا كرت واحد؟ عادي، ياخذ كرتينك وتاخذ كرته.", actNote_block: "وإذا صارت آخر كرت معك، نزّلها وخلصت، بشرط ما لعبت أكشن بنفس الدور.", inactiveMeTitle: "أنت غير نشط", inactiveMeBody: "أدوارك تتخطى تلقائيًا لين ترجع.", imBack: "رجّعني نشط", turnSound: "صوت الدور",
+  noBlockCard: "{name} ما معه كرت لا ما تقدر.", blockOnlyReactive: "لا ما تقدر تستخدمه كردّ فعل لما أحد يلعب أكشن، أو تنزّلها إذا ما بقى بيدك غيرها.", actNote_giveTake: "ما بقى معه إلا كرت واحد؟ عادي، ياخذ كرتينك وتاخذ كرته.", actNote_block: "وإذا صار كل اللي بيدك «لا ما تقدر» (وحدة أو أكثر)، نزّلها كلها وخلصت، بشرط ما لعبت أكشن بنفس الدور.", inactiveMeTitle: "أنت غير نشط", inactiveMeBody: "أدوارك تتخطى تلقائيًا لين ترجع.", imBack: "رجّعني نشط", turnSound: "صوت الدور",
   whoTarget: "على مين؟", digTitle: "فتّش الصندوق", digHint: "اختر كرت واحد تحتفظ فيه، والباقي يرجع للسحب.",
   digging: "{name} يفتّش الصندوق الحين…",
   giveTitle: "عطني وأعطيك", givePick2: "اختر كرتين من يدك تعطيها للاعب الثاني.", givePick1: "اختر كرت واحد من يدك تعطيها للاعب الثاني.",
@@ -1345,6 +1347,7 @@ const BOT_NAME_POOLS = {
 
 // Engine log lines (shared, Arabic) → viewer's language. Each rule is [regex, en(m), es(m)].
 const LOG_RULES = [
+  [/^(.+) نزّل آخر كروته: لا ما تقدر ×(\d+)\.$/, (m, L) => `${m[1]} played their last cards: ${L.action("block")} ×${m[2]}.`, (m, L) => `${m[1]} jugó sus últimas cartas: ${L.action("block")} ×${m[2]}.`],
   [/^(.+) نزّل لا ما تقدر كآخر كرت\.$/, (m, L) => `${m[1]} played ${L.action("block")} as their last card.`, (m, L) => `${m[1]} jugó ${L.action("block")} como su última carta.`],
   [/^خلصت كومة السحب، انخلطت الكروت الملعوبة وصارت كومة سحب جديدة\.$/, () => "The draw pile ran out: the played cards were shuffled into a new draw pile.", () => "Se acabó el mazo: las cartas jugadas se barajaron como mazo nuevo."],
   [/^بدأت اللعبة بـ (\d+) لاعبين، (\d+) كرت لكل لاعب\.$/, (m) => `Game started: ${m[1]} players, ${m[2]} cards each.`, (m) => `Empieza la partida: ${m[1]} jugadores, ${m[2]} cartas cada uno.`],
