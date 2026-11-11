@@ -2725,9 +2725,17 @@ function loadPunch(ctx) {
     });
   return punchLoading;
 }
+// The sound plays at most twice every 15 s per phone; the bubble and its animation always show.
+const PUNCH_COOLDOWN_MS = 15000;
+const PUNCH_MAX_IN_COOLDOWN = 2;
+let punchTimes = [];
 function playPunch() {
+  const now = Date.now();
+  punchTimes = punchTimes.filter((t) => now - t < PUNCH_COOLDOWN_MS);
+  if (punchTimes.length >= PUNCH_MAX_IN_COOLDOWN) return;
   const ctx = turnAudio();
   if (!ctx) return;
+  punchTimes.push(now);
   if (ctx.state === "suspended") ctx.resume().catch(() => {});
   const go = () => {
     if (!punchBuf) return playPunchSynth(ctx);
