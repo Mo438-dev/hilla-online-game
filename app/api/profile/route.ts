@@ -46,7 +46,9 @@ export async function POST(request: Request) {
     const user = await getRequestUser(request);
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const name = validateNickname(body.nickname);
+    // A saved account may leave the name empty (it then goes by @username); guests must give one.
+    const emptyName = typeof body.nickname !== 'string' || !body.nickname.trim();
+    const name = emptyName && !user.isAnonymous ? ({ ok: true, nickname: null, key: null } as const) : validateNickname(body.nickname);
     if (!name.ok) return NextResponse.json({ error: `name_${name.error}` }, { status: 400, headers: noStore });
     const handle = validateUsername(body.username);
     if (!handle.ok) return NextResponse.json({ error: `user_${handle.reason}` }, { status: 400, headers: noStore });

@@ -68,7 +68,7 @@ export async function GET(request: Request) {
   }
 }
 
-type BoardRow = { user_id: string; nickname: string; points: number; games: number; wins: number; rank: number };
+type BoardRow = { user_id: string; nickname: string | null; points: number; games: number; wins: number; rank: number };
 
 async function friendsBoard(
   supabase: ReturnType<typeof getSupabaseAdmin>,
@@ -96,7 +96,8 @@ async function friendsBoard(
   if (e3) throw e3;
   const { data: profiles, error: e4 } = await supabase.from('profiles').select('*').in('user_id', circle);
   if (e4) throw e4;
-  const nick = new Map((profiles ?? []).filter((p: any) => p.nickname && !p.hidden && !p.merged_into).map((p: any) => [p.user_id, p.nickname]));
+  // a player with a name or a username is listed (no name: the client shows @username)
+  const nick = new Map((profiles ?? []).filter((p: any) => (p.nickname || p.username) && !p.hidden && !p.merged_into).map((p: any) => [p.user_id, p.nickname ?? null]));
   const handle = new Map((profiles ?? []).map((p: any) => [p.user_id, p.username ?? null]));
   const refOf = new Map((profiles ?? []).map((p: any) => [p.user_id, p.public_id ?? null]));
 
@@ -114,7 +115,7 @@ async function friendsBoard(
   sorted.forEach(([id, t], i) => {
     // rank() semantics: equal points share a rank
     const rank = i > 0 && t.points === sorted[i - 1][1].points ? rows[i - 1].rank : i + 1;
-    rows.push({ user_id: id, nickname: nick.get(id)!, ...t, rank });
+    rows.push({ user_id: id, nickname: nick.get(id) ?? null, ...t, rank });
   });
 
   const strip = (r: BoardRow) => ({ ref: refOf.get(r.user_id) ?? null, nickname: r.nickname, username: handle.get(r.user_id) ?? null, points: r.points, games: r.games, wins: r.wins, rank: r.rank });
