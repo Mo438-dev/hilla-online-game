@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Volume2, VolumeX, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut, RefreshCw, Type, Menu, HelpCircle, X, Smile } from "lucide-react";
 import { HILLA_ART as ART } from "@/lib/art-manifest";
-import { ensureGuest, authHeaders, saveNicknameRemote, syncNickname, saveProfile, usernameAvailable, getAccount, googleAccount, sendEmailCode, verifyEmailCode, signOutToGuest, readAuthReturn, GOOGLE_ENABLED, EMAIL_ENABLED, AUTH_ENABLED } from "@/lib/supabase-browser";
+import { ensureGuest, authHeaders, saveNicknameRemote, syncNickname, saveProfile, usernameAvailable, getAccount, googleAccount, sendEmailCode, verifyEmailCode, signOutToGuest, readAuthReturn, googleIdToken, GOOGLE_CLIENT_ID, GOOGLE_ENABLED, EMAIL_ENABLED, AUTH_ENABLED } from "@/lib/supabase-browser";
 import { deviceInfo } from "@/lib/device";
 import { sendAppEvent, sendSeatStats, reportClientError, newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished, sendDealSnapshot, getClientPid, sendFeedback } from "@/lib/analytics-client";
 
@@ -7337,6 +7337,72 @@ function LockIcon({ size = 14, color }) {
   );
 }
 
+// ── Google Identity Services ──
+// The script loads only when the account sheet opens. "failed" (not loaded within 4 s) or an
+// installed home-screen app (popups there are unreliable on iOS) → the redirect flow instead.
+let gisLoading = null;
+function loadGis() {
+  if (typeof window === "undefined") return Promise.reject(new Error("ssr"));
+  if (window.google?.accounts?.id) return Promise.resolve();
+  if (!gisLoading) {
+    gisLoading = new Promise((res, rej) => {
+      const el = document.createElement("script");
+      el.src = "https://accounts.google.com/gsi/client";
+      el.async = true;
+      el.onload = () => (window.google?.accounts?.id ? res() : rej(new Error("gis_missing")));
+      el.onerror = () => rej(new Error("gis_load"));
+      document.head.appendChild(el);
+    }).catch((e) => {
+      gisLoading = null;
+      throw e;
+    });
+  }
+  return Promise.race([gisLoading, new Promise((_, rej) => setTimeout(() => rej(new Error("gis_timeout")), 4000))]);
+}
+const isInstalledApp = () => {
+  try {
+    return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  } catch {
+    return false;
+  }
+};
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function randomNonce() {
+  const a = new Uint8Array(16);
+  crypto.getRandomValues(a);
+  return [...a].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+// Google's own button. onFail → the caller shows our button with the redirect flow.
+function GisButton({ onReady, onFail, lang }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    try {
+      const dark = document.documentElement.dataset.hillaTheme === "dark";
+      el.innerHTML = "";
+      window.google.accounts.id.renderButton(el, {
+        type: "standard",
+        theme: dark ? "filled_black" : "outline",
+        size: "large",
+        text: "continue_with",
+        shape: "pill",
+        logo_alignment: "center",
+        locale: lang,
+        width: Math.min(400, Math.floor(el.parentElement?.clientWidth || el.clientWidth || 300)),
+      });
+      onReady && onReady();
+    } catch {
+      onFail();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
+  return <div ref={ref} className="w-full flex justify-center" style={{ minHeight: 44 }} />;
+}
+
 // Six boxes over one real input (autocomplete="one-time-code" lets iOS / Android offer the code).
 function CodeBoxes({ value, onChange, bad, disabled }) {
   const ref = useRef(null);
@@ -7450,6 +7516,40 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
   const [, tick] = useState(0);
   const [conflictVia, setConflictVia] = useState(startConflict);
   const [gSlow, setGSlow] = useState(false);
+  // GIS: "loading" | "ready" | "off" (off = the redirect flow and our own button)
+  const [gis, setGis] = useState(() => (GOOGLE_ENABLED && !isInstalledApp() ? "loading" : "off"));
+  const [rawNonce] = useState(() => (typeof crypto !== "undefined" && crypto.getRandomValues ? randomNonce() : ""));
+  const [gCred, setGCred] = useState(null); // the last Google credential (reused by the conflict view)
+  const [gBusy, setGBusy] = useState(false);
+  const [gErr, setGErr] = useState("");
+  const gPurposeRef = useRef("link");
+  const onCredRef = useRef(null);
+  useEffect(() => {
+    if (gis !== "loading") return;
+    let alive = true;
+    (async () => {
+      try {
+        if (!rawNonce) throw new Error("no_crypto");
+        await loadGis();
+        const hashed = await sha256Hex(rawNonce);
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: (r) => onCredRef.current && onCredRef.current(r),
+          nonce: hashed,
+          ux_mode: "popup",
+          use_fedcm_for_prompt: true,
+          itp_support: true,
+          auto_select: false,
+        });
+        if (alive) setGis("ready");
+      } catch {
+        if (alive) setGis("off");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [gis, rawNonce]);
   // Back from Google's page with the browser's Back button: Safari restores this page from its
   // back/forward cache still on the google view. Coming back (pageshow persisted, or visible again
   // after we left) returns to the main view; after 8 s still here, offer a retry.
@@ -7539,6 +7639,29 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
       setSendErr(t("errSave"));
     }
   };
+  const applyCredential = async (credential, p) => {
+    setGBusy(true);
+    setGErr("");
+    setSendErr("");
+    const res = await googleIdToken(p, credential, rawNonce);
+    setGBusy(false);
+    if (res.error) {
+      if (p === "link" && (res.error === "identity_already_exists" || res.error === "identity_already_linked")) {
+        setConflictVia("google");
+        sendAppEvent("account_conflict", null, { payload: { method: "google" } });
+        setView("conflict");
+        return;
+      }
+      setGErr(isRate(res.error) || res.status === 429 ? t("acTooMany") : t("errSave"));
+      return;
+    }
+    finish(p, "google");
+  };
+  onCredRef.current = ({ credential }) => {
+    if (!credential) return;
+    setGCred(credential);
+    applyCredential(credential, gPurposeRef.current);
+  };
   const startEmail = (p) => {
     setPurpose(p);
     setEmail("");
@@ -7552,7 +7675,21 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
       {L.dir === "rtl" ? "→" : "←"} {t("acBack")}
     </button>
   );
-  const gBtn = (p) => (
+  const gBtn = (p) => {
+    if (gis === "loading") return <div className="w-full" style={{ height: 44 }} />;
+    if (gis === "ready") {
+      gPurposeRef.current = p;
+      return gBusy ? (
+        <div className="w-full py-3 tsz-14 font-bold flex items-center justify-center gap-2" style={{ color: A(INK, "88") }}>
+          <span className="ac-spin"><GoogleG size={18} /></span> {t("acVerifying")}
+        </div>
+      ) : (
+        <GisButton key={p} lang={L.code} onFail={() => setGis("off")} />
+      );
+    }
+    return gBtnRedirect(p);
+  };
+  const gBtnRedirect = (p) => (
     <button onClick={() => goGoogle(p)} className={`w-full py-3 tsz-14 flex items-center justify-center gap-2 ${btn}`} style={{ background: "#fff", color: "#1f1f1f", boxShadow: `inset 0 0 0 1.5px ${A(INK, "22")}` }}>
       <GoogleG /> {t("sdGoogle")}
     </button>
@@ -7659,7 +7796,13 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
           <div className="space-y-2 mt-4">
             <button
               onClick={async () => {
-                if (conflictVia === "google") return goGoogle("signin");
+                if (conflictVia === "google") {
+                  if (gCred) {
+                    setView("main");
+                    return applyCredential(gCred, "signin");
+                  }
+                  return goGoogle("signin");
+                }
                 // that email has an account: sign in to it with a code
                 setBusy(true);
                 const res = await sendEmailCode(email.trim().toLowerCase(), "signin");
@@ -7730,6 +7873,7 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
           <span className="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center tsz-24" style={{ background: `${GOLD}33` }}>🔑</span>
           <h3 className="display-font font-bold tsz-20 mt-3" style={{ color: BRAND_T }}>{t("acSignInTitle")}</h3>
           <p className="tsz-12 mt-1" style={{ color: A(INK, "99") }}>{t("acSignInBody")}</p>
+          {gErr && <div className="tsz-11 mt-2 font-semibold" style={{ color: BRAND_T }}>{gErr}</div>}
           <div className="space-y-2 mt-4">
             {GOOGLE_ENABLED && gBtn("signin")}
             {EMAIL_ENABLED && eBtn("signin")}
@@ -7865,7 +8009,7 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
           <div className="mt-4 rounded-2xl p-3" style={{ background: A(INK, "08") }}>
             <div className="tsz-14 font-bold" style={{ color: INK }}>{t("acSaveTitle")}</div>
             <p className="tsz-11 mt-0.5" style={{ color: A(INK, "99") }}>{t("acSaveBody")}</p>
-            {sendErr && <div className="tsz-11 mt-1 font-semibold" style={{ color: BRAND_T }}>{sendErr}</div>}
+            {(sendErr || gErr) && <div className="tsz-11 mt-1 font-semibold" style={{ color: BRAND_T }}>{gErr || sendErr}</div>}
             <div className="space-y-2 mt-3">
               {GOOGLE_ENABLED && gBtn("link")}
               {EMAIL_ENABLED && eBtn("link")}
