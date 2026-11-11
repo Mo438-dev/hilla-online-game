@@ -2,90 +2,104 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'سياسة الخصوصية — حُلّة',
-  description: 'وش نحفظ في حُلّة وليش · What Hulla stores and why',
+  description: 'سياسة الخصوصية للعبة حُلّة · Hulla Privacy Policy',
   alternates: { canonical: '/privacy' }
 };
 
-// Public, static privacy policy (Google sign-in needs one). Follows the theme the player picked in
-// the game (the layout script sets data-hilla-theme; the colours are the game's --h-* variables, and
-// the page background is the body's, from globals.css).
-// Arabic first, English below.
+// Public, static privacy policy (Google sign-in needs one). Formal wording, one document per
+// language. Follows the theme the player picked in the game: the layout script sets
+// data-hilla-theme and the colours are the game's --h-* variables. Arabic first, English below.
 const mail = 'hulla-support@googlegroups.com';
 
 const css = `
 /* one background layer (the page's own) so the rug never shows a seam on a long page */
 body { background: transparent !important; }
 .pv { min-height: 100vh; color: var(--h-ink); font-family: var(--font-plex), "IBM Plex Sans Arabic", system-ui, sans-serif;
-  padding: max(14px, env(safe-area-inset-top)) 16px max(40px, env(safe-area-inset-bottom)); }
-.pv-bar { max-width: 720px; margin: 0 auto 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.pv-back { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 999px; font-weight: 700; font-size: 14px;
-  color: var(--h-ink); background: color-mix(in srgb, var(--h-surf) 92%, transparent); text-decoration: none;
-  box-shadow: 0 0 0 1.5px #DDAD55, 0 6px 16px -8px rgba(60,30,10,.45); }
-.pv-back:active { transform: scale(.97); }
-.pv-mark { height: 34px; width: 74px; background: var(--h-brand-t);
+  padding: max(14px, env(safe-area-inset-top)) 16px max(44px, env(safe-area-inset-bottom)); }
+.pv-bar { max-width: 760px; margin: 0 auto 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pv-btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border-radius: 999px; font-weight: 600; font-size: 14px;
+  color: var(--h-ink); background: var(--h-surf); text-decoration: none; letter-spacing: .01em;
+  box-shadow: 0 0 0 1px #B98A2E, 0 8px 18px -10px rgba(40,20,10,.5); }
+.pv-btn:active { transform: scale(.97); }
+.pv-lang { font-size: 13px; font-weight: 600; color: var(--h-gold-t); text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 1px; }
+.pv-doc { max-width: 760px; margin: 0 auto; background: var(--h-surf); border-radius: 6px; padding: 10px;
+  box-shadow: 0 0 0 1px #B98A2E, 0 30px 60px -30px rgba(40,20,10,.65); }
+.pv-in { border: 1px solid color-mix(in srgb, #B98A2E 55%, transparent); border-radius: 2px; padding: 38px 26px 30px; position: relative; }
+.pv-in::before, .pv-in::after { content: ""; position: absolute; width: 9px; height: 9px; background: #B98A2E; transform: rotate(45deg); top: -5px; }
+.pv-in::before { inset-inline-start: 50%; margin-inline-start: -4.5px; }
+.pv-in::after { top: auto; bottom: -5px; inset-inline-start: 50%; margin-inline-start: -4.5px; }
+.pv-head { text-align: center; }
+.pv-mark { display: block; margin: 0 auto 14px; height: 46px; width: 104px; background: var(--h-brand-t);
   -webkit-mask: url(/hilla-art/wordmark.webp) center / contain no-repeat; mask: url(/hilla-art/wordmark.webp) center / contain no-repeat; }
-.pv-hero { max-width: 720px; margin: 0 auto; text-align: center; padding: 6px 4px 18px; }
-.pv-badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px;
-  background: #DDAD5533; color: var(--h-gold-t); }
-.pv-h1 { font-family: var(--font-markazi), "Markazi Text", serif; font-weight: 700; font-size: 40px; line-height: 1.1; margin: 10px 0 6px; color: var(--h-brand-t); }
-.pv-sub { font-size: 15px; line-height: 1.7; margin: 0 auto; max-width: 520px; color: color-mix(in srgb, var(--h-ink) 75%, transparent); }
-.pv-date { font-size: 12px; margin-top: 8px; color: color-mix(in srgb, var(--h-ink) 55%, transparent); }
-.pv-grid { max-width: 720px; margin: 0 auto; display: grid; gap: 12px; }
-.pv-card { background: var(--h-surf); border-radius: 22px; padding: 18px 18px 16px;
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, #DDAD55 70%, transparent), 0 14px 30px -18px rgba(60,30,10,.5); }
-.pv-card h2 { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 700; margin: 0 0 8px; color: var(--h-brand-t); }
-.pv-ic { width: 34px; height: 34px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
-  background: #DDAD5533; font-size: 17px; }
-.pv-card p, .pv-card li { font-size: 15px; line-height: 1.8; margin: 0; }
-.pv-card ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-.pv-card li { position: relative; padding-inline-start: 18px; }
-.pv-card li::before { content: ""; position: absolute; inset-inline-start: 2px; top: .75em; width: 7px; height: 7px; border-radius: 2px;
-  background: #DDAD55; transform: rotate(45deg); }
-.pv-mail { color: var(--h-brand-t); font-weight: 700; word-break: break-all; }
-.pv-sep { max-width: 720px; margin: 30px auto 22px; display: flex; align-items: center; gap: 12px; font-size: 12px; font-weight: 700;
-  color: color-mix(in srgb, var(--h-ink) 55%, transparent); }
-.pv-sep::before, .pv-sep::after { content: ""; flex: 1; height: 1.5px; background: linear-gradient(90deg, transparent, #DDAD55, transparent); }
-.pv-foot { max-width: 720px; margin: 26px auto 0; text-align: center; }
+.pv-kicker { font-size: 11.5px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--h-gold-t); }
+.pv-h1 { font-family: var(--font-markazi), "Markazi Text", serif; font-weight: 700; font-size: 44px; line-height: 1.1; margin: 8px 0 10px; color: var(--h-brand-t); }
+.pv-date { font-size: 12.5px; color: color-mix(in srgb, var(--h-ink) 60%, transparent); }
+.pv-orn { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 22px auto 24px; max-width: 280px; }
+.pv-orn::before, .pv-orn::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, #B98A2E); }
+.pv-orn::after { background: linear-gradient(270deg, transparent, #B98A2E); }
+.pv-orn i { width: 7px; height: 7px; background: #B98A2E; transform: rotate(45deg); display: block; }
+.pv-orn i + i { width: 5px; height: 5px; opacity: .7; }
+.pv-intro { font-size: 15.5px; line-height: 2; margin: 0 0 8px; text-align: start; }
+.pv-sec { display: grid; grid-template-columns: 40px 1fr; gap: 0 14px; padding: 20px 0; border-top: 1px solid color-mix(in srgb, #B98A2E 30%, transparent); }
+.pv-sec:first-of-type { border-top: none; }
+.pv-num { font-family: var(--font-markazi), "Markazi Text", serif; font-size: 30px; line-height: 1; font-weight: 700; color: #B98A2E; padding-top: 2px; }
+.pv-sec h2 { font-family: var(--font-markazi), "Markazi Text", serif; font-size: 25px; line-height: 1.2; font-weight: 700; margin: 0 0 8px; color: var(--h-brand-t); }
+.pv-sec p, .pv-sec li { font-size: 15.5px; line-height: 1.95; margin: 0; text-align: start; }
+.pv-sec ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.pv-sec li { position: relative; padding-inline-start: 18px; }
+.pv-sec li::before { content: ""; position: absolute; inset-inline-start: 1px; top: .85em; width: 6px; height: 6px; background: #B98A2E; transform: rotate(45deg); }
+.pv-mail { color: var(--h-brand-t); font-weight: 600; text-decoration: none; border-bottom: 1px solid color-mix(in srgb, currentColor 40%, transparent); word-break: break-all; }
+.pv-gap { height: 26px; }
+.pv-foot { text-align: center; margin-top: 26px; }
+@media (max-width: 420px) {
+  .pv-in { padding: 30px 16px 24px; }
+  .pv-h1 { font-size: 36px; }
+  .pv-sec { grid-template-columns: 30px 1fr; gap: 0 10px; }
+  .pv-num { font-size: 25px; }
+  .pv-sec h2 { font-size: 22px; }
+}
 `;
 
-type Section = { icon: string; title: string; items?: string[]; text?: React.ReactNode };
+type Section = { title: string; items?: string[]; text?: React.ReactNode };
 
-function Policy({ dir, lang, badge, title, sub, date, sections, back }: { dir: 'rtl' | 'ltr'; lang: string; badge: string; title: string; sub: string; date: string; sections: Section[]; back?: boolean }) {
+function Doc({ id, dir, lang, kicker, title, date, intro, sections, num }: { id: string; dir: 'rtl' | 'ltr'; lang: string; kicker: string; title: string; date: string; intro: string; sections: Section[]; num: (n: number) => string }) {
   return (
-    <section dir={dir} lang={lang}>
-      <div className="pv-hero">
-        <span className="pv-badge">{badge}</span>
-        <h1 className="pv-h1">{title}</h1>
-        <p className="pv-sub">{sub}</p>
-        <div className="pv-date">{date}</div>
-      </div>
-      <div className="pv-grid">
-        {sections.map((s) => (
-          <article key={s.title} className="pv-card">
-            <h2>
-              <span className="pv-ic" aria-hidden="true">{s.icon}</span>
-              {s.title}
-            </h2>
-            {s.items ? (
-              <ul>
-                {s.items.map((it) => (
-                  <li key={it}>{it}</li>
-                ))}
-              </ul>
-            ) : (
-              <p>{s.text}</p>
-            )}
-          </article>
+    <article id={id} dir={dir} lang={lang} className="pv-doc">
+      <div className="pv-in">
+        <header className="pv-head">
+          <span className="pv-mark" role="img" aria-label="حُلّة" />
+          <div className="pv-kicker">{kicker}</div>
+          <h1 className="pv-h1">{title}</h1>
+          <div className="pv-date">{date}</div>
+        </header>
+        <div className="pv-orn" aria-hidden="true">
+          <i />
+          <i />
+        </div>
+        <p className="pv-intro">{intro}</p>
+        {sections.map((s, i) => (
+          <section key={s.title} className="pv-sec">
+            <div className="pv-num" aria-hidden="true">{num(i + 1)}</div>
+            <div>
+              <h2>{s.title}</h2>
+              {s.items ? (
+                <ul>
+                  {s.items.map((it) => (
+                    <li key={it}>{it}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p>{s.text}</p>
+              )}
+            </div>
+          </section>
         ))}
       </div>
-      {back && (
-        <div className="pv-foot">
-          <a className="pv-back" href="/">{dir === 'rtl' ? '→ رجوع للعبة' : '← Back to the game'}</a>
-        </div>
-      )}
-    </section>
+    </article>
   );
 }
+
+const arNum = (n: number) => String(n).replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[Number(d)]);
 
 export default function PrivacyPage() {
   const mailLink = (
@@ -96,75 +110,84 @@ export default function PrivacyPage() {
   return (
     <main className="pv">
       <style dangerouslySetInnerHTML={{ __html: css }} />
-      <div className="pv-bar" dir="rtl">
-        <a className="pv-back" href="/" aria-label="رجوع للعبة">
-          <span aria-hidden="true">→</span> رجوع
+      <nav className="pv-bar" dir="rtl">
+        <a className="pv-btn" href="/" aria-label="العودة إلى اللعبة">
+          <span aria-hidden="true">→</span> العودة إلى اللعبة
         </a>
-        <span className="pv-mark" role="img" aria-label="حُلّة" />
-      </div>
+        <a className="pv-lang" href="#en" lang="en">
+          English
+        </a>
+      </nav>
 
-      <Policy
+      <Doc
+        id="ar"
         dir="rtl"
         lang="ar"
-        badge="الخصوصية"
-        title="سياسة الخصوصية — حُلّة"
-        sub="حُلّة لعبة ورق عن الأزياء السعودية التقليدية. هذي الصفحة توضح وش نحفظ وليش."
+        num={arNum}
+        kicker="حُلّة"
+        title="سياسة الخصوصية"
         date="آخر تحديث: ١٠ نوفمبر ٢٠٢٦"
+        intro="«حُلّة» لعبة ورق مستوحاة من الأزياء السعودية التقليدية. توضّح هذه السياسة البيانات التي نجمعها عند استخدامك للعبة، والغرض من جمعها، وكيفية التعامل معها."
         sections={[
           {
-            icon: '🗂️',
-            title: 'وش نحفظ',
+            title: 'البيانات التي نجمعها',
             items: [
-              'حساب مجهول يُنشأ تلقائيًا أول ما تفتح اللعبة، عشان نحفظ مبارياتك.',
-              'الاسم أو اسم المستخدم اللي تختاره، ويظهر للاعبين الثانيين وفي الترتيب.',
-              'نتائج مبارياتك وحالة الغرف اللي تلعب فيها.',
-              'إذا سجّلت بقوقل أو بالإيميل: عنوان إيميلك، نستخدمه بس لتسجيل دخولك وإرسال رمز الدخول. ما يظهر لأي لاعب.',
-              'إحصاءات استخدام عامة (مثل نوع الجهاز والمتصفح بشكل تقريبي، ومدة المباريات) عشان نحسن اللعبة. ما نحفظ عنوان IP ولا بصمة الجهاز في هالإحصاءات.'
+              'حساب مجهول الهوية يُنشأ تلقائيًا عند فتح اللعبة لأول مرة، لحفظ سجل مبارياتك.',
+              'الاسم واسم المستخدم اللذان تختارهما، ويظهران للاعبين الآخرين وفي لوحة الترتيب.',
+              'نتائج مبارياتك وحالة الغرف التي تشارك فيها.',
+              'عنوان بريدك الإلكتروني عند تسجيل الدخول عبر Google أو البريد الإلكتروني، ويُستخدم حصرًا للتحقق من هويتك وإرسال رمز الدخول، ولا يُعرض لأي لاعب.',
+              'إحصاءات استخدام عامة، مثل نوع الجهاز والمتصفح على وجه التقريب ومدة المباريات، بهدف تحسين اللعبة. ولا تتضمن هذه الإحصاءات عنوان IP أو بصمة الجهاز.'
             ]
           },
-          { icon: '🚫', title: 'وش ما نسويه', items: ['ما نبيع بياناتك ولا نشاركها لأغراض إعلانية.', 'ما نعرض إعلانات.'] },
+          { title: 'ما لا نقوم به', items: ['لا نبيع بياناتك، ولا نشاركها لأي أغراض إعلانية.', 'لا نعرض أي إعلانات داخل اللعبة.'] },
           {
-            icon: '🔗',
-            title: 'خدمات نعتمد عليها',
-            text: 'نستضيف اللعبة على Vercel، ونحفظ البيانات في Supabase، ونرسل إيميلات رمز الدخول عبر Resend، وتسجيل الدخول بقوقل يتم عبر Google. هالخدمات تعالج البيانات اللازمة لتشغيل اللعبة فقط.'
+            title: 'مزوّدو الخدمة',
+            text: 'تُستضاف اللعبة على Vercel، وتُحفظ البيانات لدى Supabase، وتُرسَل رسائل رمز الدخول عبر Resend، ويتم تسجيل الدخول بحساب Google عبر Google. ولا تعالج هذه الجهات إلا البيانات اللازمة لتشغيل اللعبة.'
           },
-          { icon: '🗑️', title: 'حذف بياناتك', text: <>تقدر تطلب حذف حسابك وبياناتك بمراسلتنا على {mailLink}.</> },
-          { icon: '🧒', title: 'الأطفال', text: 'اللعبة موجهة للعموم وما نجمع بيانات عن قصد من أطفال دون ١٣ سنة.' }
+          { title: 'حذف البيانات', text: <>يحق لك طلب حذف حسابك وجميع بياناتك في أي وقت، بمراسلتنا على البريد الإلكتروني: {mailLink}</> },
+          { title: 'خصوصية الأطفال', text: 'اللعبة موجّهة للجمهور العام، ولا نجمع عن علمٍ أي بيانات من الأطفال دون سن الثالثة عشرة.' },
+          { title: 'تحديث هذه السياسة', text: <>قد نُحدّث هذه السياسة من وقت لآخر، ويُشار إلى تاريخ آخر تحديث أعلى هذه الصفحة. ولأي استفسار، يُرجى التواصل معنا على: {mailLink}</> }
         ]}
       />
 
-      <div className="pv-sep">English</div>
+      <div className="pv-gap" />
 
-      <Policy
+      <Doc
+        id="en"
         dir="ltr"
         lang="en"
-        back
-        badge="Privacy"
-        title="Privacy Policy — Hulla"
-        sub="Hulla is a card game about traditional Saudi clothing. This page explains what we store and why."
+        num={String}
+        kicker="Hulla"
+        title="Privacy Policy"
         date="Last updated: November 10, 2026"
+        intro="Hulla is a card game inspired by traditional Saudi clothing. This policy explains what data we collect when you use the game, why we collect it, and how it is handled."
         sections={[
           {
-            icon: '🗂️',
-            title: 'What we store',
+            title: 'Data we collect',
             items: [
-              'An anonymous account created automatically when you first open the game, so your games are saved.',
-              'The name or username you choose, which other players and the leaderboard can see.',
-              'Your game results and the state of rooms you play in.',
-              'If you sign in with Google or email: your email address, used only to sign you in and send your sign-in code. It is never shown to other players.',
-              'General usage statistics (approximate device and browser type, game length) to improve the game. We do not store IP addresses or device fingerprints in these statistics.'
+              'An anonymous account, created automatically when you first open the game, so that your game history is saved.',
+              'The name and username you choose, which are visible to other players and on the leaderboard.',
+              'Your game results and the state of the rooms you take part in.',
+              'Your email address, if you sign in with Google or by email. It is used solely to verify your identity and send your sign-in code, and is never shown to other players.',
+              'General usage statistics, such as approximate device and browser type and game length, used to improve the game. These statistics do not include IP addresses or device fingerprints.'
             ]
           },
-          { icon: '🚫', title: "What we don't do", items: ["We don't sell your data or share it for advertising.", "We don't show ads."] },
+          { title: 'What we do not do', items: ['We do not sell your data or share it for advertising purposes.', 'We do not show advertisements in the game.'] },
           {
-            icon: '🔗',
-            title: 'Services we use',
-            text: 'The game is hosted on Vercel, data is stored in Supabase, sign-in emails are sent through Resend, and Google sign-in goes through Google. These services process only what is needed to run the game.'
+            title: 'Service providers',
+            text: 'The game is hosted on Vercel, data is stored with Supabase, sign-in emails are sent through Resend, and Google sign-in is handled by Google. These providers process only the data necessary to operate the game.'
           },
-          { icon: '🗑️', title: 'Deleting your data', text: <>You can ask us to delete your account and data by emailing {mailLink}.</> },
-          { icon: '🧒', title: 'Children', text: "The game is for a general audience, and we don't knowingly collect data from children under 13." }
+          { title: 'Deleting your data', text: <>You may request the deletion of your account and all associated data at any time by writing to {mailLink}.</> },
+          { title: "Children's privacy", text: 'The game is intended for a general audience. We do not knowingly collect data from children under the age of 13.' },
+          { title: 'Changes to this policy', text: <>We may update this policy from time to time; the date of the latest update is shown at the top of this page. For any questions, please contact us at {mailLink}.</> }
         ]}
       />
+
+      <div className="pv-foot" dir="rtl">
+        <a className="pv-btn" href="/">
+          <span aria-hidden="true">→</span> العودة إلى اللعبة
+        </a>
+      </div>
     </main>
   );
 }
