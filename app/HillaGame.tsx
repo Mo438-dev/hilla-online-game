@@ -1070,7 +1070,7 @@ const I18N = {
     newTag: "New", recv_giveTakeGot: "{name} gave you these", recv_giveTakeTook: "You took these from {name}", recv_stealTwo: "{name} handed you these", recv_drawTwo: "{name} made you draw these",
     sdNameLabel: "Your name", sdNameRule2: "2 to 16 characters · others can have the same name", sdUserLabel: "Username", sdUserRule: "English letters, numbers and _ · 3 to 15 · can't be taken by anyone else", sdUserFree: "Available", sdUserTaken: "Taken, try another", sdUserReserved: "That name is reserved, try another", sdUserChars: "Only English letters, numbers and _, starting with a letter", sdUserLength: "3 to 15 characters", sdUserCooldown: "You can change it once every 30 days", sdUserCooldownLeft: "You can change your username in {n} days",
     waitPending: "Wait for the last action to land",
-    sdTagline: "Every region has its outfit", sdOnline: "Online", sdOnlineSub: "With friends", sdLocal: "Same device", sdLocalSub: "Or vs bots", sdRank: "Leaderboard", sdRankSub: "Coming soon", sdRankSoon: "The leaderboard is coming soon", sdGuest: "Guest", sdSaveShort: "Sign in to save your points", sdPickName: "What should we call you?", sdChangeName: "Change your name", sdNamePh: "Your leaderboard name", sdNameRule: "2 to 16 characters · shown on the leaderboard", sdSave: "Save", sdEdit: "Edit", sdHello: "Hi {name}", acGoogleFail: "We couldn't continue with Google. Try again or continue with email.", acGoogleSlow: "Google didn't open?", acRetry: "Try again", acCancel: "Cancel", acSaveTitle: "Save your account", acSaveBody: "Keep your name, username and points if you change or lose your phone.", acHaveAccount: "Have an account? Sign in", acSignInTitle: "Sign in to your account", acSignInBody: "Get your name and points back on this phone.", acSignInNote: "Guest games on this phone don't move to your account.", acBack: "Back", acEmailBody: "We'll send you a 6-digit code.", acEmailBad: "Enter a valid email", acSendCode: "Send code", acSending: "Sending…", acCodeTitle: "Enter the code", acCodeBody: "We sent a 6-digit code to {email}", acCodeHint: "Not there? Check your spam folder", acCodeWrong: "Wrong code, try again", acResendIn: "Resend in {n}s", acResend: "Resend code", acChangeEmail: "Change email", acVerifying: "Checking…", acGoogleGo: "Taking you to Google…", acSavedTitle: "Your account is saved", acViaGoogle: "Google", acViaEmail: "Email", acSavedToast: "Done! Your account is saved", acWelcomeBack: "Welcome back", acSignedOut: "Signed out. You're a guest now", acUserLocked: "Save your account with Google or email to claim a username", acUserLockedHas: "It's yours · save your account to change it", acConflictTitle: "This email already has an account", acConflictTitleG: "This Google account already has an account", acConflictBody: "You can switch to it, but guest games on this phone won't move with you.", acConflictGo: "Switch to that account", acConflictOther: "Use another email", acSignOut: "Sign out", acSignOutQ: "Sign out?", acSignOutBody: "You'll carry on as a new guest on this phone. Sign in any time to get your account back.", acSignOutYes: "Sign out", acSignOutNo: "Stay", acTooMany: "Too many tries. Wait a minute and try again.", sdGuestTitle: "You're playing as a guest", sdGuestBody: "Save your account so your name and points stay if you change phones", sdGoogle: "Continue with Google", sdEmail: "Continue with email", sdAuthSoon: "Sign-in arrives with the leaderboard", sdLang: "Language",
+    sdTagline: "Every region has its outfit", sdOnline: "Online", sdOnlineSub: "With friends", sdLocal: "Same device", sdLocalSub: "Or vs bots", sdRank: "Leaderboard", sdRankSub: "Coming soon", sdRankSoon: "The leaderboard is coming soon", sdGuest: "Guest", sdSaveShort: "Sign in to save your points", sdPickName: "What should we call you?", sdChangeName: "Change your name", sdNamePh: "Your leaderboard name", sdNameRule: "2 to 16 characters · shown on the leaderboard", sdSave: "Save", sdEdit: "Edit", sdHello: "Hi {name}", acGoogleFail: "We couldn't continue with Google. Try again or continue with email.", acOptional: "Optional", acRequired: "Required", acNameOptional: "Leave it empty to go by your @username", acPickUserFirst: "Pick a username to finish saving your account", acGoogleSlow: "Google didn't open?", acRetry: "Try again", acCancel: "Cancel", acSaveTitle: "Save your account", acSaveBody: "Keep your name, username and points if you change or lose your phone.", acHaveAccount: "Have an account? Sign in", acSignInTitle: "Sign in to your account", acSignInBody: "Get your name and points back on this phone.", acSignInNote: "Guest games on this phone don't move to your account.", acBack: "Back", acEmailBody: "We'll send you a 6-digit code.", acEmailBad: "Enter a valid email", acSendCode: "Send code", acSending: "Sending…", acCodeTitle: "Enter the code", acCodeBody: "We sent a 6-digit code to {email}", acCodeHint: "Not there? Check your spam folder", acCodeWrong: "Wrong code, try again", acResendIn: "Resend in {n}s", acResend: "Resend code", acChangeEmail: "Change email", acVerifying: "Checking…", acGoogleGo: "Taking you to Google…", acSavedTitle: "Your account is saved", acViaGoogle: "Google", acViaEmail: "Email", acSavedToast: "Done! Your account is saved", acWelcomeBack: "Welcome back", acSignedOut: "Signed out. You're a guest now", acUserLocked: "Save your account with Google or email to claim a username", acUserLockedHas: "It's yours · save your account to change it", acConflictTitle: "This email already has an account", acConflictTitleG: "This Google account already has an account", acConflictBody: "You can switch to it, but guest games on this phone won't move with you.", acConflictGo: "Switch to that account", acConflictOther: "Use another email", acSignOut: "Sign out", acSignOutQ: "Sign out?", acSignOutBody: "You'll carry on as a new guest on this phone. Sign in any time to get your account back.", acSignOutYes: "Sign out", acSignOutNo: "Stay", acTooMany: "Too many tries. Wait a minute and try again.", sdGuestTitle: "You're playing as a guest", sdGuestBody: "Save your account so your name and points stay if you change phones", sdGoogle: "Continue with Google", sdEmail: "Continue with email", sdAuthSoon: "Sign-in arrives with the leaderboard", sdLang: "Language",
     madeBy: "Designed by Saudi hands 🇸🇦", credit: "A Princess Nourah University student, for Core Studio",
     errCreate: "Couldn't create the room, try again.", addBot: "🤖 Add a bot", removeBot: "Remove bot",
     svThanks: "Thanks for the feedback! 💛", svTitle: "Your opinion matters (optional)", svSkip: "Skip",
@@ -1153,7 +1153,7 @@ const I18N = {
     newTag: "Nueva", recv_giveTakeGot: "{name} te dio estas", recv_giveTakeTook: "Le quitaste estas a {name}", recv_stealTwo: "{name} te pasó estas", recv_drawTwo: "{name} te hizo robar estas",
     sdNameLabel: "Tu nombre", sdNameRule2: "De 2 a 16 caracteres · otros pueden tener el mismo nombre", sdUserLabel: "Usuario", sdUserRule: "Letras inglesas, números y _ · 3 a 15 · nadie más puede tenerlo", sdUserFree: "Disponible", sdUserTaken: "Ocupado, prueba otro", sdUserReserved: "Ese nombre está reservado, prueba otro", sdUserChars: "Solo letras inglesas, números y _, empezando por una letra", sdUserLength: "De 3 a 15 caracteres", sdUserCooldown: "Puedes cambiarlo una vez cada 30 días", sdUserCooldownLeft: "Podrás cambiar tu usuario en {n} días",
     waitPending: "Espera a que se resuelva la acción anterior",
-    sdTagline: "Cada región tiene su traje", sdOnline: "En línea", sdOnlineSub: "Con amigos", sdLocal: "Mismo dispositivo", sdLocalSub: "O contra bots", sdRank: "Clasificación", sdRankSub: "Muy pronto", sdRankSoon: "La clasificación llega pronto", sdGuest: "Invitado", sdSaveShort: "Inicia sesión para guardar tus puntos", sdPickName: "¿Cómo te llamamos?", sdChangeName: "Cambia tu nombre", sdNamePh: "Tu nombre en la clasificación", sdNameRule: "De 2 a 16 caracteres · se muestra en la clasificación", sdSave: "Guardar", sdEdit: "Editar", sdHello: "Hola {name}", acGoogleFail: "No pudimos continuar con Google. Inténtalo de nuevo o sigue con tu correo.", acGoogleSlow: "¿No se abrió Google?", acRetry: "Intentar de nuevo", acCancel: "Cancelar", acSaveTitle: "Guarda tu cuenta", acSaveBody: "Conserva tu nombre, usuario y puntos si cambias o pierdes el móvil.", acHaveAccount: "¿Tienes cuenta? Inicia sesión", acSignInTitle: "Inicia sesión en tu cuenta", acSignInBody: "Recupera tu nombre y tus puntos en este móvil.", acSignInNote: "Las partidas de invitado de este móvil no pasan a tu cuenta.", acBack: "Atrás", acEmailBody: "Te enviaremos un código de 6 dígitos.", acEmailBad: "Escribe un correo válido", acSendCode: "Enviar código", acSending: "Enviando…", acCodeTitle: "Escribe el código", acCodeBody: "Enviamos un código de 6 dígitos a {email}", acCodeHint: "¿No llegó? Revisa el spam", acCodeWrong: "Código incorrecto, inténtalo de nuevo", acResendIn: "Reenviar en {n} s", acResend: "Reenviar código", acChangeEmail: "Cambiar correo", acVerifying: "Comprobando…", acGoogleGo: "Te llevamos a Google…", acSavedTitle: "Tu cuenta está guardada", acViaGoogle: "Google", acViaEmail: "Correo", acSavedToast: "¡Listo! Tu cuenta está guardada", acWelcomeBack: "¡Bienvenido de nuevo!", acSignedOut: "Sesión cerrada. Ahora eres invitado", acUserLocked: "Guarda tu cuenta con Google o correo para reservar un usuario", acUserLockedHas: "Es tuyo · guarda tu cuenta para cambiarlo", acConflictTitle: "Este correo ya tiene una cuenta", acConflictTitleG: "Esta cuenta de Google ya tiene una cuenta", acConflictBody: "Puedes cambiar a ella, pero las partidas de invitado de este móvil no pasan contigo.", acConflictGo: "Cambiar a esa cuenta", acConflictOther: "Usar otro correo", acSignOut: "Cerrar sesión", acSignOutQ: "¿Cerrar sesión?", acSignOutBody: "Seguirás como un invitado nuevo en este móvil. Inicia sesión cuando quieras para recuperar tu cuenta.", acSignOutYes: "Salir", acSignOutNo: "Quedarme", acTooMany: "Demasiados intentos. Espera un minuto y vuelve a intentarlo.", sdGuestTitle: "Juegas como invitado", sdGuestBody: "Guarda tu cuenta para no perder tu nombre y tus puntos si cambias de móvil", sdGoogle: "Continuar con Google", sdEmail: "Continuar con correo", sdAuthSoon: "El inicio de sesión llega con la clasificación", sdLang: "Idioma",
+    sdTagline: "Cada región tiene su traje", sdOnline: "En línea", sdOnlineSub: "Con amigos", sdLocal: "Mismo dispositivo", sdLocalSub: "O contra bots", sdRank: "Clasificación", sdRankSub: "Muy pronto", sdRankSoon: "La clasificación llega pronto", sdGuest: "Invitado", sdSaveShort: "Inicia sesión para guardar tus puntos", sdPickName: "¿Cómo te llamamos?", sdChangeName: "Cambia tu nombre", sdNamePh: "Tu nombre en la clasificación", sdNameRule: "De 2 a 16 caracteres · se muestra en la clasificación", sdSave: "Guardar", sdEdit: "Editar", sdHello: "Hola {name}", acGoogleFail: "No pudimos continuar con Google. Inténtalo de nuevo o sigue con tu correo.", acOptional: "Opcional", acRequired: "Obligatorio", acNameOptional: "Déjalo vacío para usar tu @usuario", acPickUserFirst: "Elige un usuario para terminar de guardar tu cuenta", acGoogleSlow: "¿No se abrió Google?", acRetry: "Intentar de nuevo", acCancel: "Cancelar", acSaveTitle: "Guarda tu cuenta", acSaveBody: "Conserva tu nombre, usuario y puntos si cambias o pierdes el móvil.", acHaveAccount: "¿Tienes cuenta? Inicia sesión", acSignInTitle: "Inicia sesión en tu cuenta", acSignInBody: "Recupera tu nombre y tus puntos en este móvil.", acSignInNote: "Las partidas de invitado de este móvil no pasan a tu cuenta.", acBack: "Atrás", acEmailBody: "Te enviaremos un código de 6 dígitos.", acEmailBad: "Escribe un correo válido", acSendCode: "Enviar código", acSending: "Enviando…", acCodeTitle: "Escribe el código", acCodeBody: "Enviamos un código de 6 dígitos a {email}", acCodeHint: "¿No llegó? Revisa el spam", acCodeWrong: "Código incorrecto, inténtalo de nuevo", acResendIn: "Reenviar en {n} s", acResend: "Reenviar código", acChangeEmail: "Cambiar correo", acVerifying: "Comprobando…", acGoogleGo: "Te llevamos a Google…", acSavedTitle: "Tu cuenta está guardada", acViaGoogle: "Google", acViaEmail: "Correo", acSavedToast: "¡Listo! Tu cuenta está guardada", acWelcomeBack: "¡Bienvenido de nuevo!", acSignedOut: "Sesión cerrada. Ahora eres invitado", acUserLocked: "Guarda tu cuenta con Google o correo para reservar un usuario", acUserLockedHas: "Es tuyo · guarda tu cuenta para cambiarlo", acConflictTitle: "Este correo ya tiene una cuenta", acConflictTitleG: "Esta cuenta de Google ya tiene una cuenta", acConflictBody: "Puedes cambiar a ella, pero las partidas de invitado de este móvil no pasan contigo.", acConflictGo: "Cambiar a esa cuenta", acConflictOther: "Usar otro correo", acSignOut: "Cerrar sesión", acSignOutQ: "¿Cerrar sesión?", acSignOutBody: "Seguirás como un invitado nuevo en este móvil. Inicia sesión cuando quieras para recuperar tu cuenta.", acSignOutYes: "Salir", acSignOutNo: "Quedarme", acTooMany: "Demasiados intentos. Espera un minuto y vuelve a intentarlo.", sdGuestTitle: "Juegas como invitado", sdGuestBody: "Guarda tu cuenta para no perder tu nombre y tus puntos si cambias de móvil", sdGoogle: "Continuar con Google", sdEmail: "Continuar con correo", sdAuthSoon: "El inicio de sesión llega con la clasificación", sdLang: "Idioma",
     madeBy: "Diseñado por manos saudíes 🇸🇦", credit: "Estudiante de la Universidad Princesa Nourah, para Core Studio",
     errCreate: "No se pudo crear la sala, inténtalo de nuevo.", addBot: "🤖 Añadir un bot", removeBot: "Quitar bot",
     svThanks: "¡Gracias por tu opinión! 💛", svTitle: "Tu opinión importa (opcional)", svSkip: "Omitir",
@@ -1233,7 +1233,7 @@ Object.assign(I18N.ar, {
   newTag: "جديد", recv_giveTakeGot: "{name} عطاك هذي", recv_giveTakeTook: "أخذت هذي من {name}", recv_stealTwo: "{name} فزع لك بهذي", recv_drawTwo: "{name} قدعك وسحبت هذي",
   sdNameLabel: "اسمك", sdNameRule2: "من ٢ إلى ١٦ حرف · عادي يكون نفس اسم أحد ثاني", sdUserLabel: "اسم المستخدم", sdUserRule: "حروف إنجليزي وأرقام و _ · من ٣ إلى ١٥ · ما يتكرر", sdUserFree: "متاح", sdUserTaken: "مأخوذ، جرّب غيره", sdUserReserved: "هذا الاسم محجوز، جرّب غيره", sdUserChars: "حروف إنجليزي وأرقام و _ بس، ويبدأ بحرف", sdUserLength: "من ٣ إلى ١٥ حرف", sdUserCooldown: "تقدر تغيّره مرة كل ٣٠ يوم", sdUserCooldownLeft: "تقدر تغيّر اسم المستخدم بعد {n} يوم",
   waitPending: "استنى لين يخلص الأكشن اللي قبل",
-  sdTagline: "كل منطقة لها حُلّة", sdOnline: "أونلاين", sdOnlineSub: "مع أصحابك", sdLocal: "نفس الجهاز", sdLocalSub: "أو ضد البوتات", sdRank: "الترتيب", sdRankSub: "قريبًا", sdRankSoon: "الترتيب جاي قريب", sdGuest: "ضيف", sdSaveShort: "سجّل واحفظ نقاطك", sdPickName: "وش نسمّيك؟", sdChangeName: "غيّر اسمك", sdNamePh: "اسمك في الترتيب", sdNameRule: "من ٢ إلى ١٦ حرف · يطلع للناس في الترتيب", sdSave: "احفظ", sdEdit: "غيّر", sdHello: "أهلًا {name}", acGoogleFail: "ما قدرنا نكمل مع قوقل، جرّب مرة ثانية أو كمّل بالإيميل", acGoogleSlow: "ما انفتح قوقل؟", acRetry: "جرّب مرة ثانية", acCancel: "إلغاء", acSaveTitle: "احفظ حسابك", acSaveBody: "عشان يبقى اسمك ويوزرك ونقاطك لو غيّرت جوالك أو ضاع.", acHaveAccount: "عندك حساب؟ سجّل دخول", acSignInTitle: "سجّل دخول لحسابك", acSignInBody: "يرجع لك اسمك ونقاطك على هالجوال.", acSignInNote: "مباريات الضيف اللي على هالجوال ما تنتقل لحسابك.", acBack: "رجوع", acEmailBody: "بنرسل لك رمز من ٦ أرقام.", acEmailBad: "اكتب إيميل صحيح", acSendCode: "أرسل الرمز", acSending: "نرسل…", acCodeTitle: "اكتب الرمز", acCodeBody: "أرسلنا رمز من ٦ أرقام إلى {email}", acCodeHint: "ما وصلك؟ شيّك على الرسائل غير المرغوب فيها", acCodeWrong: "الرمز غلط، جرّب مرة ثانية", acResendIn: "أرسل من جديد بعد {n} ث", acResend: "أرسل الرمز من جديد", acChangeEmail: "غيّر الإيميل", acVerifying: "نتأكد…", acGoogleGo: "نحوّلك لقوقل…", acSavedTitle: "حسابك محفوظ", acViaGoogle: "قوقل", acViaEmail: "الإيميل", acSavedToast: "تم! حسابك محفوظ", acWelcomeBack: "هلا والله، رجع لك حسابك", acSignedOut: "طلعت من حسابك، وصرت ضيف", acUserLocked: "احفظ حسابك بقوقل أو الإيميل عشان تحجز اسم مستخدم", acUserLockedHas: "محجوز لك · احفظ حسابك عشان تقدر تغيّره", acConflictTitle: "هالإيميل له حساب من قبل", acConflictTitleG: "حساب قوقل هذا له حساب من قبل", acConflictBody: "تقدر تدخل عليه، بس مباريات الضيف اللي على هالجوال ما تنتقل معك.", acConflictGo: "ادخل على ذاك الحساب", acConflictOther: "استخدم إيميل ثاني", acSignOut: "تسجيل خروج", acSignOutQ: "تطلع من حسابك؟", acSignOutBody: "بتكمل كضيف جديد على هالجوال، وحسابك يرجع لك أول ما تسجّل دخول.", acSignOutYes: "اطلع", acSignOutNo: "لا، خلّني", acTooMany: "محاولات كثيرة، استنى دقيقة وجرّب مرة ثانية.", sdGuestTitle: "حسابك ضيف", sdGuestBody: "احفظه عشان ما يضيع اسمك ونقاطك لو غيّرت جوالك", sdGoogle: "كمّل بقوقل", sdEmail: "كمّل بالإيميل", sdAuthSoon: "تسجيل الدخول يجي مع الترتيب", sdLang: "اللغة",
+  sdTagline: "كل منطقة لها حُلّة", sdOnline: "أونلاين", sdOnlineSub: "مع أصحابك", sdLocal: "نفس الجهاز", sdLocalSub: "أو ضد البوتات", sdRank: "الترتيب", sdRankSub: "قريبًا", sdRankSoon: "الترتيب جاي قريب", sdGuest: "ضيف", sdSaveShort: "سجّل واحفظ نقاطك", sdPickName: "وش نسمّيك؟", sdChangeName: "غيّر اسمك", sdNamePh: "اسمك في الترتيب", sdNameRule: "من ٢ إلى ١٦ حرف · يطلع للناس في الترتيب", sdSave: "احفظ", sdEdit: "غيّر", sdHello: "أهلًا {name}", acGoogleFail: "ما قدرنا نكمل مع قوقل، جرّب مرة ثانية أو كمّل بالإيميل", acOptional: "اختياري", acRequired: "مطلوب", acNameOptional: "اتركه فاضي وتطلع باسم المستخدم @", acPickUserFirst: "اختر اسم مستخدم عشان يكتمل حفظ حسابك", acGoogleSlow: "ما انفتح قوقل؟", acRetry: "جرّب مرة ثانية", acCancel: "إلغاء", acSaveTitle: "احفظ حسابك", acSaveBody: "عشان يبقى اسمك ويوزرك ونقاطك لو غيّرت جوالك أو ضاع.", acHaveAccount: "عندك حساب؟ سجّل دخول", acSignInTitle: "سجّل دخول لحسابك", acSignInBody: "يرجع لك اسمك ونقاطك على هالجوال.", acSignInNote: "مباريات الضيف اللي على هالجوال ما تنتقل لحسابك.", acBack: "رجوع", acEmailBody: "بنرسل لك رمز من ٦ أرقام.", acEmailBad: "اكتب إيميل صحيح", acSendCode: "أرسل الرمز", acSending: "نرسل…", acCodeTitle: "اكتب الرمز", acCodeBody: "أرسلنا رمز من ٦ أرقام إلى {email}", acCodeHint: "ما وصلك؟ شيّك على الرسائل غير المرغوب فيها", acCodeWrong: "الرمز غلط، جرّب مرة ثانية", acResendIn: "أرسل من جديد بعد {n} ث", acResend: "أرسل الرمز من جديد", acChangeEmail: "غيّر الإيميل", acVerifying: "نتأكد…", acGoogleGo: "نحوّلك لقوقل…", acSavedTitle: "حسابك محفوظ", acViaGoogle: "قوقل", acViaEmail: "الإيميل", acSavedToast: "تم! حسابك محفوظ", acWelcomeBack: "هلا والله، رجع لك حسابك", acSignedOut: "طلعت من حسابك، وصرت ضيف", acUserLocked: "احفظ حسابك بقوقل أو الإيميل عشان تحجز اسم مستخدم", acUserLockedHas: "محجوز لك · احفظ حسابك عشان تقدر تغيّره", acConflictTitle: "هالإيميل له حساب من قبل", acConflictTitleG: "حساب قوقل هذا له حساب من قبل", acConflictBody: "تقدر تدخل عليه، بس مباريات الضيف اللي على هالجوال ما تنتقل معك.", acConflictGo: "ادخل على ذاك الحساب", acConflictOther: "استخدم إيميل ثاني", acSignOut: "تسجيل خروج", acSignOutQ: "تطلع من حسابك؟", acSignOutBody: "بتكمل كضيف جديد على هالجوال، وحسابك يرجع لك أول ما تسجّل دخول.", acSignOutYes: "اطلع", acSignOutNo: "لا، خلّني", acTooMany: "محاولات كثيرة، استنى دقيقة وجرّب مرة ثانية.", sdGuestTitle: "حسابك ضيف", sdGuestBody: "احفظه عشان ما يضيع اسمك ونقاطك لو غيّرت جوالك", sdGoogle: "كمّل بقوقل", sdEmail: "كمّل بالإيميل", sdAuthSoon: "تسجيل الدخول يجي مع الترتيب", sdLang: "اللغة",
   madeBy: "صُممت بأيدي سعودية 🇸🇦", credit: "طالبة جامعة الأميرة نورة، لمقرر Core Studio",
   errCreate: "تعذر إنشاء الغرفة، حاول مجددًا.", addBot: "🤖 أضف بوت", removeBot: "أزل البوت",
   svThanks: "شكرًا على رأيك! 💛", svTitle: "رأيك يهمنا (اختياري)", svSkip: "تخطي",
@@ -6449,12 +6449,12 @@ function OnlineLobby({ room, myId, onStart, starting, onAddBot, onRemoveBot, onB
   );
 }
 
-function OnlineFlow({ onBack }) {
+function OnlineFlow({ onBack, fallbackName = "" }) {
   const { t, tb, L } = useI18n();
   const [serverCoord, setServerCoord] = useState(null); // the coordination card the server last sent
   const [savedSession] = useState(() => readOnlineSession());
   const [myId] = useState(() => savedSession?.myId || uid());
-  const [myName, setMyName] = useState(() => savedSession?.myName || loadNick());
+  const [myName, setMyName] = useState(() => savedSession?.myName || loadNick() || fallbackName);
   const [roomCode, setRoomCode] = useState(() => savedSession?.roomCode || "");
   const [onlinePhase, setOnlinePhase] = useState(() => (savedSession?.roomCode ? "restoring" : "menu")); // menu | restoring | lobby | play
   const [room, setRoom] = useState(null);
@@ -7187,10 +7187,29 @@ function loadNick() {
   }
 }
 const cleanNick = (v) => v.trim().replace(/\s+/g, " ");
+// What the eye sees as one character (🇸🇦 or 👨‍👩‍👧 count as one), with a code-point fallback.
+const graphemeSeg = typeof Intl !== "undefined" && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: "grapheme" }) : null;
+const graphemes = (v) => (graphemeSeg ? [...graphemeSeg.segment(String(v || ""))].map((x) => x.segment) : [...String(v || "")]);
+const nickLen = (v) => graphemes(cleanNick(v)).length;
 const nickValid = (v) => {
-  const n = [...cleanNick(v)].length;
+  const n = nickLen(v);
   return n >= 2 && n <= 16;
 };
+// Leaderboard rows: a player without a name shows as @username.
+function withShownNames(d) {
+  const fix = (r) => (r ? { ...r, nickname: shownName(r.nickname, r.username) } : r);
+  return d ? { ...d, top: (d.top || []).map(fix), me: fix(d.me) } : d;
+}
+// A player with no name goes by @username. The isolate marks keep the @ in front inside Arabic text.
+const atUser = (u) => (u ? `\u2066@${u}\u2069` : "");
+const shownName = (name, username) => (name && String(name).trim()) || atUser(username) || "";
+// First letter for an avatar: the name's first character, else the username's (uppercase).
+function firstGlyph(name, username) {
+  const n = String(name || "").replace(/[\u2066-\u2069]/g, "").trim();
+  if (n && !n.startsWith("@")) return graphemes(n)[0];
+  const u = (username || n.replace(/^@/, "")).trim();
+  return u ? u[0].toUpperCase() : "؟";
+}
 
 function SaduToast({ msg }) {
   if (!msg) return null;
@@ -7330,9 +7349,9 @@ function LangMenu() {
   );
 }
 
-function AccountChip({ nick, line, onClick }) {
+function AccountChip({ nick, username, line, onClick }) {
   const { t } = useI18n();
-  const initial = nick ? [...nick][0] : [...t("sdGuest")][0];
+  const initial = nick || username ? firstGlyph(nick, username) : graphemes(t("sdGuest"))[0];
   return (
     <button onClick={onClick} className="flex items-center gap-2 rounded-full py-1" style={{ paddingInlineStart: 4, paddingInlineEnd: 12, background: A(SURF, "f2"), boxShadow: "0 4px 12px -4px rgba(0,0,0,.45)", maxWidth: "60vw" }}>
       <span className="w-8 h-8 rounded-full flex items-center justify-center tsz-14 font-bold flex-shrink-0" style={{ background: BRAND, color: CREAM, boxShadow: `0 0 0 2px ${CREAM}, 0 0 0 3.5px ${GOLD}` }}>
@@ -7340,7 +7359,7 @@ function AccountChip({ nick, line, onClick }) {
       </span>
       <span className="flex flex-col items-start leading-tight min-w-0">
         <span className="tsz-12 font-bold truncate" style={{ color: INK, maxWidth: "40vw" }}>
-          {nick || t("sdGuest")}
+          {shownName(nick, username) || t("sdGuest")}
         </span>
         <span className="tsz-10 font-semibold truncate" style={{ color: BRAND_T, maxWidth: "40vw", visibility: line === null ? "hidden" : "visible" }}>
           {line ?? t("sdSaveShort")}
@@ -7521,8 +7540,8 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
   const [uStat, setUStat] = useState(username ? "ok" : "empty"); // empty | chars | length | checking | ok | taken | reserved
   const [saveErr, setSaveErr] = useState("");
   const [saving, setSaving] = useState(false);
-  const ok = nickValid(draft);
-  const initial = nick ? [...nick][0] : [...t("sdGuest")][0];
+  const ok0 = nickValid(draft);
+  const initial = nick || username ? firstGlyph(nick, username) : graphemes(t("sdGuest"))[0];
   // a freshly saved account opens straight on the username field, but only once the loaded profile
   // says it has none (until then the normal view shows)
   useEffect(() => {
@@ -7551,7 +7570,10 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
   const uBad = ["taken", "reserved", "chars", "length"].includes(uStat);
   const uHint =
     uStat === "taken" ? t("sdUserTaken") : uStat === "reserved" ? t("sdUserReserved") : uStat === "chars" ? t("sdUserChars") : uStat === "length" ? t("sdUserLength") : uStat === "ok" && cleanUser(uDraft) !== username ? t("sdUserFree") : t("sdUserRule");
+  // Saved accounts: the username is required and the name optional (empty = go by @username).
+  const ok = signed ? !draft.trim() || ok0 : ok0;
   const canSave = ok && (!signed || uStat === "ok") && !saving;
+  const mustPickUser = signed && profileReady && !username; // can't leave until there's a username
 
   const [view, setView] = useState(startView); // main | signin | email | code | google | conflict | signout
   const [purpose, setPurpose] = useState("link"); // link | signin
@@ -7918,7 +7940,7 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
 
   // ── main ──
   return (
-    <Sheet onBackdrop={onClose} maxW={380} z={90}>
+    <Sheet onBackdrop={mustPickUser ? () => {} : onClose} maxW={380} z={90}>
       <div dir={L.dir} className="text-center">
         <span className="relative mx-auto w-16 h-16 rounded-full flex items-center justify-center font-bold" style={{ fontSize: 26, background: BRAND, color: CREAM_HARD, boxShadow: `0 0 0 3px ${CREAM}, 0 0 0 5px ${GOLD}` }}>
           {initial}
@@ -7933,7 +7955,7 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
               e.preventDefault();
               if (!canSave) return;
               setSaving(true);
-              const err = await onSaveProfile(cleanNick(draft), signed ? cleanUser(uDraft) : null);
+              const err = await onSaveProfile(draft.trim() ? cleanNick(draft) : "", signed ? cleanUser(uDraft) : null);
               setSaving(false);
               if (err) {
                 setSaveErr(err);
@@ -7943,11 +7965,14 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
               setEditing(false);
             }}
           >
-            <label className="block tsz-13 font-bold mb-1" style={{ color: INK }}>{t("sdNameLabel")}</label>
+            <label className="flex items-center gap-1.5 tsz-13 font-bold mb-1" style={{ color: INK }}>
+              {t("sdNameLabel")}
+              {signed && <span className="tsz-10 font-semibold rounded-full px-1.5 py-0.5" style={{ background: A(INK, "0d"), color: A(INK, "88") }}>{t("acOptional")}</span>}
+            </label>
             <input
               id="hulla-nick"
               value={draft}
-              maxLength={24}
+              maxLength={80}
               onChange={(e) => {
                 touched.current.nick = true;
                 setDraft(e.target.value);
@@ -7956,13 +7981,14 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
               className="w-full rounded-xl px-3 py-2.5 tsz-16 hstart focus:outline-none"
               style={{ ...field, boxShadow: `inset 0 0 0 1.5px ${ok ? GOLD : A(INK, "22")}` }}
             />
-            <div className="tsz-10 mt-1" style={{ color: A(INK, "77") }}>{t("sdNameRule2")}</div>
+            <div className="tsz-10 mt-1" style={{ color: A(INK, "77") }}>{signed ? t("acNameOptional") : t("sdNameRule2")}</div>
 
             {AUTH_ENABLED && (
               <>
                 <label className="flex items-center gap-1.5 tsz-13 font-bold mt-3 mb-1" style={{ color: INK }}>
                   {t("sdUserLabel")}
                   {!signed && <LockIcon size={13} color={A(INK, "77")} />}
+                  {signed && <span className="tsz-10 font-semibold rounded-full px-1.5 py-0.5" style={{ background: `${GOLD}33`, color: "var(--h-gold-t)" }}>{t("acRequired")}</span>}
                 </label>
                 {signed ? (
                   <>
@@ -8009,8 +8035,8 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
         ) : (
           <div className="mt-3 flex items-center justify-center gap-2">
             <span className="flex flex-col items-center leading-tight">
-              <span className="display-font font-bold tsz-20" style={{ color: BRAND_T }}>{nick}</span>
-              {username && <span className="tsz-12 font-semibold" dir="ltr" style={{ color: A(INK, "77") }}>@{username}</span>}
+              <span className="display-font font-bold tsz-20" style={{ color: BRAND_T }}>{shownName(nick, username)}</span>
+              {username && nick && <span className="tsz-12 font-semibold" dir="ltr" style={{ color: A(INK, "77") }}>@{username}</span>}
             </span>
             <button
               onClick={() => {
@@ -8057,9 +8083,13 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
             </button>
           </div>
         ))}
-        <button onClick={onClose} className="mt-3 tsz-12 font-semibold" style={{ color: A(INK, "77") }}>
-          {signed ? t("stDone") : t("later")}
-        </button>
+        {mustPickUser ? (
+          <div className="mt-3 tsz-12 font-semibold" style={{ color: BRAND_T }}>{t("acPickUserFirst")}</div>
+        ) : (
+          <button onClick={onClose} className="mt-3 tsz-12 font-semibold" style={{ color: A(INK, "77") }}>
+            {signed ? t("stDone") : t("later")}
+          </button>
+        )}
       </div>
     </Sheet>
   );
@@ -8112,7 +8142,7 @@ function useHomeBoard(nick) {
         const headers = await authHeaders();
         const res = await fetch("/api/leaderboard?scope=friends&limit=1", { headers, cache: "no-store" });
         if (!res.ok) return;
-        const d = await res.json();
+        const d = withShownNames(await res.json());
         homeBoardCache = { me: d.me || null, leader: d.top?.[0] || null, friends: d.friends || 0 };
         if (alive) setBoard(homeBoardCache);
       } catch {}
@@ -8235,6 +8265,17 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
     say(how === "signin" ? t("acWelcomeBack") : t("acSavedToast"));
     if (how === "signin") reloadAccount();
   };
+  // A saved account must have a username: once the profile has loaded, open the sheet on that field.
+  useEffect(() => {
+    if (!AUTH_ENABLED || !profileReady || username) return;
+    let alive = true;
+    getAccount().then((a) => {
+      if (alive && a.signed) setProfile(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [profileReady, username]);
   // Back from Google (?acct=link|signin, or Supabase's error_code in the URL).
   useEffect(() => {
     if (!AUTH_ENABLED) return;
@@ -8384,7 +8425,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
 
       {/* top bar: account on the start side (right in Arabic), language on the end side */}
       <div dir="rtl" className="relative flex items-center justify-between gap-3" style={{ zIndex: 40, paddingTop: "max(16px, calc(env(safe-area-inset-top) + 8px))", paddingLeft: "max(16px, env(safe-area-inset-left))", paddingRight: "max(16px, env(safe-area-inset-right))" }}>
-        <AccountChip nick={nick} line={chipLine} onClick={() => setProfile(true)} />
+        <AccountChip nick={nick} username={username} line={chipLine} onClick={() => setProfile(true)} />
         <SettingsButton onClick={() => setSettings(true)} />
       </div>
 
@@ -8479,10 +8520,10 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
               if (e.startsWith("name_")) return t(`sdErr_${e.slice(5)}`);
               return t("errSave");
             }
-            setNick(res.nickname);
+            setNick(res.nickname || "");
             setUsername(res.username);
             sendAppEvent("username_set", null, {});
-            say(t("sdHello", { name: res.nickname }));
+            say(t("sdHello", { name: shownName(res.nickname, res.username) }));
             return null;
           }}
           onAccount={accountDone}
@@ -8558,7 +8599,7 @@ const PODIUM = [
 function NameAvatar({ name, size = 28, ring }) {
   return (
     <span className="rounded-full flex items-center justify-center font-bold flex-shrink-0" style={{ width: size, height: size, fontSize: Math.round(size * 0.46), background: BRAND, color: CREAM, boxShadow: `0 0 0 2px ${CREAM}, 0 0 0 3.5px ${ring}` }}>
-      {[...(name || "؟")][0]}
+      {firstGlyph(name)}
     </span>
   );
 }
@@ -8618,7 +8659,7 @@ function LeaderboardScreen({ onBack, onPlayOnline }) {
         const q = scope === "friends" ? "scope=friends&limit=50" : "period=season&limit=50";
         const res = await fetch(`/api/leaderboard?${q}`, { headers, cache: "no-store" });
         if (!res.ok) throw new Error("load_failed");
-        const data = await res.json();
+        const data = withShownNames(await res.json());
         if (alive) setState({ status: "ok", data });
       } catch {
         if (alive) setState({ status: "error" });
@@ -9157,7 +9198,7 @@ function HillaApp() {
   }
 
   if (mode === "online") {
-    return <OnlineFlow onBack={() => setMode("home")} />;
+    return <OnlineFlow onBack={() => setMode("home")} fallbackName={shownName(nick, username)} />;
   }
 
   return null;
