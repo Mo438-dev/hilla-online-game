@@ -54,6 +54,9 @@ export async function POST(request: Request) {
     const supabase = getSupabaseAdmin();
     const { data: existing } = await supabase.from('profiles').select('username, username_changed_at, created_platform').eq('user_id', user.id).maybeSingle();
     const changing = (existing?.username || '') !== handle.username;
+    // Usernames are for saved accounts only (delta-18): a guest keeps one they already had, but can't
+    // set or change it until the account is saved. is_anonymous comes from the verified token.
+    if (changing && user.isAnonymous) return NextResponse.json({ error: 'needs_account' }, { status: 403, headers: noStore });
     if (changing && existing?.username && existing.username_changed_at) {
       const since = Date.now() - Date.parse(existing.username_changed_at);
       if (since < USERNAME_CHANGE_DAYS * DAY_MS) {
