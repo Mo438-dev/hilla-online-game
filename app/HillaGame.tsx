@@ -458,7 +458,7 @@ function createInitialGame(playersMeta, perPlayer) {
     currentPlayerIndex: 0,
     actionUsedThisTurn: false,
     turnSerial: 0,
-    turnStartedAt: Date.now(),
+    turnStartedAt: serverNow(),
     startedAtMs: Date.now(),
     endedAtMs: null,
     coordRounds: 1, // the first تنسيق card is already on the table
@@ -565,15 +565,15 @@ function endRound(game) {
 // فتّش الصندوق), so that wait never eats into the player's own turn time. pausedElapsedMs is part of
 // the synced game, so every client resumes from the same point.
 function pauseTurnClock(g) {
-  return { ...g, pausedElapsedMs: Date.now() - (typeof g.turnStartedAt === "number" ? g.turnStartedAt : Date.now()) };
+  return { ...g, pausedElapsedMs: serverNow() - (typeof g.turnStartedAt === "number" ? g.turnStartedAt : serverNow()) };
 }
 function resumeTurnClock(g) {
   if (typeof g.pausedElapsedMs !== "number") return g;
-  return { ...g, turnStartedAt: Date.now() - g.pausedElapsedMs, pausedElapsedMs: null };
+  return { ...g, turnStartedAt: serverNow() - g.pausedElapsedMs, pausedElapsedMs: null };
 }
 
 function endTurn(game) {
-  let g = { ...game, actionUsedThisTurn: false, turnSerial: (game.turnSerial ?? 0) + 1, turnStartedAt: Date.now(), pausedElapsedMs: null };
+  let g = { ...game, actionUsedThisTurn: false, turnSerial: (game.turnSerial ?? 0) + 1, turnStartedAt: serverNow(), pausedElapsedMs: null };
   if (g.currentPlayerIndex === g.players.length - 1) {
     g = endRound(g);
     g.currentPlayerIndex = 0;
@@ -600,7 +600,7 @@ function rWakePlayer(game, playerId) {
   // If it's their turn right now, restart the clock — otherwise the time already elapsed while
   // they were away would immediately expire the (full-length) window and skip them again (#27 bug 1).
   if (game.players[game.currentPlayerIndex]?.id === playerId) {
-    g = { ...g, turnStartedAt: Date.now() };
+    g = { ...g, turnStartedAt: serverNow() };
   }
   if (p.inactive) g = pushLog(g, `${p.name} رجع نشط.`);
   return g;
@@ -621,7 +621,7 @@ function rTurnTimeout(game, playerId) {
   // against the current turn clock — a just-woken player must not be cut by an old queued timer.
   const startedAt = typeof game.turnStartedAt === "number" ? game.turnStartedAt : 0;
   const windowMs = player.inactive ? INACTIVE_SKIP_MS : TURN_TIMEOUT_MS;
-  if (startedAt && Date.now() - startedAt < windowMs - 250) return game;
+  if (startedAt && serverNow() - startedAt < windowMs - 250) return game; // server time, the same on every phone
   const missed = (player.missedTurns || 0) + 1;
   const becomesInactive = !player.inactive && missed >= MISSED_TURNS_BEFORE_INACTIVE;
   let g = {
@@ -909,6 +909,35 @@ function pickGiveAwayIds(hand, n) {
   const scored = hand.map((c) => ({ c, score: c.kind === "action" ? 2 : rarityScore[c.rarity] ?? 1 }));
   scored.sort((a, b) => a.score - b.score);
   return scored.slice(0, n).map((x) => x.c.id);
+}
+
+// Two phones running the same bot move must reach the same result, so a bot's decisions use a
+// random stream seeded from the room, the turn and the bot (Math.random is swapped only while it runs).
+function seededRandom(seedText) {
+  let h = 1779033703 ^ seedText.length;
+  for (let i = 0; i < seedText.length; i++) {
+    h = Math.imul(h ^ seedText.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  let a = h >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function withSeed(seedText, fn) {
+  const real = Math.random;
+  Math.random = seededRandom(seedText);
+  try {
+    return fn();
+  } finally {
+    Math.random = real;
+  }
+}
+function botDecideTurnSeeded(game, botId, roomCode) {
+  return withSeed(`${roomCode || "local"}:${game.analyticsId || ""}:${game.turnSerial ?? 0}:${botId}`, () => botDecideTurn(game, botId));
 }
 
 function botDecideTurn(game, botId) {
@@ -4101,7 +4130,7 @@ function RegionCoach({ step, coord, hand, coordRef, onNext, onSkip }) {
 }
 
 
-function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onClaimTimeout, onDeclineBlock, onBlock, onSettle, onReact, seatUserIds, dispatch, onExit, onGoHome, onRematch }) {
+function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onClaimTimeout, onDeclineBlock, onBlock, onSettle, onReact, seatUserIds, dispatch, onBehalf, onExit, onGoHome, onRematch, serverCoord }) {
   const { t, tb, L } = useI18n();
   // Win finale plays once per finished game; skipped for reduced motion.
   const reducedMotion = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -4272,6 +4301,9 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     },
   };
   const coordRef = useRef(null);
+  // Online, the coordination card on screen is always the server's: when this phone's move ends the
+  // round, the current card stays up until the server's state arrives, then the server's card shows.
+  const shownCoord = (isOnline && serverCoord) || game.currentCoord;
   const [hintStep, setHintStep] = useState(null); // first-game region tip: null | 0 | 1
   const hintHold = hintStep !== null && !isOnline; // locally the table waits while the tip is open
   const [coordHidden, setCoordHidden] = useState(false);
@@ -4631,9 +4663,9 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     const tm = setTimeout(() => {
       if (lastBotTurnRef.current === key) return;
       lastBotTurnRef.current = key;
-      const next = botDecideTurn(game, cur.id);
+      const next = botDecideTurnSeeded(game, cur.id, roomCode);
       track(botTurnEvents(game, next, cur));
-      dispatch(next);
+      (isOnline && onBehalf ? onBehalf : dispatch)(next);
     }, delay);
     return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -4649,7 +4681,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     if (game.winner || game.pendingAction || game.digOptions) return;
     const cur = game.players[game.currentPlayerIndex];
     if (!cur || cur.isBot) return;
-    const startedAt = typeof game.turnStartedAt === "number" ? game.turnStartedAt : Date.now();
+    const startedAt = typeof game.turnStartedAt === "number" ? game.turnStartedAt : serverNow();
     const windowMs = cur.inactive ? INACTIVE_SKIP_MS : TURN_TIMEOUT_MS;
     const remaining = Math.max(0, windowMs - (Date.now() - startedAt));
     const wasInactive = cur.inactive;
@@ -4684,7 +4716,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     const cur = game.players[game.currentPlayerIndex];
     if (!cur || cur.isBot) return;
     const windowMs = cur.inactive ? INACTIVE_SKIP_MS : TURN_TIMEOUT_MS;
-    const remaining = Math.max(0, windowMs - (Date.now() - game.turnStartedAt));
+    const remaining = Math.max(0, windowMs - (serverNow() - game.turnStartedAt));
     const wasInactive = cur.inactive;
     const fingerprint = `${game.turnSerial}:${game.currentPlayerIndex}:${game.turnStartedAt}:${roomUpdatedAt}`;
     const tm = setTimeout(async () => {
@@ -5398,18 +5430,18 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
               {wide ? (
                 <div className="flex items-center justify-center gap-6 mt-3">
                   <DrawPile size={58} />
-                  <CoordCard key={game.currentCoord.id} card={game.currentCoord} width={420} />
+                  <CoordCard key={shownCoord.id} card={shownCoord} width={420} />
                   <DiscardPile card={topDiscard} size={58} />
                 </div>
               ) : (
                 <div className="flex justify-center mt-3">
-                  <CoordCard key={game.currentCoord.id} card={game.currentCoord} width={Math.min(380, vw - 24)} />
+                  <CoordCard key={shownCoord.id} card={shownCoord} width={Math.min(380, vw - 24)} />
                 </div>
               )}
             </div>
             {coordHidden && !game.pendingAction && !game.digOptions && (
               <StickyCoordBar
-                card={game.currentCoord}
+                card={shownCoord}
                 onJump={() => {
                   try {
                     coordRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -6387,6 +6419,7 @@ function OnlineLobby({ room, myId, onStart, starting, onAddBot, onRemoveBot, onB
 
 function OnlineFlow({ onBack }) {
   const { t, tb, L } = useI18n();
+  const [serverCoord, setServerCoord] = useState(null); // the coordination card the server last sent
   const [savedSession] = useState(() => readOnlineSession());
   const [myId] = useState(() => savedSession?.myId || uid());
   const [myName, setMyName] = useState(() => savedSession?.myName || loadNick());
@@ -6456,6 +6489,7 @@ function OnlineFlow({ onBack }) {
   function adoptRoom(doc) {
     stampRoom(doc);
     if (typeof doc?.updatedAt === "string") baseUpdatedAtRef.current = doc.updatedAt;
+    setServerCoord(doc?.game?.currentCoord || null);
     setRoom(doc);
   }
 
@@ -6477,10 +6511,15 @@ function OnlineFlow({ onBack }) {
   }
 
   // quiet: for saves the player didn't tap (settling an expired action), a lost race shows no message.
-  function saveRoomTo(code, doc, quiet = false) {
+  // optimistic=false: for moves this phone makes on someone else's behalf (a bot's move, settling an
+  // expired action). Nothing changes on screen until the server accepts it; if another phone's save
+  // landed first, the next poll shows what really happened.
+  function saveRoomTo(code, doc, quiet = false, optimistic = true) {
     const mutationVersion = ++roomMutationRef.current;
-    pendingOptimisticRoomRef.current = { code, mutationVersion, snapshot: { ...getRoomSyncSnapshot(doc), baseUpdatedAt: baseUpdatedAtRef.current } };
-    setRoom(doc);
+    if (optimistic) {
+      pendingOptimisticRoomRef.current = { code, mutationVersion, snapshot: { ...getRoomSyncSnapshot(doc), baseUpdatedAt: baseUpdatedAtRef.current } };
+      setRoom(doc);
+    }
     const send = async () => {
       if (activeRoomCodeRef.current !== code) return false;
       try {
@@ -6862,7 +6901,12 @@ function OnlineFlow({ onBack }) {
   // Settling an expired action: true if this save won, false if it lost the race (and a refetch is on its way).
   function settleGame(newGame) {
     if (!room) return Promise.resolve(false);
-    return saveRoomTo(roomCode, { ...room, game: newGame }, true);
+    return saveRoomTo(roomCode, { ...room, game: newGame }, true, false);
+  }
+  // a bot's move: not shown until the save succeeds, and a lost race just reloads quietly
+  function dispatchOnBehalf(newGame) {
+    if (!room) return Promise.resolve(false);
+    return saveRoomTo(roomCode, { ...room, game: newGame }, true, false);
   }
 
   function exitToMenu() {
@@ -6906,6 +6950,8 @@ function OnlineFlow({ onBack }) {
         onReact={(emoji, single) => reactOnline(roomCode, emoji, single)}
         seatUserIds={Object.fromEntries((room.lobby || []).map((p) => [p.id, p.userId || null]))}
         dispatch={dispatchGame}
+        onBehalf={dispatchOnBehalf}
+        serverCoord={serverCoord}
         onExit={exitToMenu}
         onGoHome={exitToHome}
         onRematch={rematch}
