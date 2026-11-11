@@ -308,6 +308,52 @@ export async function claimRematch(code: string, rematch: { code: string; hostId
   return null;
 }
 
+// Reactions (emoji / phrase bubbles). Never a full game-state save: one guarded update that only
+// sets game.reactionEvent and wakes the sender (clears inactive / missed turns, as touching the game
+// does), re-read and retried on a concurrent write, so it can never overwrite a move. Same limits as
+// the phone's: 2 bursts, then single reactions at most one a second for 10 s; checked here too.
+const REACTION_TEXTS = new Set(['🌶️', '👏', '🥳', '😭', '😱', 'كفو!', 'القم!', 'تبي بعد؟', 'خلّك قدها', 'ظلم!', 'حلوو', 'يالله العب', 'نمت؟', 'ههههه', 'يا زينه', 'هذي لك', 'الله يعين']);
+const REACT_MIN_GAP_MS = 900;
+const REACT_WINDOW_MS = 10_000;
+const REACT_MAX_IN_WINDOW = 6;
+export async function sendReaction(code: string, playerId: string, emoji: string, single: boolean, id: string) {
+  if (!REACTION_TEXTS.has(emoji)) return { ok: false as const, reason: 'bad_reaction' as const };
+  const supabase = getSupabaseAdmin();
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { data: row, error } = await supabase.from(ROOMS_TABLE).select('*').eq('code', code).maybeSingle();
+    if (error) throw error;
+    if (!row || isExpired((row as RoomRow).expires_at) || isAbandoned(row as RoomRow)) return { ok: false as const, reason: 'not_found' as const };
+    const game = (row as RoomRow).game as any;
+    const p = Array.isArray(game?.players) ? game.players.find((x: any) => x.id === playerId) : null;
+    if (!p || p.isBot) return { ok: false as const, reason: 'not_player' as const };
+    const now = Date.now();
+    const times: number[] = ((game.reactTimes || {})[playerId] || []).filter((t: number) => now - t < REACT_WINDOW_MS);
+    if (times.length && now - times[times.length - 1] < (single ? REACT_MIN_GAP_MS : 250)) return { ok: false as const, reason: 'too_fast' as const };
+    if (times.length >= REACT_MAX_IN_WINDOW) return { ok: false as const, reason: 'too_fast' as const };
+    let next: any = {
+      ...game,
+      reactionEvent: { id: String(id || `${now}`).slice(0, 40), emoji, single: !!single, byId: playerId, byName: p.name || '' },
+      reactTimes: { ...(game.reactTimes || {}), [playerId]: [...times, now] }
+    };
+    // wake the sender (same as rWakePlayer in the game)
+    if (p.inactive || p.missedTurns) {
+      next.players = game.players.map((x: any) => (x.id === playerId ? { ...x, missedTurns: 0, inactive: false } : x));
+      if (game.players[game.currentPlayerIndex]?.id === playerId) next.turnStartedAt = now;
+      if (p.inactive) next.log = [`${p.name} رجع نشط.`, ...(game.log || [])].slice(0, 30);
+    }
+    const { data, error: upErr } = await supabase
+      .from(ROOMS_TABLE)
+      .update({ game: next })
+      .eq('code', code)
+      .eq('updated_at', (row as RoomRow).updated_at)
+      .select()
+      .maybeSingle();
+    if (upErr) throw upErr;
+    if (data) return { ok: true as const, room: toRoomDoc(data as RoomRow) };
+  }
+  return { ok: false as const, reason: 'busy' as const };
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Account ids on lobby seats are server-owned: whatever the client sent is replaced by what the row
