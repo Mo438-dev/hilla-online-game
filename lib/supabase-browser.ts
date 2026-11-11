@@ -183,19 +183,21 @@ export async function verifyEmailCode(email: string, token: string, purpose: 'li
   return error ? fail(error) : { error: null };
 }
 
-// Google Identity Services (the button on our own page, so Google shows playhulla.com): the ID
-// token from Google either links Google to this guest, or signs in to the account that has it.
-// rawNonce is the one whose SHA-256 went to Google.
+// Google sign-in through our own button and Google's code flow (so Google's screen shows our
+// domain): /api/auth/google swaps the code for an ID token, which either links Google to this guest
+// or signs in to the account that has it.
 export const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '175478021265-9gvhm0ifb4ni74o5cpdlnmaatus2v1op.apps.googleusercontent.com';
-export async function googleIdToken(purpose: 'link' | 'signin', token: string, rawNonce: string): Promise<AuthResult> {
+// The code flow gives a token without a nonce, so none is sent (Supabase checks the token without it).
+export async function googleIdToken(purpose: 'link' | 'signin', token: string, rawNonce?: string): Promise<AuthResult> {
   const c = sb();
   if (!c || !GOOGLE_ENABLED) return { error: 'disabled' };
+  const creds = rawNonce ? { provider: 'google' as const, token, nonce: rawNonce } : { provider: 'google' as const, token };
   if (purpose === 'link') {
     await ensureGuest();
-    const { error } = await c.auth.linkIdentity({ provider: 'google', token, nonce: rawNonce });
+    const { error } = await c.auth.linkIdentity(creds);
     return error ? fail(error) : { error: null };
   }
-  const { error } = await c.auth.signInWithIdToken({ provider: 'google', token, nonce: rawNonce });
+  const { error } = await c.auth.signInWithIdToken(creds);
   return error ? fail(error) : { error: null };
 }
 

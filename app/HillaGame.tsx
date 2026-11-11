@@ -7366,41 +7366,42 @@ const isInstalledApp = () => {
     return false;
   }
 };
-async function sha256Hex(text) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-function randomNonce() {
-  const a = new Uint8Array(16);
-  crypto.getRandomValues(a);
-  return [...a].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-// Google's own button. onFail → the caller shows our button with the redirect flow.
-function GisButton({ onReady, onFail, lang }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+// Google's code popup (or, in an installed app, a redirect through /api/auth/google). The code
+// goes to our server, which swaps it for an ID token; the token then goes to Supabase.
+const G_STATE_STORE = "hulla-g-state";
+function startGoogleCode(purpose, onToken, onError) {
+  const oauth2 = window.google?.accounts?.oauth2;
+  if (!oauth2) return false;
+  if (isInstalledApp()) {
+    const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
     try {
-      const dark = document.documentElement.dataset.hillaTheme === "dark";
-      el.innerHTML = "";
-      window.google.accounts.id.renderButton(el, {
-        type: "standard",
-        theme: dark ? "filled_black" : "outline",
-        size: "large",
-        text: "continue_with",
-        shape: "pill",
-        logo_alignment: "center",
-        locale: lang,
-        width: Math.min(400, Math.floor(el.parentElement?.clientWidth || el.clientWidth || 300)),
-      });
-      onReady && onReady();
-    } catch {
-      onFail();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lang]);
-  return <div ref={ref} className="w-full flex justify-center" style={{ minHeight: 44 }} />;
+      window.sessionStorage.setItem(G_STATE_STORE, nonce);
+    } catch {}
+    oauth2
+      .initCodeClient({ client_id: GOOGLE_CLIENT_ID, scope: "openid email profile", ux_mode: "redirect", redirect_uri: `${window.location.origin}/api/auth/google`, state: `${purpose}.${nonce}` })
+      .requestCode();
+    return true;
+  }
+  oauth2
+    .initCodeClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: "openid email profile",
+      ux_mode: "popup",
+      callback: async (resp) => {
+        if (!resp || resp.error || !resp.code) return onError(resp?.error || "no_code");
+        try {
+          const r = await fetch("/api/auth/google", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: resp.code }) });
+          const body = await r.json().catch(() => ({}));
+          if (!r.ok || !body.id_token) return onError(body.error || "exchange_failed");
+          onToken(body.id_token);
+        } catch {
+          onError("exchange_failed");
+        }
+      },
+      error_callback: (err) => onError(err?.type || "popup_failed"),
+    })
+    .requestCode();
+  return true;
 }
 
 // Six boxes over one real input (autocomplete="one-time-code" lets iOS / Android offer the code).
@@ -7456,7 +7457,7 @@ function CodeBoxes({ value, onChange, bad, disabled }) {
 // sign-out. purpose "link" saves this guest account (same uuid, games and points); "signin" goes to
 // an existing account and this phone's guest games stay behind. A username can only be claimed by
 // a saved account; a guest who already has one keeps it, locked. The name stays editable for guests.
-function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, startView = "main", startConflict = "email" }) {
+function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, startView = "main", startConflict = "email", startCred = null }) {
   const { t, L } = useI18n();
   const [account, setAccount] = useState(null); // null while loading · { signed, method, email }
   const signed = !!account?.signed;
@@ -7516,40 +7517,21 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
   const [, tick] = useState(0);
   const [conflictVia, setConflictVia] = useState(startConflict);
   const [gSlow, setGSlow] = useState(false);
-  // GIS: "loading" | "ready" | "off" (off = the redirect flow and our own button)
-  const [gis, setGis] = useState(() => (GOOGLE_ENABLED && !isInstalledApp() ? "loading" : "off"));
-  const [rawNonce] = useState(() => (typeof crypto !== "undefined" && crypto.getRandomValues ? randomNonce() : ""));
-  const [gCred, setGCred] = useState(null); // the last Google credential (reused by the conflict view)
+  // Google: "loading" | "ready" (the code client is there) | "off" (the Supabase redirect, last fallback)
+  const [gis, setGis] = useState(() => (GOOGLE_ENABLED ? "loading" : "off"));
+  const [gCred, setGCred] = useState(startCred || null); // the last Google ID token (reused by the conflict view)
   const [gBusy, setGBusy] = useState(false);
   const [gErr, setGErr] = useState("");
-  const gPurposeRef = useRef("link");
-  const onCredRef = useRef(null);
   useEffect(() => {
     if (gis !== "loading") return;
     let alive = true;
-    (async () => {
-      try {
-        if (!rawNonce) throw new Error("no_crypto");
-        await loadGis();
-        const hashed = await sha256Hex(rawNonce);
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: (r) => onCredRef.current && onCredRef.current(r),
-          nonce: hashed,
-          ux_mode: "popup",
-          use_fedcm_for_prompt: true,
-          itp_support: true,
-          auto_select: false,
-        });
-        if (alive) setGis("ready");
-      } catch {
-        if (alive) setGis("off");
-      }
-    })();
+    loadGis()
+      .then(() => alive && setGis(window.google?.accounts?.oauth2 ? "ready" : "off"))
+      .catch(() => alive && setGis("off"));
     return () => {
       alive = false;
     };
-  }, [gis, rawNonce]);
+  }, [gis]);
   // Back from Google's page with the browser's Back button: Safari restores this page from its
   // back/forward cache still on the google view. Coming back (pageshow persisted, or visible again
   // after we left) returns to the main view; after 8 s still here, offer a retry.
@@ -7643,7 +7625,7 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
     setGBusy(true);
     setGErr("");
     setSendErr("");
-    const res = await googleIdToken(p, credential, rawNonce);
+    const res = await googleIdToken(p, credential);
     setGBusy(false);
     if (res.error) {
       if (p === "link" && (res.error === "identity_already_exists" || res.error === "identity_already_linked")) {
@@ -7657,10 +7639,24 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
     }
     finish(p, "google");
   };
-  onCredRef.current = ({ credential }) => {
-    if (!credential) return;
-    setGCred(credential);
-    applyCredential(credential, gPurposeRef.current);
+  const googleClick = (p) => {
+    setGErr("");
+    setSendErr("");
+    const started =
+      gis === "ready" &&
+      startGoogleCode(
+        p,
+        (idToken) => {
+          setGCred(idToken);
+          applyCredential(idToken, p);
+        },
+        (err) => {
+          setGBusy(false);
+          // closing Google's window is not an error
+          if (!/popup_closed|access_denied|user_cancel/i.test(String(err))) setGErr(t("errSave"));
+        }
+      );
+    if (!started) goGoogle(p); // last fallback: the Supabase redirect
   };
   const startEmail = (p) => {
     setPurpose(p);
@@ -7675,22 +7671,16 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
       {L.dir === "rtl" ? "→" : "←"} {t("acBack")}
     </button>
   );
-  const gBtn = (p) => {
-    if (gis === "loading") return <div className="w-full" style={{ height: 44 }} />;
-    if (gis === "ready") {
-      gPurposeRef.current = p;
-      return gBusy ? (
-        <div className="w-full py-3 tsz-14 font-bold flex items-center justify-center gap-2" style={{ color: A(INK, "88") }}>
-          <span className="ac-spin"><GoogleG size={18} /></span> {t("acVerifying")}
-        </div>
-      ) : (
-        <GisButton key={p} lang={L.code} onFail={() => setGis("off")} />
-      );
-    }
-    return gBtnRedirect(p);
-  };
+  const gBtn = (p) =>
+    gBusy ? (
+      <div className="w-full py-3 tsz-14 font-bold flex items-center justify-center gap-2" style={{ color: A(INK, "88") }}>
+        <span className="ac-spin"><GoogleG size={18} /></span> {t("acVerifying")}
+      </div>
+    ) : (
+      gBtnRedirect(p)
+    );
   const gBtnRedirect = (p) => (
-    <button onClick={() => goGoogle(p)} className={`w-full py-3 tsz-14 flex items-center justify-center gap-2 ${btn}`} style={{ background: "#fff", color: "#1f1f1f", boxShadow: `inset 0 0 0 1.5px ${A(INK, "22")}` }}>
+    <button onClick={() => googleClick(p)} className={`w-full py-3 tsz-14 flex items-center justify-center gap-2 ${btn}`} style={{ background: "#fff", color: "#1f1f1f", boxShadow: `inset 0 0 0 1.5px ${A(INK, "22")}` }}>
       <GoogleG /> {t("sdGoogle")}
     </button>
   );
@@ -8193,6 +8183,34 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
   // Back from Google (?acct=link|signin, or Supabase's error_code in the URL).
   useEffect(() => {
     if (!AUTH_ENABLED) return;
+    // Installed app, our own button: /api/auth/google sent us back with the ID token in the fragment.
+    const h = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    if (h.has("gid") || h.has("gerr")) {
+      const [gPurpose, gNonce] = String(h.get("gstate") || "").split(".");
+      let saved = null;
+      try {
+        saved = window.sessionStorage.getItem(G_STATE_STORE);
+        window.sessionStorage.removeItem(G_STATE_STORE);
+      } catch {}
+      window.history.replaceState(null, "", window.location.pathname);
+      const purpose = gPurpose === "signin" ? "signin" : "link";
+      const token = h.get("gid");
+      if (!token || !saved || saved !== gNonce) {
+        if (!/access_denied/.test(String(h.get("gerr") || ""))) say(t("errSave"));
+        return;
+      }
+      googleIdToken(purpose, token).then((res) => {
+        if (!res.error) return accountDone(purpose, "google");
+        if (purpose === "link" && (res.error === "identity_already_exists" || res.error === "identity_already_linked")) {
+          sendAppEvent("account_conflict", null, { payload: { method: "google" } });
+          setProfileView({ view: "conflict", conflict: "google", cred: token });
+          setProfile(true);
+          return;
+        }
+        say(t("errSave"));
+      });
+      return;
+    }
     const back = readAuthReturn();
     if (!back.purpose && !back.error) return;
     if (back.error === "identity_already_exists" || back.error === "identity_already_linked") {
@@ -8371,6 +8389,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
           username={username}
           startView={profileView.view}
           startConflict={profileView.conflict}
+          startCred={profileView.cred || null}
           onClose={() => {
             setProfile(false);
             setProfileView({ view: "main", conflict: "email" });
