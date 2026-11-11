@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'سياسة الخصوصية — حُلّة',
-  description: 'وش نحفظ في حُلّة وليش · What Hulla stores and why'
+  description: 'وش نحفظ في حُلّة وليش · What Hulla stores and why',
+  alternates: { canonical: '/privacy' }
 };
 
 // Public, static privacy policy (Google sign-in needs one). Always the light look, whatever theme

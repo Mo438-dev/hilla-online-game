@@ -22,6 +22,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  // the public address (delta-18); the old vercel.app address keeps working, it isn't redirected
+  metadataBase: new URL('https://playhulla.com'),
+  alternates: { canonical: '/' },
   title: 'حُلّة',
   description: 'لعبة مطابقة الأزياء التقليدية السعودية',
   applicationName: 'حُلّة',
