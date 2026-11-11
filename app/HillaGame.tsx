@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Volume2, VolumeX, Shield, Shuffle, Users, Sparkles, RotateCcw, Hand, Repeat2, Gift, Search, Wifi, Home, Copy, Check, LogOut, RefreshCw, Type, Menu, HelpCircle, X, Smile } from "lucide-react";
 import { HILLA_ART as ART } from "@/lib/art-manifest";
-import { ensureGuest, authHeaders, saveNicknameRemote, syncNickname, saveProfile, usernameAvailable, linkGoogle, GOOGLE_ENABLED, AUTH_ENABLED } from "@/lib/supabase-browser";
+import { ensureGuest, authHeaders, saveNicknameRemote, syncNickname, saveProfile, usernameAvailable, getAccount, googleAccount, sendEmailCode, verifyEmailCode, signOutToGuest, readAuthReturn, GOOGLE_ENABLED, EMAIL_ENABLED, AUTH_ENABLED } from "@/lib/supabase-browser";
 import { deviceInfo } from "@/lib/device";
 import { sendAppEvent, sendSeatStats, reportClientError, newAnalyticsGameId, sendAnalyticsEvents, sendGameStarted, sendGameFinished, sendDealSnapshot, getClientPid, sendFeedback } from "@/lib/analytics-client";
 
@@ -1058,7 +1058,7 @@ const I18N = {
     newTag: "New", recv_giveTakeGot: "{name} gave you these", recv_giveTakeTook: "You took these from {name}", recv_stealTwo: "{name} handed you these", recv_drawTwo: "{name} made you draw these",
     sdNameLabel: "Your name", sdNameRule2: "2 to 16 characters · others can have the same name", sdUserLabel: "Username", sdUserRule: "English letters, numbers and _ · 3 to 15 · can't be taken by anyone else", sdUserFree: "Available", sdUserTaken: "Taken, try another", sdUserReserved: "That name is reserved, try another", sdUserChars: "Only English letters, numbers and _, starting with a letter", sdUserLength: "3 to 15 characters", sdUserCooldown: "You can change it once every 30 days", sdUserCooldownLeft: "You can change your username in {n} days",
     waitPending: "Wait for the last action to land",
-    sdTagline: "Every region has its outfit", sdOnline: "Online", sdOnlineSub: "With friends", sdLocal: "Same device", sdLocalSub: "Or vs bots", sdRank: "Leaderboard", sdRankSub: "Coming soon", sdRankSoon: "The leaderboard is coming soon", sdGuest: "Guest", sdSaveShort: "Sign in to save your points", sdPickName: "What should we call you?", sdChangeName: "Change your name", sdNamePh: "Your leaderboard name", sdNameRule: "2 to 16 characters · shown on the leaderboard", sdSave: "Save", sdEdit: "Edit", sdHello: "Hi {name}", sdGuestTitle: "You're playing as a guest", sdGuestBody: "Save your account so your name and points stay if you change phones", sdGoogle: "Continue with Google", sdEmail: "Continue with email", sdAuthSoon: "Sign-in arrives with the leaderboard", sdLang: "Language",
+    sdTagline: "Every region has its outfit", sdOnline: "Online", sdOnlineSub: "With friends", sdLocal: "Same device", sdLocalSub: "Or vs bots", sdRank: "Leaderboard", sdRankSub: "Coming soon", sdRankSoon: "The leaderboard is coming soon", sdGuest: "Guest", sdSaveShort: "Sign in to save your points", sdPickName: "What should we call you?", sdChangeName: "Change your name", sdNamePh: "Your leaderboard name", sdNameRule: "2 to 16 characters · shown on the leaderboard", sdSave: "Save", sdEdit: "Edit", sdHello: "Hi {name}", acSaveTitle: "Save your account", acSaveBody: "Keep your name, username and points if you change or lose your phone.", acHaveAccount: "Have an account? Sign in", acSignInTitle: "Sign in to your account", acSignInBody: "Get your name and points back on this phone.", acSignInNote: "Guest games on this phone don't move to your account.", acBack: "Back", acEmailBody: "We'll send you a 6-digit code.", acEmailBad: "Enter a valid email", acSendCode: "Send code", acSending: "Sending…", acCodeTitle: "Enter the code", acCodeBody: "We sent a 6-digit code to {email}", acCodeHint: "Not there? Check your spam folder", acCodeWrong: "Wrong code, try again", acResendIn: "Resend in {n}s", acResend: "Resend code", acChangeEmail: "Change email", acVerifying: "Checking…", acGoogleGo: "Taking you to Google…", acSavedTitle: "Your account is saved", acViaGoogle: "Google", acViaEmail: "Email", acSavedToast: "Done! Your account is saved", acWelcomeBack: "Welcome back", acSignedOut: "Signed out. You're a guest now", acUserLocked: "Save your account with Google or email to claim a username", acUserLockedHas: "It's yours · save your account to change it", acConflictTitle: "This email already has an account", acConflictTitleG: "This Google account already has an account", acConflictBody: "You can switch to it, but guest games on this phone won't move with you.", acConflictGo: "Switch to that account", acConflictOther: "Use another email", acSignOut: "Sign out", acSignOutQ: "Sign out?", acSignOutBody: "You'll carry on as a new guest on this phone. Sign in any time to get your account back.", acSignOutYes: "Sign out", acSignOutNo: "Stay", acTooMany: "Too many tries. Wait a minute and try again.", sdGuestTitle: "You're playing as a guest", sdGuestBody: "Save your account so your name and points stay if you change phones", sdGoogle: "Continue with Google", sdEmail: "Continue with email", sdAuthSoon: "Sign-in arrives with the leaderboard", sdLang: "Language",
     madeBy: "Designed by Saudi hands 🇸🇦", credit: "A Princess Nourah University student, for Core Studio",
     errCreate: "Couldn't create the room, try again.", addBot: "🤖 Add a bot", removeBot: "Remove bot",
     svThanks: "Thanks for the feedback! 💛", svTitle: "Your opinion matters (optional)", svSkip: "Skip",
@@ -1141,7 +1141,7 @@ const I18N = {
     newTag: "Nueva", recv_giveTakeGot: "{name} te dio estas", recv_giveTakeTook: "Le quitaste estas a {name}", recv_stealTwo: "{name} te pasó estas", recv_drawTwo: "{name} te hizo robar estas",
     sdNameLabel: "Tu nombre", sdNameRule2: "De 2 a 16 caracteres · otros pueden tener el mismo nombre", sdUserLabel: "Usuario", sdUserRule: "Letras inglesas, números y _ · 3 a 15 · nadie más puede tenerlo", sdUserFree: "Disponible", sdUserTaken: "Ocupado, prueba otro", sdUserReserved: "Ese nombre está reservado, prueba otro", sdUserChars: "Solo letras inglesas, números y _, empezando por una letra", sdUserLength: "De 3 a 15 caracteres", sdUserCooldown: "Puedes cambiarlo una vez cada 30 días", sdUserCooldownLeft: "Podrás cambiar tu usuario en {n} días",
     waitPending: "Espera a que se resuelva la acción anterior",
-    sdTagline: "Cada región tiene su traje", sdOnline: "En línea", sdOnlineSub: "Con amigos", sdLocal: "Mismo dispositivo", sdLocalSub: "O contra bots", sdRank: "Clasificación", sdRankSub: "Muy pronto", sdRankSoon: "La clasificación llega pronto", sdGuest: "Invitado", sdSaveShort: "Inicia sesión para guardar tus puntos", sdPickName: "¿Cómo te llamamos?", sdChangeName: "Cambia tu nombre", sdNamePh: "Tu nombre en la clasificación", sdNameRule: "De 2 a 16 caracteres · se muestra en la clasificación", sdSave: "Guardar", sdEdit: "Editar", sdHello: "Hola {name}", sdGuestTitle: "Juegas como invitado", sdGuestBody: "Guarda tu cuenta para no perder tu nombre y tus puntos si cambias de móvil", sdGoogle: "Continuar con Google", sdEmail: "Continuar con correo", sdAuthSoon: "El inicio de sesión llega con la clasificación", sdLang: "Idioma",
+    sdTagline: "Cada región tiene su traje", sdOnline: "En línea", sdOnlineSub: "Con amigos", sdLocal: "Mismo dispositivo", sdLocalSub: "O contra bots", sdRank: "Clasificación", sdRankSub: "Muy pronto", sdRankSoon: "La clasificación llega pronto", sdGuest: "Invitado", sdSaveShort: "Inicia sesión para guardar tus puntos", sdPickName: "¿Cómo te llamamos?", sdChangeName: "Cambia tu nombre", sdNamePh: "Tu nombre en la clasificación", sdNameRule: "De 2 a 16 caracteres · se muestra en la clasificación", sdSave: "Guardar", sdEdit: "Editar", sdHello: "Hola {name}", acSaveTitle: "Guarda tu cuenta", acSaveBody: "Conserva tu nombre, usuario y puntos si cambias o pierdes el móvil.", acHaveAccount: "¿Tienes cuenta? Inicia sesión", acSignInTitle: "Inicia sesión en tu cuenta", acSignInBody: "Recupera tu nombre y tus puntos en este móvil.", acSignInNote: "Las partidas de invitado de este móvil no pasan a tu cuenta.", acBack: "Atrás", acEmailBody: "Te enviaremos un código de 6 dígitos.", acEmailBad: "Escribe un correo válido", acSendCode: "Enviar código", acSending: "Enviando…", acCodeTitle: "Escribe el código", acCodeBody: "Enviamos un código de 6 dígitos a {email}", acCodeHint: "¿No llegó? Revisa el spam", acCodeWrong: "Código incorrecto, inténtalo de nuevo", acResendIn: "Reenviar en {n} s", acResend: "Reenviar código", acChangeEmail: "Cambiar correo", acVerifying: "Comprobando…", acGoogleGo: "Te llevamos a Google…", acSavedTitle: "Tu cuenta está guardada", acViaGoogle: "Google", acViaEmail: "Correo", acSavedToast: "¡Listo! Tu cuenta está guardada", acWelcomeBack: "¡Bienvenido de nuevo!", acSignedOut: "Sesión cerrada. Ahora eres invitado", acUserLocked: "Guarda tu cuenta con Google o correo para reservar un usuario", acUserLockedHas: "Es tuyo · guarda tu cuenta para cambiarlo", acConflictTitle: "Este correo ya tiene una cuenta", acConflictTitleG: "Esta cuenta de Google ya tiene una cuenta", acConflictBody: "Puedes cambiar a ella, pero las partidas de invitado de este móvil no pasan contigo.", acConflictGo: "Cambiar a esa cuenta", acConflictOther: "Usar otro correo", acSignOut: "Cerrar sesión", acSignOutQ: "¿Cerrar sesión?", acSignOutBody: "Seguirás como un invitado nuevo en este móvil. Inicia sesión cuando quieras para recuperar tu cuenta.", acSignOutYes: "Salir", acSignOutNo: "Quedarme", acTooMany: "Demasiados intentos. Espera un minuto y vuelve a intentarlo.", sdGuestTitle: "Juegas como invitado", sdGuestBody: "Guarda tu cuenta para no perder tu nombre y tus puntos si cambias de móvil", sdGoogle: "Continuar con Google", sdEmail: "Continuar con correo", sdAuthSoon: "El inicio de sesión llega con la clasificación", sdLang: "Idioma",
     madeBy: "Diseñado por manos saudíes 🇸🇦", credit: "Estudiante de la Universidad Princesa Nourah, para Core Studio",
     errCreate: "No se pudo crear la sala, inténtalo de nuevo.", addBot: "🤖 Añadir un bot", removeBot: "Quitar bot",
     svThanks: "¡Gracias por tu opinión! 💛", svTitle: "Tu opinión importa (opcional)", svSkip: "Omitir",
@@ -1221,7 +1221,7 @@ Object.assign(I18N.ar, {
   newTag: "جديد", recv_giveTakeGot: "{name} عطاك هذي", recv_giveTakeTook: "أخذت هذي من {name}", recv_stealTwo: "{name} فزع لك بهذي", recv_drawTwo: "{name} قدعك وسحبت هذي",
   sdNameLabel: "اسمك", sdNameRule2: "من ٢ إلى ١٦ حرف · عادي يكون نفس اسم أحد ثاني", sdUserLabel: "اسم المستخدم", sdUserRule: "حروف إنجليزي وأرقام و _ · من ٣ إلى ١٥ · ما يتكرر", sdUserFree: "متاح", sdUserTaken: "مأخوذ، جرّب غيره", sdUserReserved: "هذا الاسم محجوز، جرّب غيره", sdUserChars: "حروف إنجليزي وأرقام و _ بس، ويبدأ بحرف", sdUserLength: "من ٣ إلى ١٥ حرف", sdUserCooldown: "تقدر تغيّره مرة كل ٣٠ يوم", sdUserCooldownLeft: "تقدر تغيّر اسم المستخدم بعد {n} يوم",
   waitPending: "استنى لين يخلص الأكشن اللي قبل",
-  sdTagline: "كل منطقة لها حُلّة", sdOnline: "أونلاين", sdOnlineSub: "مع أصحابك", sdLocal: "نفس الجهاز", sdLocalSub: "أو ضد البوتات", sdRank: "الترتيب", sdRankSub: "قريبًا", sdRankSoon: "الترتيب جاي قريب", sdGuest: "ضيف", sdSaveShort: "سجّل واحفظ نقاطك", sdPickName: "وش نسمّيك؟", sdChangeName: "غيّر اسمك", sdNamePh: "اسمك في الترتيب", sdNameRule: "من ٢ إلى ١٦ حرف · يطلع للناس في الترتيب", sdSave: "احفظ", sdEdit: "غيّر", sdHello: "أهلًا {name}", sdGuestTitle: "حسابك ضيف", sdGuestBody: "احفظه عشان ما يضيع اسمك ونقاطك لو غيّرت جوالك", sdGoogle: "كمّل بقوقل", sdEmail: "كمّل بالإيميل", sdAuthSoon: "تسجيل الدخول يجي مع الترتيب", sdLang: "اللغة",
+  sdTagline: "كل منطقة لها حُلّة", sdOnline: "أونلاين", sdOnlineSub: "مع أصحابك", sdLocal: "نفس الجهاز", sdLocalSub: "أو ضد البوتات", sdRank: "الترتيب", sdRankSub: "قريبًا", sdRankSoon: "الترتيب جاي قريب", sdGuest: "ضيف", sdSaveShort: "سجّل واحفظ نقاطك", sdPickName: "وش نسمّيك؟", sdChangeName: "غيّر اسمك", sdNamePh: "اسمك في الترتيب", sdNameRule: "من ٢ إلى ١٦ حرف · يطلع للناس في الترتيب", sdSave: "احفظ", sdEdit: "غيّر", sdHello: "أهلًا {name}", acSaveTitle: "احفظ حسابك", acSaveBody: "عشان يبقى اسمك ويوزرك ونقاطك لو غيّرت جوالك أو ضاع.", acHaveAccount: "عندك حساب؟ سجّل دخول", acSignInTitle: "سجّل دخول لحسابك", acSignInBody: "يرجع لك اسمك ونقاطك على هالجوال.", acSignInNote: "مباريات الضيف اللي على هالجوال ما تنتقل لحسابك.", acBack: "رجوع", acEmailBody: "بنرسل لك رمز من ٦ أرقام.", acEmailBad: "اكتب إيميل صحيح", acSendCode: "أرسل الرمز", acSending: "نرسل…", acCodeTitle: "اكتب الرمز", acCodeBody: "أرسلنا رمز من ٦ أرقام إلى {email}", acCodeHint: "ما وصلك؟ شيّك على الرسائل غير المرغوب فيها", acCodeWrong: "الرمز غلط، جرّب مرة ثانية", acResendIn: "أرسل من جديد بعد {n} ث", acResend: "أرسل الرمز من جديد", acChangeEmail: "غيّر الإيميل", acVerifying: "نتأكد…", acGoogleGo: "نحوّلك لقوقل…", acSavedTitle: "حسابك محفوظ", acViaGoogle: "قوقل", acViaEmail: "الإيميل", acSavedToast: "تم! حسابك محفوظ", acWelcomeBack: "هلا والله، رجع لك حسابك", acSignedOut: "طلعت من حسابك، وصرت ضيف", acUserLocked: "احفظ حسابك بقوقل أو الإيميل عشان تحجز اسم مستخدم", acUserLockedHas: "محجوز لك · احفظ حسابك عشان تقدر تغيّره", acConflictTitle: "هالإيميل له حساب من قبل", acConflictTitleG: "حساب قوقل هذا له حساب من قبل", acConflictBody: "تقدر تدخل عليه، بس مباريات الضيف اللي على هالجوال ما تنتقل معك.", acConflictGo: "ادخل على ذاك الحساب", acConflictOther: "استخدم إيميل ثاني", acSignOut: "تسجيل خروج", acSignOutQ: "تطلع من حسابك؟", acSignOutBody: "بتكمل كضيف جديد على هالجوال، وحسابك يرجع لك أول ما تسجّل دخول.", acSignOutYes: "اطلع", acSignOutNo: "لا، خلّني", acTooMany: "محاولات كثيرة، استنى دقيقة وجرّب مرة ثانية.", sdGuestTitle: "حسابك ضيف", sdGuestBody: "احفظه عشان ما يضيع اسمك ونقاطك لو غيّرت جوالك", sdGoogle: "كمّل بقوقل", sdEmail: "كمّل بالإيميل", sdAuthSoon: "تسجيل الدخول يجي مع الترتيب", sdLang: "اللغة",
   madeBy: "صُممت بأيدي سعودية 🇸🇦", credit: "طالبة جامعة الأميرة نورة، لمقرر Core Studio",
   errCreate: "تعذر إنشاء الغرفة، حاول مجددًا.", addBot: "🤖 أضف بوت", removeBot: "أزل البوت",
   svThanks: "شكرًا على رأيك! 💛", svTitle: "رأيك يهمنا (اختياري)", svSkip: "تخطي",
@@ -2379,6 +2379,10 @@ const GlobalFont = () => (
       100% { opacity: 0; transform: translateY(-4px) scale(.96); }
     }
     .hilla-bubble { animation: hilla-bubble 2.5s cubic-bezier(.2,.9,.3,1.2) forwards; transform-origin: 50% 100%; }
+    @keyframes ac-shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
+    .ac-shake { animation: ac-shake .38s ease; }
+    @keyframes ac-spin { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(.86); opacity: .55; } 100% { transform: scale(1); opacity: 1; } }
+    .ac-spin { display: inline-flex; animation: ac-spin 1s ease-in-out infinite; }
     /* first-game tip */
     .hint-in { animation: hint-in .35s ease both; }
     @keyframes hint-in { from { opacity: 0; } }
@@ -7305,19 +7309,114 @@ function userShape(v) {
   return "shape_ok";
 }
 
-function ProfileSheet({ nick, username, onSaveProfile, onClose, onSignIn }) {
+const emailValid = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
+// m•••@gmail.com: enough to recognise your own address, nothing more (shown on this sheet only)
+function maskEmail(e) {
+  const [u, d] = String(e || "").split("@");
+  if (!d) return e || "";
+  return `${u.slice(0, 1)}•••@${d}`;
+}
+
+function GoogleG({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+
+function LockIcon({ size = 14, color }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="5" y="11" width="14" height="10" rx="2.5" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </svg>
+  );
+}
+
+// Six boxes over one real input (autocomplete="one-time-code" lets iOS / Android offer the code).
+function CodeBoxes({ value, onChange, bad, disabled }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const id = setTimeout(() => ref.current && ref.current.focus(), 250);
+    return () => clearTimeout(id);
+  }, []);
+  return (
+    <div className="relative mx-auto" dir="ltr" style={{ width: 6 * 42 + 5 * 8 }} onClick={() => ref.current && ref.current.focus()}>
+      <div className={`flex gap-2 ${bad ? "ac-shake" : ""}`}>
+        {Array.from({ length: 6 }).map((_, i) => {
+          const ch = value[i] || "";
+          const active = !disabled && i === Math.min(value.length, 5);
+          return (
+            <span
+              key={i}
+              className="flex items-center justify-center tsz-22 font-bold"
+              style={{
+                width: 42,
+                height: 52,
+                borderRadius: 12,
+                background: "var(--h-field)",
+                color: INK,
+                boxShadow: `inset 0 0 0 ${active ? 2 : 1.5}px ${bad ? BRAND : active ? GOLD : ch ? A(INK, "44") : A(INK, "22")}`,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {ch}
+            </span>
+          );
+        })}
+      </div>
+      <input
+        ref={ref}
+        value={value}
+        disabled={disabled}
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        pattern="[0-9]*"
+        maxLength={6}
+        aria-label="code"
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 6))}
+        className="absolute inset-0 w-full h-full"
+        style={{ opacity: 0, caretColor: "transparent" }}
+      />
+    </div>
+  );
+}
+
+// Account sheet (delta-18). Views: main → (email → code) | google, plus signin, conflict and
+// sign-out. purpose "link" saves this guest account (same uuid, games and points); "signin" goes to
+// an existing account and this phone's guest games stay behind. A username can only be claimed by
+// a saved account; a guest who already has one keeps it, locked. The name stays editable for guests.
+function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, startView = "main", startConflict = "email" }) {
   const { t, L } = useI18n();
-  const [editing, setEditing] = useState(() => !nick || (AUTH_ENABLED && !username));
+  const [account, setAccount] = useState(null); // null while loading · { signed, method, email }
+  const signed = !!account?.signed;
+  useEffect(() => {
+    let alive = true;
+    getAccount().then((a) => alive && setAccount(a));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const [editing, setEditing] = useState(() => !nick);
   const [draft, setDraft] = useState(nick || "");
   const [uDraft, setUDraft] = useState(username || "");
   const [uStat, setUStat] = useState(username ? "ok" : "empty"); // empty | chars | length | checking | ok | taken | reserved
   const [saveErr, setSaveErr] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
   const ok = nickValid(draft);
   const initial = nick ? [...nick][0] : [...t("sdGuest")][0];
-
-  // live check, debounced: shape on the device, availability on the server
+  // a freshly saved account with no username opens straight on the username field
   useEffect(() => {
+    if (signed && !username) setEditing(true);
+  }, [signed, username]);
+
+  // live username check (saved accounts only), debounced: shape on the device, availability on the server
+  useEffect(() => {
+    if (!signed) return;
     const u = cleanUser(uDraft);
     const shape = userShape(uDraft);
     if (shape !== "shape_ok") return setUStat(shape);
@@ -7333,19 +7432,295 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onSignIn }) {
       alive = false;
       clearTimeout(tm);
     };
-  }, [uDraft, username]);
-
-  const needUser = AUTH_ENABLED;
-  const canSave = ok && (!needUser || uStat === "ok") && !busy;
+  }, [uDraft, username, signed]);
+  const uBad = ["taken", "reserved", "chars", "length"].includes(uStat);
   const uHint =
     uStat === "taken" ? t("sdUserTaken") : uStat === "reserved" ? t("sdUserReserved") : uStat === "chars" ? t("sdUserChars") : uStat === "length" ? t("sdUserLength") : uStat === "ok" && cleanUser(uDraft) !== username ? t("sdUserFree") : t("sdUserRule");
-  const uBad = ["taken", "reserved", "chars", "length"].includes(uStat);
+  const canSave = ok && (!signed || uStat === "ok") && !saving;
 
+  const [view, setView] = useState(startView); // main | signin | email | code | google | conflict | signout
+  const [purpose, setPurpose] = useState("link"); // link | signin
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [bad, setBad] = useState(false);
+  const [codeErr, setCodeErr] = useState("");
+  const [sendErr, setSendErr] = useState("");
+  const [resendAt, setResendAt] = useState(0);
+  const [, tick] = useState(0);
+  const [conflictVia, setConflictVia] = useState(startConflict);
+  useEffect(() => {
+    if (view !== "code") return;
+    const iv = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(iv);
+  }, [view]);
+  const resendLeft = Math.max(0, Math.ceil((resendAt - Date.now()) / 1000));
+  const isRate = (e) => /rate|too_many|429/i.test(e || "");
+
+  const finish = async (how, method) => {
+    setBusy(false);
+    setCode("");
+    setView("main");
+    const a = await getAccount();
+    setAccount(a);
+    onAccount && onAccount(how, method);
+  };
+  const sendCode = async (again = false) => {
+    if (!emailValid(email) || busy) return;
+    const e = email.trim().toLowerCase();
+    setBusy(true);
+    setSendErr("");
+    const res = await sendEmailCode(e, purpose);
+    setBusy(false);
+    if (res.error) {
+      if (res.error === "email_exists" || res.error === "identity_already_exists") {
+        setConflictVia("email");
+        sendAppEvent("account_conflict", null, { payload: { method: "email" } });
+        setView("conflict");
+        return;
+      }
+      setSendErr(isRate(res.error) || res.status === 429 ? t("acTooMany") : t("errSave"));
+      return;
+    }
+    setPurpose(res.purpose); // a sign-in with an unknown email quietly became a link
+    setResendAt(Date.now() + 60000);
+    if (!again) {
+      setCode("");
+      setBad(false);
+      setCodeErr("");
+      setView("code");
+    }
+  };
+  const checkCode = async (c) => {
+    setCode(c);
+    setBad(false);
+    setCodeErr("");
+    if (c.length < 6 || busy) return;
+    setBusy(true);
+    const res = await verifyEmailCode(email.trim().toLowerCase(), c, purpose);
+    if (res.error) {
+      setBusy(false);
+      setCode("");
+      if (isRate(res.error) || res.status === 429) {
+        setCodeErr(t("acTooMany"));
+        return;
+      }
+      setBad(true);
+      return;
+    }
+    finish(purpose, "email");
+  };
+  const goGoogle = async (p) => {
+    setPurpose(p);
+    setView("google");
+    const res = await googleAccount(p); // leaves the page for Google and comes back (?acct=)
+    if (res.error) {
+      setView("main");
+      setSendErr(t("errSave"));
+    }
+  };
+  const startEmail = (p) => {
+    setPurpose(p);
+    setEmail("");
+    setSendErr("");
+    setView("email");
+  };
+
+  const field = { background: "var(--h-field)", color: INK };
+  const backBtn = (to = "main") => (
+    <button onClick={() => { setView(to); setBusy(false); setBad(false); }} className="absolute top-4 tsz-12 font-bold rounded-full px-2.5 py-1" style={{ insetInlineStart: 16, background: A(INK, "0d"), color: A(INK, "aa") }}>
+      {L.dir === "rtl" ? "→" : "←"} {t("acBack")}
+    </button>
+  );
+  const gBtn = (p) => (
+    <button onClick={() => goGoogle(p)} className={`w-full py-3 tsz-14 flex items-center justify-center gap-2 ${btn}`} style={{ background: "#fff", color: "#1f1f1f", boxShadow: `inset 0 0 0 1.5px ${A(INK, "22")}` }}>
+      <GoogleG /> {t("sdGoogle")}
+    </button>
+  );
+  const eBtn = (p) => (
+    <button onClick={() => startEmail(p)} className={`w-full py-3 tsz-14 flex items-center justify-center gap-2 ${btn}`} style={btnPrimary}>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="m4 7 8 6 8-6" /></svg>
+      {t("sdEmail")}
+    </button>
+  );
+
+  // ── sub-views ──
+  if (view === "google") {
+    return (
+      <Sheet onBackdrop={() => {}} maxW={380} z={90}>
+        <div dir={L.dir} className="py-6 flex flex-col items-center gap-3">
+          <span className="ac-spin"><GoogleG size={34} /></span>
+          <div className="tsz-14 font-bold" style={{ color: INK }}>{t("acGoogleGo")}</div>
+        </div>
+      </Sheet>
+    );
+  }
+  if (view === "email" || view === "code") {
+    const isCode = view === "code";
+    return (
+      <Sheet onBackdrop={onClose} maxW={380} z={90}>
+        <div dir={L.dir} className="pt-8">
+          {backBtn(isCode ? "email" : purpose === "signin" ? "signin" : "main")}
+          <span className="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: `${GOLD}33`, color: GOLD_DK }}>
+            {isCode ? <LockIcon size={24} /> : (
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="m4 7 8 6 8-6" /></svg>
+            )}
+          </span>
+          <h3 className="display-font font-bold tsz-20 mt-3" style={{ color: BRAND_T }}>{isCode ? t("acCodeTitle") : purpose === "signin" ? t("acSignInTitle") : t("acSaveTitle")}</h3>
+          {!isCode ? (
+            <form
+              className="mt-2 hstart"
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendCode();
+              }}
+            >
+              <p className="tsz-12 text-center mb-3" style={{ color: A(INK, "99") }}>{t("acEmailBody")}</p>
+              <input
+                type="email"
+                dir="ltr"
+                autoFocus
+                autoComplete="email"
+                autoCapitalize="none"
+                spellCheck={false}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                className="w-full rounded-xl px-3 py-3 tsz-16 focus:outline-none"
+                style={{ ...field, textAlign: "left", boxShadow: `inset 0 0 0 1.5px ${emailValid(email) ? GOLD : A(INK, "22")}` }}
+              />
+              {email && !emailValid(email) && email.includes("@") && <div className="tsz-11 mt-1" style={{ color: BRAND_T }}>{t("acEmailBad")}</div>}
+              {sendErr && <div className="tsz-11 mt-1 font-semibold" style={{ color: BRAND_T }}>{sendErr}</div>}
+              <button type="submit" disabled={!emailValid(email) || busy} className={`w-full mt-3 py-3 tsz-15 ${btn}`} style={emailValid(email) && !busy ? btnPrimary : { background: A(INK, "12"), color: A(INK, "55") }}>
+                {busy ? t("acSending") : t("acSendCode")}
+              </button>
+              {purpose === "signin" && <p className="tsz-11 text-center mt-3" style={{ color: A(INK, "77") }}>{t("acSignInNote")}</p>}
+            </form>
+          ) : (
+            <div className="mt-2">
+              <p className="tsz-12 mb-4" style={{ color: A(INK, "99") }}>
+                {t("acCodeBody", { email: "" })}
+                <span dir="ltr" className="font-bold" style={{ color: INK }}>{email.trim().toLowerCase()}</span>
+              </p>
+              <CodeBoxes value={code} onChange={checkCode} bad={bad} disabled={busy} />
+              <div className="tsz-12 mt-3 font-semibold" style={{ minHeight: 18, color: bad || codeErr ? BRAND_T : A(INK, "77") }}>
+                {busy ? t("acVerifying") : codeErr ? codeErr : bad ? t("acCodeWrong") : t("acCodeHint")}
+              </div>
+              <div className="flex items-center justify-center gap-4 mt-3 tsz-12 font-bold">
+                {resendLeft > 0 ? (
+                  <span style={{ color: A(INK, "55") }}>{t("acResendIn", { n: L.num(resendLeft) })}</span>
+                ) : (
+                  <button onClick={() => { setBad(false); setCode(""); sendCode(true); }} style={{ color: BRAND_T }}>{t("acResend")}</button>
+                )}
+                <span style={{ color: A(INK, "33") }}>·</span>
+                <button onClick={() => setView("email")} style={{ color: BRAND_T }}>{t("acChangeEmail")}</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Sheet>
+    );
+  }
+  if (view === "conflict") {
+    return (
+      <Sheet onBackdrop={onClose} maxW={380} z={90}>
+        <div dir={L.dir}>
+          <span className="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center tsz-24" style={{ background: `${GOLD}33` }}>🔑</span>
+          <h3 className="display-font font-bold tsz-20 mt-3" style={{ color: BRAND_T }}>{conflictVia === "google" ? t("acConflictTitleG") : t("acConflictTitle")}</h3>
+          <p className="tsz-12 mt-1" style={{ color: A(INK, "99") }}>{t("acConflictBody")}</p>
+          <div className="space-y-2 mt-4">
+            <button
+              onClick={async () => {
+                if (conflictVia === "google") return goGoogle("signin");
+                // that email has an account: sign in to it with a code
+                setBusy(true);
+                const res = await sendEmailCode(email.trim().toLowerCase(), "signin");
+                setBusy(false);
+                setPurpose("signin");
+                if (res.error) {
+                  setSendErr(isRate(res.error) || res.status === 429 ? t("acTooMany") : t("errSave"));
+                  setView("email");
+                  return;
+                }
+                setCode("");
+                setBad(false);
+                setResendAt(Date.now() + 60000);
+                setView("code");
+              }}
+              disabled={busy}
+              className={`w-full py-3 tsz-14 ${btn}`}
+              style={btnPrimary}
+            >
+              {t("acConflictGo")}
+            </button>
+            <button onClick={() => { setEmail(""); setPurpose("link"); setView(conflictVia === "google" ? "main" : "email"); }} className={`w-full py-3 tsz-14 ${btn}`} style={btnGhost}>
+              {t("acConflictOther")}
+            </button>
+          </div>
+        </div>
+      </Sheet>
+    );
+  }
+  if (view === "signout") {
+    return (
+      <Sheet onBackdrop={() => setView("main")} maxW={360} z={90}>
+        <div dir={L.dir}>
+          <h3 className="display-font font-bold tsz-20" style={{ color: BRAND_T }}>{t("acSignOutQ")}</h3>
+          <p className="tsz-12 mt-1" style={{ color: A(INK, "99") }}>{t("acSignOutBody")}</p>
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            <button
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                await signOutToGuest(); // signOut, then a brand-new guest on this phone
+                setBusy(false);
+                setAccount({ signed: false, method: null, email: null });
+                setDraft("");
+                setUDraft("");
+                setEditing(true); // a new guest starts by picking a name
+                setView("main");
+                onAccount && onAccount("signout");
+              }}
+              className={`py-3 tsz-14 ${btn}`}
+              style={{ background: "#A3262A", color: CREAM_HARD }}
+            >
+              {t("acSignOutYes")}
+            </button>
+            <button onClick={() => setView("main")} className={`py-3 tsz-14 ${btn}`} style={btnGhost}>
+              {t("acSignOutNo")}
+            </button>
+          </div>
+        </div>
+      </Sheet>
+    );
+  }
+  if (view === "signin") {
+    return (
+      <Sheet onBackdrop={onClose} maxW={380} z={90}>
+        <div dir={L.dir} className="pt-8">
+          {backBtn("main")}
+          <span className="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center tsz-24" style={{ background: `${GOLD}33` }}>🔑</span>
+          <h3 className="display-font font-bold tsz-20 mt-3" style={{ color: BRAND_T }}>{t("acSignInTitle")}</h3>
+          <p className="tsz-12 mt-1" style={{ color: A(INK, "99") }}>{t("acSignInBody")}</p>
+          <div className="space-y-2 mt-4">
+            {GOOGLE_ENABLED && gBtn("signin")}
+            {EMAIL_ENABLED && eBtn("signin")}
+          </div>
+          <p className="tsz-11 mt-3" style={{ color: A(INK, "77") }}>{t("acSignInNote")}</p>
+        </div>
+      </Sheet>
+    );
+  }
+
+  // ── main ──
   return (
     <Sheet onBackdrop={onClose} maxW={380} z={90}>
       <div dir={L.dir} className="text-center">
-        <span className="mx-auto w-16 h-16 rounded-full flex items-center justify-center font-bold" style={{ fontSize: 26, background: BRAND, color: CREAM, boxShadow: `0 0 0 3px ${CREAM}, 0 0 0 5px ${GOLD}` }}>
+        <span className="relative mx-auto w-16 h-16 rounded-full flex items-center justify-center font-bold" style={{ fontSize: 26, background: BRAND, color: CREAM_HARD, boxShadow: `0 0 0 3px ${CREAM}, 0 0 0 5px ${GOLD}` }}>
           {initial}
+          {signed && (
+            <span className="absolute flex items-center justify-center rounded-full" style={{ width: 22, height: 22, bottom: -2, insetInlineEnd: -2, background: "#366135", color: "#fff", fontSize: 12, boxShadow: `0 0 0 2.5px ${SURF}` }}>✓</span>
+          )}
         </span>
         {editing ? (
           <form
@@ -7353,9 +7728,9 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onSignIn }) {
             onSubmit={async (e) => {
               e.preventDefault();
               if (!canSave) return;
-              setBusy(true);
-              const err = await onSaveProfile(cleanNick(draft), cleanUser(uDraft));
-              setBusy(false);
+              setSaving(true);
+              const err = await onSaveProfile(cleanNick(draft), signed ? cleanUser(uDraft) : null);
+              setSaving(false);
               if (err) {
                 setSaveErr(err);
                 return;
@@ -7364,78 +7739,68 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onSignIn }) {
               setEditing(false);
             }}
           >
-            <label className="block tsz-13 font-bold mb-1" style={{ color: INK }}>
-              {t("sdNameLabel")}
-            </label>
+            <label className="block tsz-13 font-bold mb-1" style={{ color: INK }}>{t("sdNameLabel")}</label>
             <input
               id="hulla-nick"
               value={draft}
               maxLength={24}
               onChange={(e) => setDraft(e.target.value)}
               placeholder={t("sdNamePh")}
-              className="w-full rounded-xl px-3 py-2.5 hstart focus:outline-none"
-              style={{ background: "var(--h-field)", color: INK, boxShadow: `inset 0 0 0 1.5px ${ok ? GOLD : A(INK, "22")}` }}
+              className="w-full rounded-xl px-3 py-2.5 tsz-16 hstart focus:outline-none"
+              style={{ ...field, boxShadow: `inset 0 0 0 1.5px ${ok ? GOLD : A(INK, "22")}` }}
             />
-            <div className="tsz-10 mt-1" style={{ color: `${A(INK, "77")}` }}>
-              {t("sdNameRule2")}
-            </div>
+            <div className="tsz-10 mt-1" style={{ color: A(INK, "77") }}>{t("sdNameRule2")}</div>
 
-            {needUser && (
+            {AUTH_ENABLED && (
               <>
-                <label className="block tsz-13 font-bold mt-3 mb-1" style={{ color: INK }}>
+                <label className="flex items-center gap-1.5 tsz-13 font-bold mt-3 mb-1" style={{ color: INK }}>
                   {t("sdUserLabel")}
+                  {!signed && <LockIcon size={13} color={A(INK, "77")} />}
                 </label>
-                <div className="flex items-center rounded-xl overflow-hidden" dir="ltr" style={{ background: "var(--h-field)", boxShadow: `inset 0 0 0 1.5px ${uStat === "ok" ? "#366135" : uBad ? BRAND : A(INK, "22")}` }}>
-                  <span className="ps-3 tsz-16 font-bold" style={{ color: `${A(INK, "55")}` }}>
-                    @
-                  </span>
-                  <input
-                    id="hulla-user"
-                    value={uDraft}
-                    maxLength={16}
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    inputMode="text"
-                    onChange={(e) => setUDraft(e.target.value.toLowerCase().replace(/\s/g, ""))}
-                    placeholder="mohammed_w"
-                    className="flex-1 min-w-0 px-1 py-2.5 focus:outline-none"
-                    style={{ background: "transparent", color: INK, textAlign: "left" }}
-                  />
-                  <span className="pe-3 tsz-12 font-bold" style={{ color: uStat === "ok" ? "#366135" : BRAND }}>
-                    {uStat === "ok" ? "✓" : uBad ? "✗" : uStat === "checking" ? "…" : ""}
-                  </span>
-                </div>
-                <div className="tsz-10 mt-1" style={{ color: uBad ? BRAND_T : `${A(INK, "77")}` }}>
-                  {uHint}
-                </div>
-                {username && (
-                  <div className="tsz-10 mt-0.5" style={{ color: `${A(INK, "66")}` }}>
-                    {t("sdUserCooldown")}
-                  </div>
+                {signed ? (
+                  <>
+                    <div className="flex items-center rounded-xl overflow-hidden" dir="ltr" style={{ ...field, boxShadow: `inset 0 0 0 1.5px ${uStat === "ok" ? "#366135" : uBad ? BRAND : A(INK, "22")}` }}>
+                      <span className="ps-3 tsz-16 font-bold" style={{ color: A(INK, "55") }}>@</span>
+                      <input
+                        id="hulla-user"
+                        value={uDraft}
+                        maxLength={16}
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        inputMode="text"
+                        onChange={(e) => setUDraft(e.target.value.toLowerCase().replace(/\s/g, ""))}
+                        placeholder="mohammed_w"
+                        className="flex-1 min-w-0 px-1 py-2.5 tsz-16 focus:outline-none"
+                        style={{ background: "transparent", color: INK, textAlign: "left" }}
+                      />
+                      <span className="pe-3 tsz-12 font-bold" style={{ color: uStat === "ok" ? "#366135" : BRAND_T }}>{uStat === "ok" ? "✓" : uBad ? "✗" : uStat === "checking" ? "…" : ""}</span>
+                    </div>
+                    <div className="tsz-10 mt-1" style={{ color: uBad ? BRAND_T : A(INK, "77") }}>{uHint}</div>
+                    {username && <div className="tsz-10 mt-0.5" style={{ color: A(INK, "66") }}>{t("sdUserCooldown")}</div>}
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center rounded-xl" dir="ltr" style={{ background: A(INK, "08"), boxShadow: `inset 0 0 0 1.5px ${A(INK, "14")}`, opacity: 0.85 }}>
+                      <span className="ps-3 tsz-16 font-bold" style={{ color: A(INK, "44") }}>@</span>
+                      <span className="flex-1 px-1 py-2.5 tsz-16" style={{ color: username ? INK : A(INK, "44"), textAlign: "left" }}>{username || "mohammed_w"}</span>
+                      <span className="pe-3"><LockIcon size={15} color={A(INK, "55")} /></span>
+                    </div>
+                    <div className="tsz-10 mt-1 font-semibold" style={{ color: BRAND_T }}>{username ? t("acUserLockedHas") : t("acUserLocked")}</div>
+                  </>
                 )}
               </>
             )}
-            {saveErr && (
-              <div className="tsz-11 mt-2 font-semibold" style={{ color: BRAND_T }}>
-                {saveErr}
-              </div>
-            )}
-            <button type="submit" disabled={!canSave} className={`w-full mt-3 py-3 tsz-15 ${btn}`} style={canSave ? btnPrimary : { background: `${A(INK, "12")}`, color: `${A(INK, "55")}` }}>
+            {saveErr && <div className="tsz-11 mt-2 font-semibold" style={{ color: BRAND_T }}>{saveErr}</div>}
+            <button type="submit" disabled={!canSave} className={`w-full mt-3 py-3 tsz-15 ${btn}`} style={canSave ? btnPrimary : { background: A(INK, "12"), color: A(INK, "55") }}>
               {t("sdSave")}
             </button>
           </form>
         ) : (
           <div className="mt-3 flex items-center justify-center gap-2">
             <span className="flex flex-col items-center leading-tight">
-              <span className="display-font font-bold tsz-20" style={{ color: BRAND_T }}>
-                {nick}
-              </span>
-              {username && (
-                <span className="tsz-12 font-semibold" dir="ltr" style={{ color: `${A(INK, "77")}` }}>
-                  @{username}
-                </span>
-              )}
+              <span className="display-font font-bold tsz-20" style={{ color: BRAND_T }}>{nick}</span>
+              {username && <span className="tsz-12 font-semibold" dir="ltr" style={{ color: A(INK, "77") }}>@{username}</span>}
             </span>
             <button
               onClick={() => {
@@ -7450,34 +7815,47 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onSignIn }) {
             </button>
           </div>
         )}
-        <div className="mt-4 rounded-2xl p-3" style={{ background: `${A(INK, "08")}` }}>
-          <div className="tsz-13 font-bold" style={{ color: INK }}>
-            {t("sdGuestTitle")}
-          </div>
-          <p className="tsz-11 mt-0.5" style={{ color: `${A(INK, "99")}` }}>
-            {t("sdGuestBody")}
-          </p>
-          <div className="space-y-2 mt-3">
-            <button onClick={() => onSignIn("google")} className={`w-full py-3 tsz-14 flex items-center justify-center gap-2 ${btn}`} style={{ background: "var(--h-field)", color: INK_HARD, boxShadow: `inset 0 0 0 1.5px ${A(INK, "22")}` }}>
-              <span className="font-bold" style={{ color: "#4285F4" }}>
-                G
-              </span>{" "}
-              {t("sdGoogle")}
+
+        {AUTH_ENABLED && account && (signed ? (
+          <div className="mt-4 rounded-2xl p-3 flex items-center gap-3 hstart" style={{ background: "#36613514", boxShadow: "inset 0 0 0 1.5px #36613533" }}>
+            <span className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#fff", boxShadow: `0 0 0 1px ${A(INK, "14")}` }}>
+              {account.method === "google" ? <GoogleG size={18} /> : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#366135" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="m4 7 8 6 8-6" /></svg>
+              )}
+            </span>
+            <span className="flex-1 min-w-0 flex flex-col leading-tight">
+              <span className="tsz-13 font-bold" style={{ color: "#366135" }}>✓ {t("acSavedTitle")}</span>
+              <span className="tsz-11 truncate" style={{ color: A(INK, "88") }}>
+                {account.method === "google" ? t("acViaGoogle") : t("acViaEmail")} · <span dir="ltr">{maskEmail(account.email)}</span>
+              </span>
+            </span>
+            <button onClick={() => setView("signout")} className="tsz-11 font-bold rounded-full px-2.5 py-1 flex-shrink-0" style={{ background: A(INK, "0d"), color: A(INK, "99") }}>
+              {t("acSignOut")}
             </button>
-            <button onClick={() => onSignIn("email")} className={`w-full py-3 tsz-14 ${btn}`} style={btnPrimary}>
-              {t("sdEmail")}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-2xl p-3" style={{ background: A(INK, "08") }}>
+            <div className="tsz-14 font-bold" style={{ color: INK }}>{t("acSaveTitle")}</div>
+            <p className="tsz-11 mt-0.5" style={{ color: A(INK, "99") }}>{t("acSaveBody")}</p>
+            {sendErr && <div className="tsz-11 mt-1 font-semibold" style={{ color: BRAND_T }}>{sendErr}</div>}
+            <div className="space-y-2 mt-3">
+              {GOOGLE_ENABLED && gBtn("link")}
+              {EMAIL_ENABLED && eBtn("link")}
+            </div>
+            <button onClick={() => setView("signin")} className="mt-3 tsz-12 font-bold" style={{ color: BRAND_T }}>
+              {t("acHaveAccount")}
             </button>
           </div>
-        </div>
-        <button onClick={onClose} className="mt-3 tsz-12 font-semibold" style={{ color: `${A(INK, "77")}` }}>
-          {t("later")}
+        ))}
+        <button onClick={onClose} className="mt-3 tsz-12 font-semibold" style={{ color: A(INK, "77") }}>
+          {signed ? t("stDone") : t("later")}
         </button>
       </div>
     </Sheet>
   );
 }
 
-// One of the three menu cards lying on the rug.
+
 function RugCard({ title, sub, subHidden, icon, bg, fg, style, big, lifted, delays, onClick }) {
   return (
     <button
@@ -7539,7 +7917,7 @@ function useHomeBoard(nick) {
 // «كمّل لعبتك»: an online game this tab can rejoin. Reads only what the app already stores for its
 // own rejoin (the online session) and checks the room is still in play with this seat in it; tapping
 // it opens the online flow, which restores from that same session.
-function useResumableRoom() {
+function useResumableRoom(accountNonce = 0) {
   const [resume, setResume] = useState(null);
   // Asked when home opens, again when the app comes back to the front, and retried a couple of times
   // when the request fails: a single failed check used to hide the card until home was opened again.
@@ -7594,7 +7972,7 @@ function useResumableRoom() {
       clearTimeout(timer);
       document.removeEventListener("visibilitychange", onShow);
     };
-  }, []);
+  }, [accountNonce]);
   return resume;
 }
 
@@ -7616,10 +7994,54 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
   const [toast, setToast] = useState(null);
   const [lift, setLift] = useState(null);
   const [profile, setProfile] = useState(false);
+  const [profileView, setProfileView] = useState({ view: "main", conflict: "email" }); // where the account sheet opens
+  const [accountNonce, setAccountNonce] = useState(0); // bumps after a sign-in / sign-out
+  // After a sign-in or sign-out: the profile (name, username, games) comes from the new account, and
+  // the previous user's resume pointer is dropped.
+  const reloadAccount = async () => {
+    forgetLastOnline();
+    clearOnlineSession();
+    const p = await syncNickname("");
+    setNick(p?.nickname || "");
+    setUsername(p?.username || null);
+    if (p?.games > 0) markPlayed();
+    setAccountNonce((n) => n + 1);
+  };
+  const accountDone = (how, method) => {
+    if (how === "signout") {
+      sendAppEvent("account_signout", null, {});
+      say(t("acSignedOut"));
+      reloadAccount();
+      return;
+    }
+    sendAppEvent(how === "signin" ? "account_signin" : "account_linked", null, { payload: { method } });
+    say(how === "signin" ? t("acWelcomeBack") : t("acSavedToast"));
+    if (how === "signin") reloadAccount();
+  };
+  // Back from Google (?acct=link|signin, or Supabase's error_code in the URL).
+  useEffect(() => {
+    if (!AUTH_ENABLED) return;
+    const back = readAuthReturn();
+    if (!back.purpose && !back.error) return;
+    if (back.error === "identity_already_exists" || back.error === "identity_already_linked") {
+      sendAppEvent("account_conflict", null, { payload: { method: "google" } });
+      setProfileView({ view: "conflict", conflict: "google" });
+      setProfile(true);
+      return;
+    }
+    if (back.error) {
+      say(t("errSave"));
+      return;
+    }
+    getAccount().then((a) => {
+      if (a.signed) accountDone(back.purpose, "google");
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [settings, setSettings] = useState(false);
   const [haptic, hapticNode] = useIosHaptic();
   const board = useHomeBoard(nick);
-  const resume = useResumableRoom();
+  const resume = useResumableRoom(accountNonce);
   const resumeCode = resume?.roomCode || null;
   useEffect(() => {
     if (resumeCode) sendAppEvent("resume_shown", null, { room_code: resumeCode });
@@ -7775,12 +8197,25 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
         <ProfileSheet
           nick={nick}
           username={username}
-          onClose={() => setProfile(false)}
+          startView={profileView.view}
+          startConflict={profileView.conflict}
+          onClose={() => {
+            setProfile(false);
+            setProfileView({ view: "main", conflict: "email" });
+          }}
           onSaveProfile={async (n, u) => {
             // Without accounts (local dev) the name stays on this device only.
             if (!AUTH_ENABLED) {
               setNick(n);
               say(t("sdHello", { name: n }));
+              return null;
+            }
+            // a guest saves the name only: usernames are for saved accounts
+            if (u === null) {
+              const r = await saveNicknameRemote(n);
+              if (!r.ok) return ["blocked", "chars", "length", "taken", "too_fast"].includes(r.error) ? t(`sdErr_${r.error}`) : t("errSave");
+              setNick(r.nickname);
+              say(t("sdHello", { name: r.nickname }));
               return null;
             }
             const res = await saveProfile(n, u);
@@ -7791,6 +8226,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
               if (e === "user_reserved") return t("sdUserReserved");
               if (e === "user_chars") return t("sdUserChars");
               if (e === "user_length") return t("sdUserLength");
+              if (e === "needs_account") return t("acUserLocked");
               if (e.startsWith("name_")) return t(`sdErr_${e.slice(5)}`);
               return t("errSave");
             }
@@ -7800,14 +8236,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
             say(t("sdHello", { name: res.nickname }));
             return null;
           }}
-          onSignIn={async (provider) => {
-            if (provider === "google" && GOOGLE_ENABLED) {
-              const { error } = await linkGoogle();
-              if (error) say(error);
-              return;
-            }
-            say(t("sdAuthSoon"));
-          }}
+          onAccount={accountDone}
         />
       )}
       <SaduToast msg={toast} />

@@ -10,8 +10,10 @@ import { deviceInfo } from '@/lib/device';
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 export const AUTH_ENABLED = !!(URL && ANON_KEY);
-export const GOOGLE_ENABLED = AUTH_ENABLED && process.env.NEXT_PUBLIC_AUTH_GOOGLE === '1';
-export const EMAIL_ENABLED = AUTH_ENABLED && process.env.NEXT_PUBLIC_AUTH_EMAIL === '1';
+// Google and email accounts are on wherever auth is (delta-18); set NEXT_PUBLIC_AUTH_GOOGLE=0 or
+// NEXT_PUBLIC_AUTH_EMAIL=0 to switch one off again.
+export const GOOGLE_ENABLED = AUTH_ENABLED && process.env.NEXT_PUBLIC_AUTH_GOOGLE !== '0';
+export const EMAIL_ENABLED = AUTH_ENABLED && process.env.NEXT_PUBLIC_AUTH_EMAIL !== '0';
 
 let client: SupabaseClient | null = null;
 function sb(): SupabaseClient | null {
@@ -127,25 +129,91 @@ export async function saveProfile(nickname: string, username: string) {
   }
 }
 
-// «احفظ تقدّمك» with Google: links Google to the SAME (guest) user, so nickname and points carry over.
-export async function linkGoogle() {
+// ── Accounts (delta-18) ──────────────────────────────────────────────────────────────────────
+// "link" saves the current guest (same uuid, games and points); "signin" switches to an existing
+// account (this phone's guest games stay behind). Errors come back as Supabase's error code (e.g.
+// email_exists, identity_already_exists, otp_expired, otp_disabled, over_email_send_rate_limit).
+type AuthResult = { error: string | null; status?: number };
+const fail = (e: any): AuthResult => ({ error: e?.code || e?.message || 'unknown', status: e?.status });
+
+// The account behind this phone: signed = not a guest. The email stays on this device's sheet only.
+export async function getAccount(): Promise<{ signed: boolean; method: 'google' | 'email' | null; email: string | null }> {
   const c = sb();
-  if (!c || !GOOGLE_ENABLED) return { error: 'disabled' };
-  const { error } = await c.auth.linkIdentity({ provider: 'google', options: { redirectTo: window.location.origin } });
-  return { error: error?.message ?? null };
+  if (!c) return { signed: false, method: null, email: null };
+  try {
+    const { data } = await c.auth.getUser();
+    const u = data?.user as any;
+    if (!u || u.is_anonymous) return { signed: false, method: null, email: null };
+    const google = (u.identities || []).some((i: any) => i.provider === 'google');
+    return { signed: true, method: google ? 'google' : 'email', email: u.email ?? null };
+  } catch {
+    return { signed: false, method: null, email: null };
+  }
 }
 
-// «احفظ تقدّمك» with email: attach the address, then verify the 6-digit code (not a link — on iOS a
-// link opens Safari outside the installed app). The email template must show {{ .Token }}.
-export async function startEmailLink(email: string) {
+export async function googleAccount(purpose: 'link' | 'signin'): Promise<AuthResult> {
   const c = sb();
-  if (!c || !EMAIL_ENABLED) return { error: 'disabled' };
-  const { error } = await c.auth.updateUser({ email });
-  return { error: error?.message ?? null };
+  if (!c || !GOOGLE_ENABLED) return { error: 'disabled' };
+  const redirectTo = `${window.location.origin}/?acct=${purpose}`;
+  const { error } = purpose === 'link' ? await c.auth.linkIdentity({ provider: 'google', options: { redirectTo } }) : await c.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
+  return error ? fail(error) : { error: null };
 }
-export async function verifyEmailCode(email: string, token: string) {
+
+// Sends the 6-digit code. A sign-in with an email that has no account quietly becomes a link, so
+// the player just gets a code and this guest account is saved with that email (purpose comes back).
+export async function sendEmailCode(email: string, purpose: 'link' | 'signin'): Promise<AuthResult & { purpose: 'link' | 'signin' }> {
+  const c = sb();
+  if (!c || !EMAIL_ENABLED) return { error: 'disabled', purpose };
+  if (purpose === 'signin') {
+    const { error } = await c.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+    if (!error) return { error: null, purpose };
+    const code = (error as any).code || '';
+    if (code !== 'otp_disabled' && code !== 'signup_disabled' && !/signups? not allowed/i.test(error.message || '')) return { ...fail(error), purpose };
+    purpose = 'link';
+  }
+  await ensureGuest();
+  const { error } = await c.auth.updateUser({ email });
+  return error ? { ...fail(error), purpose } : { error: null, purpose };
+}
+
+export async function verifyEmailCode(email: string, token: string, purpose: 'link' | 'signin'): Promise<AuthResult> {
   const c = sb();
   if (!c || !EMAIL_ENABLED) return { error: 'disabled' };
-  const { error } = await c.auth.verifyOtp({ email, token, type: 'email_change' });
-  return { error: error?.message ?? null };
+  const { error } = await c.auth.verifyOtp({ email, token, type: purpose === 'link' ? 'email_change' : 'email' });
+  return error ? fail(error) : { error: null };
+}
+
+// Sign out, then carry on as a brand-new guest on this phone.
+export async function signOutToGuest(): Promise<void> {
+  const c = sb();
+  if (!c) return;
+  try {
+    await c.auth.signOut();
+  } catch {}
+  guestAttempt = null;
+  await ensureGuest();
+}
+
+// Supabase's error after coming back from Google, from the query or the hash (#error_code=…).
+export function readAuthReturn(): { purpose: 'link' | 'signin' | null; error: string | null } {
+  if (typeof window === 'undefined') return { purpose: null, error: null };
+  const q = new URLSearchParams(window.location.search);
+  const h = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const acct = q.get('acct');
+  const purpose = acct === 'link' || acct === 'signin' ? acct : null;
+  const error = q.get('error_code') || h.get('error_code') || q.get('error') || h.get('error');
+  if (purpose || error) {
+    // keep the session tokens Supabase may have put in the hash until the client has read them
+    q.delete('acct');
+    ['error', 'error_code', 'error_description'].forEach((k) => q.delete(k));
+    const rest = q.toString();
+    const hashLeft = h.has('access_token') ? window.location.hash : '';
+    window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : '') + hashLeft);
+  }
+  return { purpose, error };
+}
+
+// A guest's nickname only (guests can't set a username; delta-18).
+export async function saveNickOnly(nickname: string) {
+  return saveNicknameRemote(nickname);
 }
