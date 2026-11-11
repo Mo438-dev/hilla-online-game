@@ -58,7 +58,7 @@ const APP_HEIGHT_SCRIPT = `(function(){try{var d=document.documentElement;functi
 
 // Sets the saved theme before first paint so the wrong theme never flashes. Game screens only: admin
 // and analytics pages keep their own look.
-const THEME_SCRIPT = `(function(){try{if(/^\\/(admin|analytics)(\\/|$)/.test(location.pathname))return;var p=localStorage.getItem("hulla-theme")||"light";var t=p==="dark"||(p==="system"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";var d=document.documentElement;d.dataset.hillaTheme=t;d.style.colorScheme=t;}catch(e){}})();`;
+const THEME_SCRIPT = `(function(){try{if(/^\\/(admin|analytics|privacy)(\\/|$)/.test(location.pathname))return;var p=localStorage.getItem("hulla-theme")||"light";var t=p==="dark"||(p==="system"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";var d=document.documentElement;d.dataset.hillaTheme=t;d.style.colorScheme=t;}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

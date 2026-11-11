@@ -7765,6 +7765,9 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
         <p className="tsz-11 mt-0.5" style={{ color: `${A(INK, "77")}` }}>
           {t("credit")}
         </p>
+        <a href="/privacy" className="tsz-11 underline inline-block mt-0.5" style={{ color: `${A(INK, "66")}` }}>
+          الخصوصية
+        </a>
         </div>
       </div>
 
