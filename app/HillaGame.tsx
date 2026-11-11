@@ -297,6 +297,18 @@ const BLOCK_GRACE_MS = 1000;
 // keeps serverClockOffset up to date, so pending-action windows (stamped by the server) count down
 // the same on every phone. 0 offline.
 let serverClockOffset = 0;
+// Same JSON whatever the key order (the database hands objects back with its own key order).
+function stableJson(v) {
+  if (Array.isArray(v)) return `[${v.map(stableJson).join(",")}]`;
+  if (v && typeof v === "object") return `{${Object.keys(v).filter((k) => v[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${stableJson(v[k])}`).join(",")}}`;
+  return JSON.stringify(v === undefined ? null : v);
+}
+// The game minus what a reaction may change (the bubble, its limits, and the sender waking up).
+function withoutReactionBits(g) {
+  if (!g) return g;
+  const { reactionEvent, reactTimes, log, turnStartedAt, ...rest } = g;
+  return { ...rest, players: (g.players || []).map((p) => ({ ...p, inactive: false, missedTurns: 0 })) };
+}
 const BOT_FALLBACK_MS = 8000; // a bot's turn left this long without the host: any human's phone moves it
 const BOT_BLOCK_FALLBACK_MS = 4000; // same for a bot answering an action with «لا ما تقدر»
 function serverNow() {
@@ -4357,6 +4369,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   // Exactly one client is allowed to run automated (bot) moves: the single local device in
   // local mode, or the host in online mode. Everyone else just watches through polling.
   const botExecutor = !isOnline || !!isHost;
+  const [botRetry, setBotRetry] = useState(0); // bumps when a bot's save was refused, to run it again
   // Online, the host's phone moves the bots. If the host has left or locked their phone, any seated
   // human's phone takes over once a bot's turn has been open for BOT_FALLBACK_MS (on the server's
   // clock). The save's version check lets only one phone apply it; the loser just reloads the room.
@@ -4677,11 +4690,18 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
       lastBotTurnRef.current = key;
       const next = botDecideTurnSeeded(game, cur.id, roomCode);
       track(botTurnEvents(game, next, cur));
-      (isOnline && onBehalf ? onBehalf : dispatch)(next);
+      // A refused save (another write, e.g. a reaction, landed first) must not leave the bot stuck on
+      // this turn: forget it and run the effect again on the room the refusal brings back.
+      Promise.resolve((isOnline && onBehalf ? onBehalf : dispatch)(next)).then((ok) => {
+        if (ok === false && lastBotTurnRef.current === key) {
+          lastBotTurnRef.current = null;
+          setBotRetry((n) => n + 1);
+        }
+      });
     }, delay);
     return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game, botExecutor, botBackup, hintHold]);
+  }, [game, botExecutor, botBackup, hintHold, botRetry]);
 
   // LOCAL turn timer / inactive auto-skip (#26). If the active human doesn't act within the window
   // (30s normally, 3s once inactive), auto-skip their turn. Remaining time is derived from the
@@ -6526,7 +6546,9 @@ function OnlineFlow({ onBack }) {
   // optimistic=false: for moves this phone makes on someone else's behalf (a bot's move, settling an
   // expired action). Nothing changes on screen until the server accepts it; if another phone's save
   // landed first, the next poll shows what really happened.
-  function saveRoomTo(code, doc, quiet = false, optimistic = true) {
+  // rebase(freshDoc): for this phone's own move. When the save is refused as stale, the room is
+  // fetched once; if rebase can re-apply the same move on it (returns a doc), that is saved instead.
+  function saveRoomTo(code, doc, quiet = false, optimistic = true, rebase = null) {
     const mutationVersion = ++roomMutationRef.current;
     if (optimistic) {
       pendingOptimisticRoomRef.current = { code, mutationVersion, snapshot: { ...getRoomSyncSnapshot(doc), baseUpdatedAt: baseUpdatedAtRef.current } };
@@ -6550,7 +6572,36 @@ function OnlineFlow({ onBack }) {
             return false;
           }
           if (body?.error === "stale") {
-            // Someone else's move landed first. Drop ours, show the current game, ask for a redo.
+            // Another write landed first. If it only touched what a reaction touches, re-apply this
+            // same move on the fresh room and save once more; otherwise drop it and show the room.
+            if (rebase && activeRoomCodeRef.current === code) {
+              try {
+                const fr = await fetch(`/api/rooms/${code}`, { cache: "no-store" });
+                const fresh = fr.ok ? await fr.json() : null;
+                const redo = fresh && rebase(fresh);
+                if (redo && activeRoomCodeRef.current === code) {
+                  const r2 = await fetch(`/api/rooms/${code}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ room: redo, baseUpdatedAt: fresh.updatedAt }),
+                  });
+                  if (r2.ok) {
+                    const updated = await r2.json();
+                    stampRoom(updated);
+                    if (typeof updated?.updatedAt === "string") baseUpdatedAtRef.current = updated.updatedAt;
+                    if (mutationVersion === roomMutationRef.current) {
+                      pendingOptimisticRoomRef.current = null;
+                      adoptRoom(updated);
+                    }
+                    return true;
+                  }
+                }
+              } catch {}
+              // couldn't re-apply: show what really happened, without an error
+              pendingOptimisticRoomRef.current = null;
+              if (activeRoomCodeRef.current === code) pollRoom();
+              return false;
+            }
             pendingOptimisticRoomRef.current = null;
             if (activeRoomCodeRef.current === code) {
               if (!quiet) setError(t("errStale"));
@@ -6652,35 +6703,24 @@ function OnlineFlow({ onBack }) {
 
   // Emoji reaction online: applied on top of the latest room (re-fetched after a 409), so it never
   // overwrites or undoes a move and never shows an error. Gives up quietly after a few tries.
+  // A reaction is its own small server update (POST /react), never a game-state save, so it can't
+  // cancel a move. My own bubble shows at once; polling brings everyone else's as before.
   async function reactOnline(code, emoji, single) {
-    let base = room;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      if (attempt > 0) {
-        try {
-          const res = await fetch(`/api/rooms/${code}`, { cache: "no-store" });
-          if (!res.ok) return;
-          base = await res.json();
-        } catch {
-          return;
-        }
-      }
-      if (!base?.game || !base.game.players.some((p) => p.id === myId)) return;
-      const next = rSendReaction(rWakePlayer(base.game, myId), myId, emoji, single);
-      try {
-        const res = await fetch(`/api/rooms/${code}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ room: { ...base, game: next }, baseUpdatedAt: attempt === 0 ? baseUpdatedAtRef.current : base.updatedAt }),
-        });
-        if (res.status === 409) continue;
-        if (!res.ok) return;
-        const updated = await res.json();
-        if (activeRoomCodeRef.current === code) adoptRoom(updated);
-        return;
-      } catch {
-        return;
-      }
-    }
+    if (!room?.game || !room.game.players.some((p) => p.id === myId)) return;
+    const me = room.game.players.find((p) => p.id === myId);
+    const ev = { id: uid(), emoji, single: !!single, byId: myId, byName: me?.name || "" };
+    setRoom((r) => (r && r.code === code && r.game ? { ...r, game: { ...r.game, reactionEvent: ev } } : r));
+    try {
+      const res = await fetch(`/api/rooms/${code}/react`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId: myId, emoji, single: !!single, id: ev.id }),
+      });
+      if (!res.ok) return;
+      const updated = await res.json();
+      // adopt only if nothing of mine is still on its way (a queued move would otherwise flash back)
+      if (activeRoomCodeRef.current === code && !pendingOptimisticRoomRef.current) adoptRoom(updated);
+    } catch {}
   }
 
   async function claimTimeout(code, nextGame, expected) {
@@ -6907,7 +6947,21 @@ function OnlineFlow({ onBack }) {
 
   async function dispatchGame(newGame) {
     if (!room) return;
-    await saveRoomTo(roomCode, { ...room, game: newGame });
+    const baseGame = room.game;
+    // My own move refused because a reaction (mine or anyone's) landed first: if the fresh room is
+    // the same game apart from the reaction bits, it's still the same turn and the move still
+    // applies, so carry the reaction over and save the move again.
+    const rebase = (fresh) => {
+      const g = fresh?.game;
+      if (!g || !baseGame || g.winner || (g.turnSerial ?? 0) !== (baseGame.turnSerial ?? 0)) return null;
+      if (stableJson(withoutReactionBits(g)) !== stableJson(withoutReactionBits(baseGame))) return null;
+      const players = newGame.players.map((p) => {
+        const fp = g.players.find((x) => x.id === p.id);
+        return p.id === myId || !fp ? p : { ...p, inactive: fp.inactive, missedTurns: fp.missedTurns };
+      });
+      return { ...fresh, game: { ...newGame, players, reactionEvent: g.reactionEvent, reactTimes: g.reactTimes } };
+    };
+    await saveRoomTo(roomCode, { ...room, game: newGame }, false, true, rebase);
   }
 
   // Settling an expired action: true if this save won, false if it lost the race (and a refetch is on its way).
