@@ -78,9 +78,12 @@ const APP_EVENT_FIELDS: Record<string, Record<string, 'text' | 'int'>> = {
   share_clicked: { source: 'text' },
   survey_step: { step: 'int', how: 'text' },
   rematch_failed: { stage: 'text', status: 'int', error: 'text' },
+  account_linked: { method: 'text' },
+  account_signin: { method: 'text' },
+  account_conflict: { method: 'text' },
 };
 // Events that can happen outside a game (home, leaderboard, account sheet).
-const NO_GAME_EVENTS = new Set(['auth_rate_limited', 'leaderboard_opened', 'resume_shown', 'resume_tapped', 'username_set', 'duel_opened', 'share_clicked']);
+const NO_GAME_EVENTS = new Set(['account_linked', 'account_signin', 'account_signout', 'account_conflict', 'auth_rate_limited', 'leaderboard_opened', 'resume_shown', 'resume_tapped', 'username_set', 'duel_opened', 'share_clicked']);
 
 // payload is allowlisted per event type; everything else is dropped.
 function sanitizePayload(eventType: string, v: unknown): Record<string, unknown> | null {
