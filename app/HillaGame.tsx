@@ -297,6 +297,8 @@ const BLOCK_GRACE_MS = 1000;
 // keeps serverClockOffset up to date, so pending-action windows (stamped by the server) count down
 // the same on every phone. 0 offline.
 let serverClockOffset = 0;
+const BOT_FALLBACK_MS = 8000; // a bot's turn left this long without the host: any human's phone moves it
+const BOT_BLOCK_FALLBACK_MS = 4000; // same for a bot answering an action with «لا ما تقدر»
 function serverNow() {
   return Date.now() + serverClockOffset;
 }
@@ -4311,6 +4313,10 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   // Exactly one client is allowed to run automated (bot) moves: the single local device in
   // local mode, or the host in online mode. Everyone else just watches through polling.
   const botExecutor = !isOnline || !!isHost;
+  // Online, the host's phone moves the bots. If the host has left or locked their phone, any seated
+  // human's phone takes over once a bot's turn has been open for BOT_FALLBACK_MS (on the server's
+  // clock). The save's version check lets only one phone apply it; the loser just reloads the room.
+  const botBackup = isOnline && !isHost && game.players.some((p) => p.id === myId && !p.isBot);
   const lastBotTurnRef = useRef(null);
   const settledRef = useRef(null);
   const prevToastGameRef = useRef(game);
@@ -4615,21 +4621,23 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
   // Auto-play a bot's turn a beat after it becomes active. turnSerial guards against dispatching
   // the same bot turn twice if the effect refires on an identical polled room state.
   useEffect(() => {
-    if (!botExecutor || hintHold || game.winner || game.pendingAction || game.digOptions) return;
+    if ((!botExecutor && !botBackup) || hintHold || game.winner || game.pendingAction || game.digOptions) return;
     const cur = game.players[game.currentPlayerIndex];
     if (!cur || !cur.isBot) return;
     const key = `${game.turnSerial ?? 0}:${cur.id}`;
     if (lastBotTurnRef.current === key) return;
+    const openFor = serverNow() - (typeof game.turnStartedAt === "number" ? game.turnStartedAt : serverNow());
+    const delay = botExecutor ? 900 : Math.max(0, BOT_FALLBACK_MS - openFor);
     const tm = setTimeout(() => {
       if (lastBotTurnRef.current === key) return;
       lastBotTurnRef.current = key;
       const next = botDecideTurn(game, cur.id);
       track(botTurnEvents(game, next, cur));
       dispatch(next);
-    }, 900);
+    }, delay);
     return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game, botExecutor, hintHold]);
+  }, [game, botExecutor, botBackup, hintHold]);
 
   // LOCAL turn timer / inactive auto-skip (#26). If the active human doesn't act within the window
   // (30s normally, 3s once inactive), auto-skip their turn. Remaining time is derived from the
@@ -4781,7 +4789,10 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     const targetBot = game.players.find((p) => p.id === pa.targetId && p.isBot);
     const targetHasBlock = targetBot && targetBot.hand.some((c) => c.kind === "action" && c.actionType === "block");
 
-    if (harmfulToTarget && targetHasBlock && botExecutor) {
+    // the host's phone answers for the bot; without the host, any seated human's phone does after a
+    // few seconds (the block window is 15s, so there's still time)
+    const paOpenFor = serverNow() - (typeof pa.startedAt === "number" ? pa.startedAt : serverNow());
+    if (harmfulToTarget && targetHasBlock && (botExecutor || botBackup)) {
       const tm = setTimeout(
         () =>
           settlePendingAction(
@@ -4794,7 +4805,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
               }),
             ]
           ),
-        700
+        botExecutor ? 700 : Math.max(0, BOT_BLOCK_FALLBACK_MS - paOpenFor)
       );
       return () => clearTimeout(tm);
     }
@@ -4813,7 +4824,7 @@ function GameBoard({ game, myId, isOnline, isHost, roomCode, roomUpdatedAt, onCl
     const tm = setTimeout(() => settlePendingAction((cur) => rResolvePendingAction(cur)), remaining);
     return () => clearTimeout(tm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game, isOnline, isHost, botExecutor]);
+  }, [game, isOnline, isHost, botExecutor, botBackup]);
 
   // The player on this device who's been marked inactive (online: me; solo vs bots: the human;
   // pass-and-play: the human whose turn it is). Drives the "رجّعني نشط" banner.
