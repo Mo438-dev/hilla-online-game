@@ -2,11 +2,21 @@
 
 export const NICK_MIN = 2;
 export const NICK_MAX = 16;
-// Arabic letters (and Arabic-Indic digits), Latin letters, digits, spaces, _ and -.
-const ALLOWED = /^[\p{Script=Arabic}A-Za-z0-9 _-]+$/u;
+// Arabic and Latin letters, digits, spaces, punctuation and symbols, and emoji (with the joiners,
+// variation selectors, skin tones and flag tags emoji are made of).
+const ALLOWED = /^[\p{Script=Arabic}\p{Script=Latin}\p{Nd}\p{P}\p{S}\p{Extended_Pictographic}\p{Emoji_Component}\u200D\uFE0F\u{E0020}-\u{E007F} ]+$/u;
+// Invisible / control characters are stripped, except the ones emoji need (ZWJ, variation
+// selectors, flag tags).
+const INVISIBLE = /[\p{Cc}\u00AD\u061C\u180E\u200B\u200C\u200E\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/gu;
 
 export function cleanNickname(v: string): string {
-  return v.trim().replace(/\s+/g, ' ');
+  return v.replace(INVISIBLE, '').trim().replace(/\s+/g, ' ');
+}
+
+// Length as the eye sees it: 🇸🇦 or 👨‍👩‍👧 is one character.
+const segmenter = typeof Intl !== 'undefined' && (Intl as any).Segmenter ? new (Intl as any).Segmenter(undefined, { granularity: 'grapheme' }) : null;
+export function nickLength(v: string): number {
+  return segmenter ? [...segmenter.segment(v)].length : [...v].length;
 }
 
 // The form used for uniqueness and the word filter, so near-duplicates collide: tashkeel and
@@ -32,11 +42,13 @@ export type NickCheck = { ok: true; nickname: string; key: string } | { ok: fals
 export function validateNickname(raw: unknown): NickCheck {
   if (typeof raw !== 'string') return { ok: false, error: 'length' };
   const nickname = cleanNickname(raw);
-  const n = [...nickname].length;
+  const n = nickLength(nickname);
   if (n < NICK_MIN || n > NICK_MAX) return { ok: false, error: 'length' };
+  // nothing visible (only joiners / variation selectors): not a name
+  if (!nickname.replace(/[\s\u200D\uFE0F\u{E0020}-\u{E007F}]/gu, '')) return { ok: false, error: 'length' };
   if (!ALLOWED.test(nickname)) return { ok: false, error: 'chars' };
   const key = nicknameKey(nickname);
-  if (key.length < NICK_MIN) return { ok: false, error: 'length' };
+  if (nickLength(key) < 1) return { ok: false, error: 'length' };
   if (BLOCKED.some((w) => key.includes(w))) return { ok: false, error: 'blocked' };
   return { ok: true, nickname, key };
 }
