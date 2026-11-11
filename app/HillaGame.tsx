@@ -6438,9 +6438,9 @@ function OnlineLobby({ room, myId, onStart, starting, onAddBot, onRemoveBot, onB
             <div className="display-font font-bold tsz-22" style={{ color: INK }}>{t("lvTitle")}</div>
             <div className="tsz-13 mt-1.5" style={{ color: A(INK, "99") }}>{room.hostId === myId ? t("lvHost") : t("lvGuest", { code: room.code })}</div>
             <div className="flex gap-2 mt-4">
-              {/* same size; leaving is the consequential one, so it's the filled red button */}
+              {/* same size; leaving is the filled (primary) button */}
               <button onClick={() => leaveReady() && setConfirmLeave(false)} className={`flex-1 py-3 tsz-14 ${btn}`} style={{ background: SURF, color: INK, border: `1.5px solid ${A(INK, "26")}` }}>{t("lvStay")}</button>
-              <button onClick={() => leaveReady() && onBack()} className={`flex-1 py-3 tsz-14 ${btn}`} style={{ background: "#A3262A", color: CREAM, border: "1.5px solid #A3262A" }}>{t("lvLeave")}</button>
+              <button onClick={() => leaveReady() && onBack()} className={`flex-1 py-3 tsz-14 ${btn}`} style={{ ...btnPrimary, border: `1.5px solid ${BRAND}` }}>{t("lvLeave")}</button>
             </div>
           </div>
         </Sheet>
@@ -7907,7 +7907,7 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
                 onAccount && onAccount("signout");
               }}
               className={`py-3 tsz-14 ${btn}`}
-              style={{ background: "#A3262A", color: CREAM_HARD }}
+              style={btnPrimary}
             >
               {t("acSignOutYes")}
             </button>
