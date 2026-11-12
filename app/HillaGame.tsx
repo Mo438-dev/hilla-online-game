@@ -7187,6 +7187,7 @@ function loadNick() {
   }
 }
 const cleanNick = (v) => v.trim().replace(/\s+/g, " ");
+const USER_STORE = "hulla-username"; // cache of the account's @username (the server profile wins)
 // What the eye sees as one character (🇸🇦 or 👨‍👩‍👧 count as one), with a code-point fallback.
 const graphemeSeg = typeof Intl !== "undefined" && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: "grapheme" }) : null;
 const graphemes = (v) => (graphemeSeg ? [...graphemeSeg.segment(String(v || ""))].map((x) => x.segment) : [...String(v || "")]);
@@ -7510,7 +7511,7 @@ function CodeBoxes({ value, onChange, bad, disabled }) {
 // sign-out. purpose "link" saves this guest account (same uuid, games and points); "signin" goes to
 // an existing account and this phone's guest games stay behind. A username can only be claimed by
 // a saved account; a guest who already has one keeps it, locked. The name stays editable for guests.
-function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, startView = "main", startConflict = "email", startCred = null, profileReady = true, onGoogleFail }) {
+function ProfileSheet({ nick: nickProp, username: usernameProp, onSaveProfile, onClose, onAccount, onProfile, startView = "main", startConflict = "email", startCred = null, profileReady: profileReadyProp = true, onGoogleFail }) {
   const { t, L } = useI18n();
   const [account, setAccount] = useState(null); // null while loading · { signed, method, email }
   const signed = !!account?.signed;
@@ -7521,6 +7522,31 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
       alive = false;
     };
   }, []);
+  // A saved account's name and username come from the server profile, loaded here every time the
+  // sheet sees a saved account (a fresh browser has nothing stored yet). Until it arrives the sheet
+  // shows a loading state, and "needs a username" is only decided from that answer.
+  const [prof, setProf] = useState(null); // null until loaded · { nickname, username } · { failed: true }
+  const accountKey = account ? `${account.signed}:${account.email || ""}` : "";
+  useEffect(() => {
+    if (!signed) return setProf(null);
+    let alive = true;
+    setProf(null);
+    syncNickname("")
+      .then((p) => {
+        if (!alive) return;
+        setProf(p ? { nickname: p.nickname, username: p.username } : { failed: true });
+        if (p) onProfile && onProfile(p);
+      })
+      .catch(() => alive && setProf({ failed: true }));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountKey]);
+  const nick = nickProp || prof?.nickname || "";
+  const username = usernameProp || prof?.username || null;
+  const loadingProfile = account === null || (signed && !prof);
+  const profileReady = signed ? !!prof && !prof.failed : profileReadyProp;
   const [editing, setEditing] = useState(() => profileReady && !nick);
   const [draft, setDraft] = useState(nick || "");
   const [uDraft, setUDraft] = useState(username || "");
@@ -7948,7 +7974,13 @@ function ProfileSheet({ nick, username, onSaveProfile, onClose, onAccount, start
             <span className="absolute flex items-center justify-center rounded-full" style={{ width: 22, height: 22, bottom: -2, insetInlineEnd: -2, background: "#366135", color: "#fff", fontSize: 12, boxShadow: `0 0 0 2.5px ${SURF}` }}>✓</span>
           )}
         </span>
-        {editing ? (
+        {loadingProfile ? (
+          <div className="mt-4 mb-1 flex flex-col items-center gap-2" aria-busy="true">
+            <span className="ac-spin"><span className="block w-5 h-5 rounded-full" style={{ border: `2.5px solid ${A(INK, "22")}`, borderTopColor: GOLD }} /></span>
+            <span className="block w-40 h-3 rounded-full" style={{ background: A(INK, "0d") }} />
+            <span className="block w-24 h-3 rounded-full" style={{ background: A(INK, "0a") }} />
+          </div>
+        ) : editing ? (
           <form
             className="mt-3 hstart"
             onSubmit={async (e) => {
@@ -8489,6 +8521,10 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
           startCred={profileView.cred || null}
           profileReady={profileReady}
           onGoogleFail={googleFailed}
+          onProfile={(p) => {
+            setNick(p.nickname || "");
+            setUsername(p.username || null);
+          }}
           onClose={() => {
             setProfile(false);
             setProfileView({ view: "main", conflict: "email" });
@@ -9091,7 +9127,21 @@ function HillaApp() {
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [nick, setNickState] = useState(loadNick);
-  const [username, setUsername] = useState(null);
+  // The username is cached on this device for a quick first paint; the server profile always wins.
+  const [username, setUsernameState] = useState(() => {
+    try {
+      return window.localStorage.getItem(USER_STORE) || null;
+    } catch {
+      return null;
+    }
+  });
+  const setUsername = (u) => {
+    setUsernameState(u || null);
+    try {
+      if (u) window.localStorage.setItem(USER_STORE, u);
+      else window.localStorage.removeItem(USER_STORE);
+    } catch {}
+  };
   const [profileReady, setProfileReady] = useState(!AUTH_ENABLED); // the server profile has loaded
   const setNick = (n) => {
     setNickState(n);
