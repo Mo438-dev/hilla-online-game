@@ -8310,8 +8310,13 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
   }, [profileReady, username]);
   // Back from Google (?acct=link|signin, or Supabase's error_code in the URL).
   useEffect(() => {
-    if (!AUTH_ENABLED) return;
+    if (!AUTH_ENABLED) {
+      if (/[#&](gid|gerr)=/.test(window.location.hash) || /acct=/.test(window.location.search)) cleanStartupUrl();
+      return;
+    }
     // Installed app, our own button: /api/auth/google sent us back with the ID token in the fragment.
+    // Nothing here may throw into startup: any failure cleans the URL, says so and is logged.
+    try {
     const h = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     if (h.has("gid") || h.has("gerr")) {
       const [gPurpose, gNonce] = String(h.get("gstate") || "").split(".");
@@ -8328,7 +8333,7 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
         if (!/access_denied/.test(gerr)) googleFailed(gerr);
         return;
       }
-      googleIdToken(purpose, token).then((res) => {
+      googleIdToken(purpose, token).catch((e) => ({ error: e?.message || "exception" })).then((res) => {
         if (!res.error) return accountDone(purpose, "google");
         if (purpose === "link" && (res.error === "identity_already_exists" || res.error === "identity_already_linked")) {
           sendAppEvent("account_conflict", null, { payload: { method: "google" } });
@@ -8355,6 +8360,10 @@ function SaduHome({ onOnline, onLocal, onRank, onRules, installed, onInstall, ni
     getAccount().then((a) => {
       if (a.signed) accountDone(back.purpose, "google");
     });
+    } catch (e) {
+      cleanStartupUrl();
+      googleFailed(`return_exception: ${e?.message || e}`);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [settings, setSettings] = useState(false);
@@ -9185,6 +9194,7 @@ function HillaApp() {
         if (p) setUsername(p.username);
         if (p?.games > 0) markPlayed(); // an account with finished games never gets the first-game tip
       })
+      .catch((e) => reportClientError(`startup_profile: ${e?.message || e}`, null, null))
       .finally(() => setProfileReady(true));
   }, []);
 
@@ -9254,6 +9264,45 @@ function HillaApp() {
   return null;
 }
 
+// Startup safety net. Drop anything startup leaves in the address (?acct=, #gid=, Supabase's
+// #access_token / #error=) once it has been handled or has failed, so a reload starts clean.
+function cleanStartupUrl() {
+  try {
+    if (window.location.search || window.location.hash) window.history.replaceState(null, "", window.location.pathname);
+  } catch {}
+}
+// A render error anywhere in the app: log it, clean the URL and draw the app once more (home);
+// if it fails again, a plain reload button instead of a blank or stuck screen.
+class StartupBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { tries: 0, failed: false };
+  }
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error, info) {
+    try {
+      reportClientError(`startup_render: ${error?.message || error}`, (error?.stack || "") + (info?.componentStack || ""), null);
+    } catch {}
+    cleanStartupUrl();
+    this.props.onError && this.props.onError();
+    if (this.state.tries < 1) this.setState((st) => ({ tries: st.tries + 1, failed: false }));
+  }
+  render() {
+    if (this.state.failed) {
+      return (
+        <div dir="rtl" className="hilla-root app-screen w-full flex flex-col items-center justify-center gap-3" style={{ ...pageBg, color: INK }}>
+          <button onClick={() => window.location.reload()} className={`px-5 py-3 tsz-15 ${btn}`} style={btnPrimary}>
+            {"تحديث الصفحة"}
+          </button>
+        </div>
+      );
+    }
+    return <React.Fragment key={this.state.tries}>{this.props.children}</React.Fragment>;
+  }
+}
+
 // Language lives above everything (default Arabic on every load, never remembered).
 export default function HillaGame() {
   const [lang, setLang] = useState("ar");
@@ -9286,10 +9335,41 @@ export default function HillaGame() {
     const tm = setTimeout(() => setSplashGone(true), 320);
     return () => clearTimeout(tm);
   }, [assetsReady]);
+  // The splash can never hang: 8 s after start, or on any error during startup, it goes and home shows.
+  const dropSplash = useCallback((why) => {
+    setAssetsReady((ready) => {
+      if (!ready) {
+        try {
+          reportClientError(`startup_${why}`, null, null);
+        } catch {}
+        cleanStartupUrl();
+      }
+      return true;
+    });
+  }, []);
+  useEffect(() => {
+    const tm = setTimeout(() => dropSplash("timeout"), 8000);
+    // an error thrown anywhere during startup (effects, promises) also lets the app through
+    const onErr = () => dropSplash("error");
+    window.addEventListener("error", onErr);
+    window.addEventListener("unhandledrejection", onErr);
+    const stop = setTimeout(() => {
+      window.removeEventListener("error", onErr);
+      window.removeEventListener("unhandledrejection", onErr);
+    }, 8000);
+    return () => {
+      clearTimeout(tm);
+      clearTimeout(stop);
+      window.removeEventListener("error", onErr);
+      window.removeEventListener("unhandledrejection", onErr);
+    };
+  }, [dropSplash]);
 
   return (
     <I18nContext.Provider value={value}>
-      <HillaApp />
+      <StartupBoundary onError={() => dropSplash("render")}>
+        <HillaApp />
+      </StartupBoundary>
       {!splashGone && (
         <div
           aria-hidden={assetsReady}
