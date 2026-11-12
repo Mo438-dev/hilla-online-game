@@ -2395,6 +2395,9 @@ const GlobalFont = () => (
     .ac-shake { animation: ac-shake .38s ease; }
     @keyframes ac-spin { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(.86); opacity: .55; } 100% { transform: scale(1); opacity: 1; } }
     .ac-spin { display: inline-flex; animation: ac-spin 1s ease-in-out infinite; }
+    @keyframes ac-rotate { to { transform: rotate(360deg); } }
+    .ac-rotate { animation: ac-rotate .8s linear infinite; }
+    @media (prefers-reduced-motion: reduce) { .ac-rotate { animation-duration: 2.4s; } }
     /* first-game tip */
     .hint-in { animation: hint-in .35s ease both; }
     @keyframes hint-in { from { opacity: 0; } }
@@ -7976,7 +7979,7 @@ function ProfileSheet({ nick: nickProp, username: usernameProp, onSaveProfile, o
         </span>
         {loadingProfile ? (
           <div className="mt-4 mb-1 flex flex-col items-center gap-2" aria-busy="true">
-            <span className="ac-spin"><span className="block w-5 h-5 rounded-full" style={{ border: `2.5px solid ${A(INK, "22")}`, borderTopColor: GOLD }} /></span>
+            <span className="ac-spin"><span className="block w-5 h-5 rounded-full ac-rotate" style={{ border: `2.5px solid ${A(INK, "22")}`, borderTopColor: GOLD }} /></span>
             <span className="block w-40 h-3 rounded-full" style={{ background: A(INK, "0d") }} />
             <span className="block w-24 h-3 rounded-full" style={{ background: A(INK, "0a") }} />
           </div>
