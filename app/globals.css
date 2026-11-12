@@ -7,6 +7,7 @@ html,
 body {
   margin: 0;
   min-height: 100%;
+  min-height: 100dvh;
   background-color: var(--h-page);
   background-image: var(--h-page-img);
   background-position: var(--h-page-pos);
@@ -130,13 +131,17 @@ select {
   touch-action: manipulation;
 }
 
+/* Full-screen layers (every sheet backdrop, modal and the splash): pinned to all four edges and at
+   least as tall as the screen, whichever is taller of the measured height (--app-h, which is right
+   in the installed iPhone app) and 100dvh (right in Safari as its bars collapse), so no strip of the
+   page ever shows below. */
 .app-fixed {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: auto;
-  height: var(--app-h);
+  inset: 0;
+  height: auto;
+  min-height: 100vh;
+  min-height: var(--app-h);
+  min-height: max(var(--app-h), 100dvh);
 }
 
 /* Home «كمّل لعبتك» card: slides in, and the green dot pulses while the room is live. */
